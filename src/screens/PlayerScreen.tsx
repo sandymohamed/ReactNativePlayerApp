@@ -8,9 +8,8 @@ import {
   ActivityIndicator,
   BackHandler,
 } from 'react-native';
-import {useNavigation, useRoute} from '@react-navigation/native';
+import {useNavigation, useRoute, StackActions} from '@react-navigation/native';
 import Video from 'react-native-video';
-import LinearGradient from 'react-native-linear-gradient';
 import {colors} from '../theme/colors';
 import {spacing, borderRadius} from '../theme/spacing';
 import {typography} from '../theme/typography';
@@ -180,11 +179,13 @@ const PlayerScreen: React.FC = () => {
     }
     
     // Navigate to next episode
-    navigation.replace('Player', {
-      url: nextUrl,
-      title: nextTitle,
-      type: 'serie',
-    });
+    navigation.dispatch(
+      StackActions.replace('Player', {
+        url: nextUrl,
+        title: nextTitle,
+        type: 'serie',
+      }),
+    );
   };
 
   const handlePreviousEpisode = () => {
@@ -205,11 +206,13 @@ const PlayerScreen: React.FC = () => {
     }
     
     // Navigate to previous episode
-    navigation.replace('Player', {
-      url: prevUrl,
-      title: prevTitle,
-      type: 'serie',
-    });
+    navigation.dispatch(
+      StackActions.replace('Player', {
+        url: prevUrl,
+        title: prevTitle,
+        type: 'serie',
+      }),
+    );
   };
 
   const formatTime = (seconds: number) => {
@@ -256,105 +259,33 @@ const PlayerScreen: React.FC = () => {
         </View>
       )}
 
+      {/* Always-present tap overlay: tap anywhere to show controls */}
+      <TouchableOpacity
+        style={styles.tapArea}
+        activeOpacity={1}
+        onPress={showControlsTemporarily}
+      />
+
       {showControls && (
-        <TouchableOpacity
-          style={styles.controlsOverlay}
-          activeOpacity={1}
-          onPress={showControlsTemporarily}>
-          <LinearGradient
-            colors={['transparent', colors.overlay]}
-            style={styles.controlsGradient}>
-            <View style={styles.topControls}>
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={styles.backButton}>
-                <Text style={styles.controlText}>← Back</Text>
-              </TouchableOpacity>
-              <Text style={styles.title} numberOfLines={1}>
-                {title}
-              </Text>
-            </View>
+        <>
+          {/* Minimal top bar: back + title */}
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <Text style={styles.backText}>←</Text>
+            </TouchableOpacity>
+            <Text style={styles.title} numberOfLines={1}>
+              {title}
+            </Text>
+          </View>
 
-            <View style={styles.centerControls}>
-              <View style={styles.mainControlsRow}>
-                {/* Previous Episode (series only) */}
-                {type === 'serie' && (
-                  <TouchableOpacity
-                    onPress={handlePreviousEpisode}
-                    disabled={!hasPreviousEpisode}
-                    style={[
-                      styles.episodeNavButton,
-                      !hasPreviousEpisode && styles.episodeNavButtonDisabled,
-                    ]}>
-                    <Text style={styles.episodeNavText}>⏮ Prev</Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Skip Backward */}
-                <TouchableOpacity
-                  onPress={handleSkipBackward}
-                  style={styles.skipButton}>
-                  <Text style={styles.skipButtonText}>⏪ -10s</Text>
-                </TouchableOpacity>
-
-                {/* Play/Pause */}
-                <TouchableOpacity
-                  onPress={handlePlayPause}
-                  style={styles.playButton}>
-                  <Text style={styles.playButtonText}>
-                    {paused ? '▶' : '⏸'}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Skip Forward */}
-                <TouchableOpacity
-                  onPress={handleSkipForward}
-                  style={styles.skipButton}>
-                  <Text style={styles.skipButtonText}>+10s ⏩</Text>
-                </TouchableOpacity>
-
-                {/* Next Episode (series only) */}
-                {type === 'serie' && (
-                  <TouchableOpacity
-                    onPress={handleNextEpisode}
-                    disabled={!hasNextEpisode}
-                    style={[
-                      styles.episodeNavButton,
-                      !hasNextEpisode && styles.episodeNavButtonDisabled,
-                    ]}>
-                    <Text style={styles.episodeNavText}>Next ⏭</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Speed Controls */}
-              <View style={styles.speedControls}>
-                <Text style={styles.speedLabel}>Speed:</Text>
-                <View style={styles.speedButtons}>
-                  {speedOptions.map((speed) => (
-                    <TouchableOpacity
-                      key={speed}
-                      onPress={() => handleSpeedChange(speed)}
-                      style={[
-                        styles.speedButton,
-                        playbackRate === speed && styles.speedButtonActive,
-                      ]}>
-                      <Text
-                        style={[
-                          styles.speedButtonText,
-                          playbackRate === speed && styles.speedButtonTextActive,
-                        ]}>
-                        {speed}x
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.bottomControls}>
+          {/* Bottom control bar – compact, smaller buttons */}
+          <View style={styles.bottomBar}>
+            <View style={styles.progressRow}>
               <Text style={styles.timeText}>
-                {formatTime(currentTime)} / {formatTime(duration)}
+                {formatTime(currentTime)}
               </Text>
               <View style={styles.progressBar}>
                 <View
@@ -364,9 +295,74 @@ const PlayerScreen: React.FC = () => {
                   ]}
                 />
               </View>
+              <Text style={styles.timeText}>
+                {formatTime(duration)}
+              </Text>
             </View>
-          </LinearGradient>
-        </TouchableOpacity>
+
+            <View style={styles.mainControlsRow}>
+              {type === 'serie' && (
+                <TouchableOpacity
+                  onPress={handlePreviousEpisode}
+                  disabled={!hasPreviousEpisode}
+                  style={[
+                    styles.iconBtn,
+                    !hasPreviousEpisode && styles.iconBtnDisabled,
+                  ]}>
+                  <Text style={styles.iconBtnText}>⏮</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={handleSkipBackward}
+                style={styles.iconBtn}>
+                <Text style={styles.iconBtnText}>-10</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handlePlayPause}
+                style={styles.playButton}>
+                <Text style={styles.playButtonText}>
+                  {paused ? '▶' : '⏸'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSkipForward}
+                style={styles.iconBtn}>
+                <Text style={styles.iconBtnText}>+10</Text>
+              </TouchableOpacity>
+              {type === 'serie' && (
+                <TouchableOpacity
+                  onPress={handleNextEpisode}
+                  disabled={!hasNextEpisode}
+                  style={[
+                    styles.iconBtn,
+                    !hasNextEpisode && styles.iconBtnDisabled,
+                  ]}>
+                  <Text style={styles.iconBtnText}>⏭</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={styles.speedRow}>
+              {speedOptions.map((speed) => (
+                <TouchableOpacity
+                  key={speed}
+                  onPress={() => handleSpeedChange(speed)}
+                  style={[
+                    styles.speedButton,
+                    playbackRate === speed && styles.speedButtonActive,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.speedButtonText,
+                      playbackRate === speed && styles.speedButtonTextActive,
+                    ]}>
+                    {speed}x
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </>
       )}
     </View>
   );
@@ -391,144 +387,141 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
   },
-  controlsOverlay: {
+  tapArea: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
   },
-  controlsGradient: {
-    flex: 1,
-    justifyContent: 'space-between',
-    padding: spacing.xl,
-  },
-  topControls: {
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.xxl,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   backButton: {
-    padding: spacing.md,
-    marginRight: spacing.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
   },
-  controlText: {
-    ...typography.body,
+  backText: {
+    fontSize: 18,
     color: colors.text,
   },
   title: {
-    ...typography.h3,
+    ...typography.body,
     color: colors.text,
     flex: 1,
-  },
-  centerControls: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mainControlsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  skipButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.playerControl,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  skipButtonText: {
-    ...typography.body,
-    color: colors.text,
     fontSize: 14,
   },
-  playButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playButtonText: {
-    fontSize: 32,
-    color: colors.text,
-  },
-  episodeNavButton: {
+  bottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.playerControl,
-    minWidth: 70,
-    alignItems: 'center',
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
-  episodeNavButtonDisabled: {
-    opacity: 0.3,
-  },
-  episodeNavText: {
-    ...typography.bodySmall,
-    color: colors.text,
-    fontSize: 12,
-  },
-  speedControls: {
-    alignItems: 'center',
-    marginTop: spacing.md,
-  },
-  speedLabel: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  speedButtons: {
+  progressRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  speedButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.backgroundCard,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minWidth: 50,
     alignItems: 'center',
-  },
-  speedButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  speedButtonText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    fontSize: 12,
-  },
-  speedButtonTextActive: {
-    color: colors.text,
-    fontWeight: 'bold',
-  },
-  bottomControls: {
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
   timeText: {
-    ...typography.body,
-    color: colors.text,
-    marginBottom: spacing.sm,
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontSize: 11,
+    minWidth: 36,
     textAlign: 'center',
   },
   progressBar: {
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: borderRadius.sm,
+    flex: 1,
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: colors.primary,
+  },
+  mainControlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconBtnDisabled: {
+    opacity: 0.35,
+  },
+  iconBtnText: {
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  playButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playButtonText: {
+    fontSize: 20,
+    color: colors.text,
+  },
+  speedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  speedButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    minWidth: 42,
+    alignItems: 'center',
+  },
+  speedButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  speedButtonText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontSize: 11,
+  },
+  speedButtonTextActive: {
+    color: colors.text,
+    fontWeight: '600',
   },
 });
 
