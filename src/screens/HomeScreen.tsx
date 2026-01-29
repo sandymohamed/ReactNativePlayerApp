@@ -7,6 +7,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -27,7 +28,9 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const {width} = useWindowDimensions();
   const {changeDeviceInfo, changeProfile} = useGlobalContext();
+  const wide = width >= 800;
   const [mac, setMac] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -146,15 +149,16 @@ const HomeScreen: React.FC = () => {
         colors={colors.gradients.dark}
         style={styles.gradient}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, wide && styles.scrollContentWide]}
           keyboardShouldPersistTaps="handled">
-          <View style={styles.logoContainer}>
-            <Logo size={100} />
-            <Text style={styles.title}>IPTV Player</Text>
-            <Text style={styles.subtitle}>Modern Streaming Experience</Text>
-          </View>
+          <View style={[styles.topSection, wide && styles.topSectionWide]}>
+            <View style={[styles.logoContainer, wide && styles.logoContainerWide]}>
+              <Logo size={wide ? 120 : 100} />
+              <Text style={styles.title}>IPTV Player</Text>
+              <Text style={styles.subtitle}>Modern Streaming Experience</Text>
+            </View>
 
-          <View style={styles.formContainer}>
+            <View style={[styles.formContainer, wide && styles.formContainerWide]}>
             {profileList.length === 0 ? (
               <>
                 <View style={styles.inputContainer}>
@@ -211,6 +215,7 @@ const HomeScreen: React.FC = () => {
                 ))}
               </View>
             )}
+            </View>
           </View>
         </ScrollView>
       </LinearGradient>
@@ -230,9 +235,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: spacing.xl,
   },
+  scrollContentWide: {
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.xl,
+  },
+  topSection: {
+    width: '100%',
+  },
+  topSectionWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xxl,
+    maxWidth: 1000,
+    alignSelf: 'center',
+  },
   logoContainer: {
     alignItems: 'center',
     marginBottom: spacing.xxl,
+  },
+  logoContainerWide: {
+    marginBottom: 0,
   },
   title: {
     ...typography.h1,
@@ -250,6 +273,11 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
+  },
+  formContainerWide: {
+    flex: 1,
+    maxWidth: 420,
+    marginBottom: 0,
   },
   inputContainer: {
     marginBottom: spacing.lg,

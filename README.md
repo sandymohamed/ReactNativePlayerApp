@@ -11,8 +11,8 @@ Modern IPTV player application built with React Native for TV and mobile devices
 - ⭐ **Favorites** - Save your favorite content
 - 📜 **Recent** - View recently watched content
 - 🎨 **Modern UI** - Beautiful, modern interface with gradient themes
-- 📱 **Cross-Platform** - Works on Android, iOS, Android TV, and Apple TV
-- 🎮 **TV Navigation** - Full support for TV remote controls
+- 📱 **Cross-Platform** - Works on Android, iOS, Android TV (Apple TV requires extra setup)
+- 🎮 **TV Navigation** - D-pad/remote support via `useTVEventHandler` on Android TV
 
 ## Tech Stack
 
@@ -50,10 +50,12 @@ cd ..
 
 3. Run the app:
 
-**Android:**
+**Android (phone/tablet):**
 ```bash
 npm run android
 ```
+
+**Android TV (emulator):** Create a TV AVD in Android Studio, start it, then run `npm run android`. For physical Android TV / Fire TV, see [TV_SUPPORT.md](./TV_SUPPORT.md).
 
 **iOS:**
 ```bash
@@ -96,20 +98,17 @@ The app uses a modern gradient theme with:
 - Lazy loading of content
 - Efficient state management with Context API
 
-## Configuration
+## TV support (Samsung, LG, Android TV)
 
-### Android TV
+**Samsung and LG smart TVs (Tizen / webOS)?** This app **does not run** on them. React Native targets Android and iOS only; Tizen and webOS need separate apps.
 
-To enable Android TV support, ensure your `AndroidManifest.xml` includes:
+**Android TV?** Yes. The app is configured for Android TV (leanback, `LEANBACK_LAUNCHER`). You can test on:
+- **Android TV emulator**: Create a TV AVD in Android Studio, start it, then `npm run android`.
+- **Physical Android TV or Fire TV**: Enable Developer options & USB/network debugging, connect via `adb`, then `npm run android`.
 
-```xml
-<uses-feature android:name="android.software.leanback" android:required="false" />
-<uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-```
+**Apple TV?** Not fully set up yet; you’d need to add a tvOS target in Xcode.
 
-### iOS / Apple TV
-
-For Apple TV support, configure your project settings in Xcode.
+See **[TV_SUPPORT.md](./TV_SUPPORT.md)** for details (which TVs work, how to run on emulator vs physical TV, ADB, etc.).
 
 ## Development
 

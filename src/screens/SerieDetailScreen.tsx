@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import {View, StyleSheet, Text, ScrollView, FlatList} from 'react-native';
+import {View, StyleSheet, Text, ScrollView, FlatList, useWindowDimensions, BackHandler} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
@@ -16,14 +16,25 @@ import {SerieInfo, Season} from '../models/model';
 const SerieDetailScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'SerieDetail'>>();
   const route = useRoute();
+  const {width} = useWindowDimensions();
   const {serie: routeSerie} = route.params as any;
   const {profile, changeSerie} = useGlobalContext();
   const [serie, setSerie] = useState<SerieInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const wide = width >= 800;
+  const seasonCardWidth = wide ? 260 : 200;
 
   useEffect(() => {
     loadSerieDetails();
   }, [profile, routeSerie]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      navigation.goBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [navigation]);
 
   const loadSerieDetails = async () => {
     if (!profile || !routeSerie) return;
@@ -72,7 +83,7 @@ const SerieDetailScreen: React.FC = () => {
       <LinearGradient
         colors={colors.gradients.dark}
         style={styles.background}>
-        <View style={styles.content}>
+        <View style={[styles.content, wide && styles.contentWide]}>
           <Text style={styles.title}>
             {serieInfo.name || routeSerie.name || 'Series'}
           </Text>
@@ -122,7 +133,7 @@ const SerieDetailScreen: React.FC = () => {
                       subtitle={`${item.episodeCount} episodes`}
                       image={item.cover}
                       onPress={() => handleSeasonPress({season_number: parseInt(item.seasonNum), id: item.seasonNum} as any)}
-                      style={styles.seasonCard}
+                      style={[styles.seasonCard, {width: seasonCardWidth}]}
                     />
                   )}
                   keyExtractor={(item) => item.seasonNum}
@@ -156,6 +167,12 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.xl,
   },
+  contentWide: {
+    paddingHorizontal: spacing.xxl,
+    maxWidth: 1200,
+    alignSelf: 'center',
+    width: '100%',
+  },
   title: {
     ...typography.h1,
     color: colors.text,
@@ -184,7 +201,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   seasonCard: {
-    width: 200,
     marginRight: spacing.md,
   },
 });

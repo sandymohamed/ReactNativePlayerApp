@@ -5,7 +5,8 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
+  BackHandler,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -14,21 +15,24 @@ import {useGlobalContext} from '../context/GlobalContext';
 import {generateurl} from '../utils/constants';
 import {fetchJson} from '../utils/api';
 import {colors} from '../theme/colors';
-import {spacing, borderRadius} from '../theme/spacing';
+import {spacing} from '../theme/spacing';
 import {typography} from '../theme/typography';
 import Card from '../components/Card';
 import {RootStackParamList} from '../navigation/AppNavigator';
 import {useTVEventHandler} from '../hooks/useTVEventHandler';
+import {getMainGridNumColumns, getMainCardWidth} from '../utils/layout';
 
 type MainScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'Main'
 >;
 
-const {width} = Dimensions.get('window');
-
 const MainScreen: React.FC = () => {
   const navigation = useNavigation<MainScreenNavigationProp>();
+  const {width} = useWindowDimensions();
+  const numColumns = getMainGridNumColumns(width);
+  const cardWidth = getMainCardWidth(width, numColumns);
+
   const {
     profile,
     changeCatLive,
@@ -88,13 +92,18 @@ const MainScreen: React.FC = () => {
   ];
 
   useTVEventHandler({
-    onSelect: () => {
-      handleCardPress(focusedIndex);
-    },
+    onBack: () => navigation.goBack(),
+    onSelect: () => handleCardPress(focusedIndex),
     onUp: () => {
-      setFocusedIndex(prev => Math.max(0, prev - 1));
+      setFocusedIndex(prev => Math.max(0, prev - numColumns));
     },
     onDown: () => {
+      setFocusedIndex(prev => Math.min(cards.length - 1, prev + numColumns));
+    },
+    onLeft: () => {
+      setFocusedIndex(prev => Math.max(0, prev - 1));
+    },
+    onRight: () => {
       setFocusedIndex(prev => Math.min(cards.length - 1, prev + 1));
     },
   });
@@ -104,6 +113,14 @@ const MainScreen: React.FC = () => {
       loadData();
     }
   }, [profile]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      navigation.goBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [navigation]);
 
   const loadData = async () => {
     if (!profile) return;
@@ -144,14 +161,11 @@ const MainScreen: React.FC = () => {
             </Text>
           </View>
 
-          <View style={styles.grid}>
+          <View style={[styles.grid, {gap: spacing.md}]}>
             {cards.map((card, index) => (
               <View
                 key={card.id}
-                style={[
-                  styles.cardWrapper,
-                  {width: (width - spacing.xl * 3) / 2},
-                ]}>
+                style={[styles.cardWrapper, {width: cardWidth}]}>
                 <Card
                   title={card.title}
                   subtitle={card.subtitle}
@@ -177,10 +191,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing.xl,
-    paddingTop: spacing.xxl,
+    paddingTop: spacing.lg,
   },
   header: {
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.xl,
   },
   headerTitle: {
     ...typography.h1,
@@ -194,11 +208,9 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
-  cardWrapper: {
-    marginBottom: spacing.lg,
-  },
+  cardWrapper: {},
 });
 
 export default MainScreen;

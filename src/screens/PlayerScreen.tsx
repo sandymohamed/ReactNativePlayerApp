@@ -28,11 +28,14 @@ const PlayerScreen: React.FC = () => {
   const [paused, setPaused] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [buffering, setBuffering] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const videoRef = useRef<any>(null);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const isLive = type === 'live';
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
@@ -234,28 +237,104 @@ const PlayerScreen: React.FC = () => {
         paused={paused}
         rate={playbackRate}
         resizeMode="contain"
-        onLoad={() => setLoading(false)}
+        live={isLive}
+        // HLS configuration for live streams
+        hlsConfig={{
+          enableWorker: false,
+          lowLatencyMode: isLive,
+          backBufferLength: isLive ? 1 : 90,
+          maxBufferLength: isLive ? 10 : 30,
+          maxMaxBufferLength: isLive ? 20 : 60,
+          maxBufferSize: isLive ? 10 * 1000 * 1000 : 60 * 1000 * 1000,
+          maxBufferHole: 0.5,
+          highBufferWatchdogPeriod: 2,
+          nudgeOffset: 0.1,
+          nudgeMaxRetry: 3,
+          maxFragLoadingTimeOut: 20000,
+          maxLoadingDelay: 4,
+          minAutoBitrate: 0,
+          maxStarvationDelay: 4,
+        }}
+        // Android-specific configuration
+        bufferConfig={{
+          minBufferMs: isLive ? 1000 : 15000,
+          maxBufferMs: isLive ? 10000 : 50000,
+          bufferForPlaybackMs: isLive ? 1000 : 2500,
+          bufferForPlaybackAfterRebufferMs: isLive ? 1000 : 5000,
+        }}
+        onLoad={() => {
+          setLoading(false);
+          setError(null);
+        }}
+        onLoadStart={() => {
+          setLoading(true);
+          setBuffering(true);
+        }}
+        onBuffer={({isBuffering}: {isBuffering: boolean}) => {
+          setBuffering(isBuffering);
+          if (!isBuffering) {
+            setLoading(false);
+          }
+        }}
+        onError={(error: any) => {
+          console.error('Video player error:', error);
+          setLoading(false);
+          setBuffering(false);
+          setError(error?.error?.localizedDescription || error?.error?.code || 'Failed to load video');
+        }}
         onProgress={(data: {currentTime: number; seekableDuration?: number}) => {
           setCurrentTime(data.currentTime);
-          if (data.seekableDuration != null && data.seekableDuration > 0) {
+          if (data.seekableDuration != null && data.seekableDuration > 0 && !isLive) {
             setDuration(data.seekableDuration);
           }
         }}
         onEnd={() => {
-          setPaused(true);
-          setShowControls(true);
-          // Auto-play next episode if available
-          if (hasNextEpisode) {
-            setTimeout(() => {
-              handleNextEpisode();
-            }, 2000);
+          if (!isLive) {
+            setPaused(true);
+            setShowControls(true);
+            // Auto-play next episode if available
+            if (hasNextEpisode) {
+              setTimeout(() => {
+                handleNextEpisode();
+              }, 2000);
+            }
           }
         }}
+        // Ignore seek for live streams
+        seek={isLive ? undefined : undefined}
+        // Disable controls for live streams that don't support seeking
+        controls={!isLive}
+        // Play immediately for live streams
+        playInBackground={false}
+        playWhenInactive={false}
+        ignoreSilentSwitch="ignore"
+        pictureInPicture={false}
       />
 
-      {loading && (
+      {(loading || buffering) && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
+          {buffering && (
+            <Text style={styles.loadingText}>Buffering...</Text>
+          )}
+        </View>
+      )}
+      
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Error: {error}</Text>
+          <TouchableOpacity
+            onPress={() => {
+              setError(null);
+              setLoading(true);
+              // Force reload by updating the key
+              if (videoRef.current) {
+                videoRef.current.seek(0);
+              }
+            }}
+            style={styles.retryButton}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -283,22 +362,32 @@ const PlayerScreen: React.FC = () => {
 
           {/* Bottom control bar – compact, smaller buttons */}
           <View style={styles.bottomBar}>
-            <View style={styles.progressRow}>
-              <Text style={styles.timeText}>
-                {formatTime(currentTime)}
-              </Text>
-              <View style={styles.progressBar}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`},
-                  ]}
-                />
+            {!isLive && (
+              <View style={styles.progressRow}>
+                <Text style={styles.timeText}>
+                  {formatTime(currentTime)}
+                </Text>
+                <View style={styles.progressBar}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`},
+                    ]}
+                  />
+                </View>
+                <Text style={styles.timeText}>
+                  {formatTime(duration)}
+                </Text>
               </View>
-              <Text style={styles.timeText}>
-                {formatTime(duration)}
-              </Text>
-            </View>
+            )}
+            {isLive && (
+              <View style={styles.progressRow}>
+                <Text style={styles.liveBadge}>● LIVE</Text>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, {width: '100%'}]} />
+                </View>
+              </View>
+            )}
 
             <View style={styles.mainControlsRow}>
               {type === 'serie' && (
@@ -312,11 +401,13 @@ const PlayerScreen: React.FC = () => {
                   <Text style={styles.iconBtnText}>⏮</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                onPress={handleSkipBackward}
-                style={styles.iconBtn}>
-                <Text style={styles.iconBtnText}>-10</Text>
-              </TouchableOpacity>
+              {!isLive && (
+                <TouchableOpacity
+                  onPress={handleSkipBackward}
+                  style={styles.iconBtn}>
+                  <Text style={styles.iconBtnText}>-10</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 onPress={handlePlayPause}
                 style={styles.playButton}>
@@ -324,11 +415,13 @@ const PlayerScreen: React.FC = () => {
                   {paused ? '▶' : '⏸'}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSkipForward}
-                style={styles.iconBtn}>
-                <Text style={styles.iconBtnText}>+10</Text>
-              </TouchableOpacity>
+              {!isLive && (
+                <TouchableOpacity
+                  onPress={handleSkipForward}
+                  style={styles.iconBtn}>
+                  <Text style={styles.iconBtnText}>+10</Text>
+                </TouchableOpacity>
+              )}
               {type === 'serie' && (
                 <TouchableOpacity
                   onPress={handleNextEpisode}
@@ -342,25 +435,27 @@ const PlayerScreen: React.FC = () => {
               )}
             </View>
 
-            <View style={styles.speedRow}>
-              {speedOptions.map((speed) => (
-                <TouchableOpacity
-                  key={speed}
-                  onPress={() => handleSpeedChange(speed)}
-                  style={[
-                    styles.speedButton,
-                    playbackRate === speed && styles.speedButtonActive,
-                  ]}>
-                  <Text
+            {!isLive && (
+              <View style={styles.speedRow}>
+                {speedOptions.map((speed) => (
+                  <TouchableOpacity
+                    key={speed}
+                    onPress={() => handleSpeedChange(speed)}
                     style={[
-                      styles.speedButtonText,
-                      playbackRate === speed && styles.speedButtonTextActive,
+                      styles.speedButton,
+                      playbackRate === speed && styles.speedButtonActive,
                     ]}>
-                    {speed}x
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    <Text
+                      style={[
+                        styles.speedButtonText,
+                        playbackRate === speed && styles.speedButtonTextActive,
+                      ]}>
+                      {speed}x
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         </>
       )}
@@ -522,6 +617,47 @@ const styles = StyleSheet.create({
   speedButtonTextActive: {
     color: colors.text,
     fontWeight: '600',
+  },
+  loadingText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+  },
+  errorContainer: {
+    position: 'absolute',
+    top: '50%',
+    left: spacing.md,
+    right: spacing.md,
+    transform: [{translateY: -50}],
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
+    marginTop: spacing.sm,
+  },
+  retryButtonText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  liveBadge: {
+    ...typography.bodySmall,
+    color: colors.error,
+    fontWeight: '700',
+    fontSize: 12,
+    minWidth: 60,
   },
 });
 

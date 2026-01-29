@@ -38,6 +38,8 @@ export const useTVEventHandler = (handlers: TVEventHandlers) => {
         handlers.onRight();
       } else if (evt && evt.eventType === 'menu' && handlers.onMenu) {
         handlers.onMenu();
+      } else if (evt && evt.eventType === 'back' && handlers.onBack) {
+        handlers.onBack();
       }
     });
 
