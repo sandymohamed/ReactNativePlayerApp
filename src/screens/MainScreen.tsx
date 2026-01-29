@@ -12,8 +12,9 @@ import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 import {useGlobalContext} from '../context/GlobalContext';
-import {generateurl} from '../utils/constants';
-import {fetchJson} from '../utils/api';
+import {generateurl, selectall, selectrecentAll} from '../utils/constants';
+import {fetchJson, normalizeCategories, normalizeStreams} from '../utils/api';
+import type {Stream} from '../models/model';
 import {colors} from '../theme/colors';
 import {spacing} from '../theme/spacing';
 import {typography} from '../theme/typography';
@@ -41,6 +42,12 @@ const MainScreen: React.FC = () => {
     changeListVod,
     changeCatSerie,
     changeListSerie,
+    changeListLiveFav,
+    changeListVodFav,
+    changeListSerieFav,
+    changeListLiveRecent,
+    changeListVodRecent,
+    changeListSerieRecent,
   } = useGlobalContext();
 
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -122,23 +129,71 @@ const MainScreen: React.FC = () => {
     return () => sub.remove();
   }, [navigation]);
 
+  const prependAllFavRecent = (arr: {category_id?: string; category_name?: string}[]) => [
+    {category_id: '0', category_name: 'all', parent_id: 0},
+    {category_id: '-1', category_name: 'favorite', parent_id: 0},
+    {category_id: '-2', category_name: 'recent', parent_id: 0},
+    ...arr,
+  ];
+
   const loadData = async () => {
     if (!profile) return;
 
+    const mapStream = (s: any) => ({
+      ...s,
+      stream_id: String(s?.stream_id ?? s?.num ?? ''),
+    });
+
     try {
-      const liveUrl = generateurl('get_live_categories', profile);
-      const liveData = await fetchJson<{categories?: unknown[]}>(liveUrl);
-      if (liveData.categories) changeCatLive(liveData.categories);
+      const [liveRaw, vodRaw, serieRaw] = await Promise.all([
+        fetchJson<unknown>(generateurl('get_live_categories', profile)),
+        fetchJson<unknown>(generateurl('get_vod_categories', profile)),
+        fetchJson<unknown>(generateurl('get_series_categories', profile)),
+      ]);
+      changeCatLive(prependAllFavRecent(normalizeCategories(liveRaw)));
+      changeCatVod(prependAllFavRecent(normalizeCategories(vodRaw)));
+      changeCatSerie(prependAllFavRecent(normalizeCategories(serieRaw)));
+    } catch (e) {
+      console.error('Error loading categories:', e);
+    }
 
-      const vodUrl = generateurl('get_vod_categories', profile);
-      const vodData = await fetchJson<{categories?: unknown[]}>(vodUrl);
-      if (vodData.categories) changeCatVod(vodData.categories);
+    const liveUrl = generateurl('get_live_streams', profile);
+    const vodUrl = generateurl('get_vod_streams', profile);
+    const seriesUrl = generateurl('get_series', profile);
+    const [liveRes, vodRes, seriesRes] = await Promise.allSettled([
+      fetchJson<unknown>(liveUrl),
+      fetchJson<unknown>(vodUrl),
+      fetchJson<unknown>(seriesUrl),
+    ]);
+    if (liveRes.status === 'fulfilled') {
+      changeListLive(normalizeStreams(liveRes.value).map(mapStream) as Stream[]);
+    } else console.error('Live streams:', liveRes.reason);
+    if (vodRes.status === 'fulfilled') {
+      changeListVod(normalizeStreams(vodRes.value).map(mapStream) as Stream[]);
+    } else console.error('VOD streams:', vodRes.reason);
+    if (seriesRes.status === 'fulfilled') {
+      changeListSerie(normalizeStreams(seriesRes.value).map(mapStream) as Stream[]);
+    } else console.error('Series:', seriesRes.reason);
 
-      const serieUrl = generateurl('get_series_categories', profile);
-      const serieData = await fetchJson<{categories?: unknown[]}>(serieUrl);
-      if (serieData.categories) changeCatSerie(serieData.categories);
-    } catch (error) {
-      console.error('Error loading data:', error);
+    try {
+      const [favLive, favVod, favSerie] = await Promise.all([
+        selectall('live', profile),
+        selectall('movie', profile),
+        selectall('serie', profile),
+      ]);
+      changeListLiveFav(Array.isArray(favLive) ? favLive.map((i: any) => String(i?.streamid ?? i)) : []);
+      changeListVodFav(Array.isArray(favVod) ? favVod.map((i: any) => String(i?.streamid ?? i)) : []);
+      changeListSerieFav(Array.isArray(favSerie) ? favSerie.map((i: any) => String(i?.streamid ?? i)) : []);
+
+      const recent = await selectrecentAll(profile);
+      if (recent && typeof recent === 'object' && !Array.isArray(recent)) {
+        const r = recent as {live?: {streamid?: string}[]; movie?: {streamid?: string}[]; serie?: {streamid?: string}[]};
+        changeListLiveRecent(Array.isArray(r.live) ? r.live.map((i: any) => String(i?.streamid ?? i)) : []);
+        changeListVodRecent(Array.isArray(r.movie) ? r.movie.map((i: any) => String(i?.streamid ?? i)) : []);
+        changeListSerieRecent(Array.isArray(r.serie) ? r.serie.map((i: any) => String(i?.streamid ?? i)) : []);
+      }
+    } catch (e) {
+      console.error('Error loading fav/recent:', e);
     }
   };
 

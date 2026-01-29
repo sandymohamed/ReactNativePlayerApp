@@ -40,12 +40,10 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
   const internalListRef = useRef<FlatList>(null);
   const listRef = externalListRef ?? internalListRef;
 
-  const items: CategoryItem[] = [
-    {category_id: '', category_name: 'All'},
-    ...categories,
-  ];
+  const items: CategoryItem[] = categories;
 
   useEffect(() => {
+    if (items.length === 0) return;
     if (focusedIndex >= 0 && focusedIndex < items.length) {
       listRef.current?.scrollToIndex({
         index: focusedIndex,
@@ -55,7 +53,7 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
     }
   }, [focusedIndex, items.length]);
 
-  const safeFocusIndex = Math.min(Math.max(0, focusedIndex), items.length - 1);
+  const safeFocusIndex = items.length === 0 ? 0 : Math.min(Math.max(0, focusedIndex), items.length - 1);
 
   const renderItem = ({item, index}: ListRenderItemInfo<CategoryItem>) => {
     const isSelected = selectedId === item.category_id;
@@ -93,7 +91,7 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
         ref={listRef}
         data={items}
         renderItem={renderItem}
-        keyExtractor={item => item.category_id || '__all__'}
+        keyExtractor={item => String(item.category_id)}
         extraData={{selectedId, focusedIndex: safeFocusIndex}}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={true}

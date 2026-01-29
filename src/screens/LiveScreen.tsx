@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect, useRef, useMemo} from 'react';
 import {
   View,
   StyleSheet,
@@ -7,48 +7,67 @@ import {
   TouchableOpacity,
   BackHandler,
 } from 'react-native';
-import {useNavigation, useRoute} from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 import {RootStackParamList} from '../navigation/AppNavigator';
 import {useGlobalContext} from '../context/GlobalContext';
-import {generateurl, generateurlplayer} from '../utils/constants';
+import {generateurlplayer} from '../utils/constants';
 import {colors} from '../theme/colors';
 import {spacing, borderRadius} from '../theme/spacing';
 import {typography} from '../theme/typography';
 import {Stream} from '../models/model';
 import FastImage from 'react-native-fast-image';
 import {useTVEventHandler} from '../hooks/useTVEventHandler';
-
+import CategorySidebar, {type CategoryItem} from '../components/CategorySidebar';
 
 const ROW_HEIGHT = 56;
 const LOGO_SIZE = 36;
 
 const LiveScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Live'>>();
-  const route = useRoute();
-  const {profile, listLive, changeListLive, listLiveFav} = useGlobalContext();
-  const [focusedIndex, setFocusedIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const {profile, listLive, listLiveFav, listLiveRecent, catLive} = useGlobalContext();
+  const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
+  const [listFocusIndex, setListFocusIndex] = useState(0);
+  const [focusZone, setFocusZone] = useState<'sidebar' | 'list'>('sidebar');
   const listRef = useRef<FlatList>(null);
 
-  useEffect(() => {
-    loadLiveChannels();
-  }, [profile, route.params]);
+  const categories: CategoryItem[] = useMemo(() => {
+    const raw = (catLive || []) as {category_id?: string; category_name?: string}[];
+    return raw.map(c => ({
+      category_id: String(c.category_id ?? ''),
+      category_name: String(c.category_name ?? ''),
+    }));
+  }, [catLive]);
+
+  const items = categories;
+  const selectedCategoryId = items[Math.min(sidebarFocusIndex, Math.max(0, items.length - 1))]?.category_id ?? '0';
+
+  const filteredList = useMemo(() => {
+    if (!listLive.length) return [];
+    if (selectedCategoryId === '0' || selectedCategoryId === '') return listLive;
+    if (selectedCategoryId === '-1') {
+      return listLive.filter(c => (listLiveFav || []).includes(String(c.stream_id)));
+    }
+    if (selectedCategoryId === '-2') {
+      return listLive.filter(c => (listLiveRecent || []).includes(String(c.stream_id)));
+    }
+    return listLive.filter(c => String(c.category_id) === selectedCategoryId);
+  }, [listLive, listLiveFav, listLiveRecent, selectedCategoryId]);
 
   useEffect(() => {
-    setFocusedIndex(0);
-  }, [listLive.length]);
+    setListFocusIndex(0);
+  }, [filteredList.length, selectedCategoryId]);
 
   useEffect(() => {
-    if (listLive.length > 0 && focusedIndex >= 0 && focusedIndex < listLive.length) {
+    if (filteredList.length > 0 && listFocusIndex >= 0 && listFocusIndex < filteredList.length) {
       listRef.current?.scrollToIndex({
-        index: focusedIndex,
+        index: listFocusIndex,
         animated: true,
         viewPosition: 0.5,
       });
     }
-  }, [focusedIndex, listLive.length]);
+  }, [listFocusIndex, filteredList.length]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -59,108 +78,69 @@ const LiveScreen: React.FC = () => {
   }, [navigation]);
 
   useTVEventHandler({
+    onBack: () => navigation.goBack(),
     onUp: () => {
-      if (listLive.length === 0) return;
-      setFocusedIndex(i => Math.max(0, i - 1));
+      if (focusZone === 'sidebar') {
+        setSidebarFocusIndex(i => Math.max(0, i - 1));
+      } else {
+        setListFocusIndex(i => Math.max(0, i - 1));
+      }
     },
     onDown: () => {
-      if (listLive.length === 0) return;
-      setFocusedIndex(i => Math.min(listLive.length - 1, i + 1));
+      if (focusZone === 'sidebar') {
+        setSidebarFocusIndex(i => Math.min(items.length - 1, i + 1));
+      } else {
+        setListFocusIndex(i => Math.min(filteredList.length - 1, i + 1));
+      }
+    },
+    onLeft: () => {
+      if (focusZone === 'list') {
+        setFocusZone('sidebar');
+        return;
+      }
+      navigation.goBack();
+    },
+    onRight: () => {
+      if (focusZone === 'sidebar' && filteredList.length > 0) {
+        setFocusZone('list');
+        setListFocusIndex(0);
+      }
     },
     onSelect: () => {
-      if (listLive.length > 0 && listLive[focusedIndex]) {
-        handleChannelPress(listLive[focusedIndex]);
+      if (focusZone === 'list' && filteredList[listFocusIndex]) {
+        handleChannelPress(filteredList[listFocusIndex]);
       }
     },
-    onBack: () => navigation.goBack(),
   });
 
-  const loadLiveChannels = async () => {
-    if (!profile) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const categoryId = (route.params as any)?.categoryId;
-      const action = categoryId
-        ? `get_live_streams&category_id=${categoryId}`
-        : 'get_live_streams';
-      const url = generateurl(action, profile);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      try {
-        var res = await fetch(url, {signal: controller.signal});
-      } finally {
-        clearTimeout(timeoutId);
-      }
-      const text = await res.text();
-      const t = (text && text.trim()) || '';
-      if (!t) {
-        changeListLive([]);
-        setLoading(false);
-        return;
-      }
-      const first = t.charAt(0);
-      if (first !== '[' && first !== '{') {
-        console.warn('Live API unexpected response:', t.slice(0, 80));
-        changeListLive([]);
-        setLoading(false);
-        return;
-      }
-      let data: {streams?: Stream[]} | Stream[];
-      try {
-        data = JSON.parse(text) as {streams?: Stream[]} | Stream[];
-      } catch {
-        console.warn('Live API invalid JSON:', text.slice(0, 80));
-        changeListLive([]);
-        setLoading(false);
-        return;
-      }
-      const raw = Array.isArray(data) ? data : (data as {streams?: Stream[]})?.streams;
-      if (raw?.length) {
-        const list = raw.map((s: any) => ({
-          ...s,
-          stream_id: String(s.stream_id ?? s.num ?? ''),
-        })) as Stream[];
-        changeListLive(list);
-      } else {
-        changeListLive([]);
-      }
-    } catch (error) {
-      console.error('Error loading live channels:', error);
-      changeListLive([]);
-    } finally {
-      setLoading(false);
-    }
+  const handleCategorySelect = (categoryId: string) => {
+    const idx = items.findIndex(it => it.category_id === categoryId);
+    if (idx >= 0) setSidebarFocusIndex(idx);
   };
 
   const handleChannelPress = (channel: Stream) => {
     if (!profile) return;
-
     const url = generateurlplayer('live', channel.stream_id, 'm3u8', profile);
-
     navigation.navigate('Player', {
       url,
       title: channel.name,
       type: 'live',
+      streamId: String(channel.stream_id),
     });
   };
 
   const renderChannelRow = ({item, index}: {item: Stream; index: number}) => {
-    const isFocused = focusedIndex === index;
+    const isFocused = focusZone === 'list' && listFocusIndex === index;
     const isFav = Array.isArray(listLiveFav) && listLiveFav.includes(String(item.stream_id));
 
     return (
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={() => {
-          setFocusedIndex(index);
+          setListFocusIndex(index);
           handleChannelPress(item);
         }}
-        onLongPress={() => setFocusedIndex(index)}
+        onLongPress={() => setListFocusIndex(index)}
         style={[styles.row, isFocused && styles.rowFocused]}>
         {isFocused && <View style={styles.rowAccent} />}
         <View style={styles.rowContent}>
@@ -195,10 +175,10 @@ const LiveScreen: React.FC = () => {
     index,
   });
 
-  if (loading) {
+  if (!profile) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading channels...</Text>
+        <Text style={styles.loadingText}>No profile.</Text>
       </View>
     );
   }
@@ -211,26 +191,39 @@ const LiveScreen: React.FC = () => {
         <View style={styles.header}>
           <Text style={styles.title}>Live TV</Text>
           <Text style={styles.subtitle}>
-            {listLive.length} channel{listLive.length !== 1 ? 's' : ''}
+            {filteredList.length} channel{filteredList.length !== 1 ? 's' : ''}
           </Text>
         </View>
-        <FlatList
-          ref={listRef}
-          data={listLive}
-          renderItem={renderChannelRow}
-          keyExtractor={item => String(item.stream_id)}
-          getItemLayout={getItemLayout}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={true}
-          onScrollToIndexFailed={({index}) => {
-            setTimeout(() => {
-              listRef.current?.scrollToOffset({
-                offset: index * (ROW_HEIGHT + 2),
-                animated: true,
-              });
-            }, 100);
-          }}
-        />
+        <View style={styles.body}>
+          <CategorySidebar
+            title="Categories"
+            categories={items}
+            selectedId={selectedCategoryId}
+            onSelect={handleCategorySelect}
+            focusedIndex={sidebarFocusIndex}
+            onFocusChange={setSidebarFocusIndex}
+            focusInSidebar={focusZone === 'sidebar'}
+          />
+          <View style={styles.content}>
+            <FlatList
+              ref={listRef}
+              data={filteredList}
+              renderItem={renderChannelRow}
+              keyExtractor={item => String(item.stream_id)}
+              getItemLayout={getItemLayout}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={true}
+              onScrollToIndexFailed={({index}) => {
+                setTimeout(() => {
+                  listRef.current?.scrollToOffset({
+                    offset: index * (ROW_HEIGHT + 2),
+                    animated: true,
+                  });
+                }, 100);
+              }}
+            />
+          </View>
+        </View>
       </LinearGradient>
     </View>
   );
@@ -269,8 +262,16 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
   },
-  list: {
+  body: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  content: {
+    flex: 1,
     paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxl,
+  },
+  list: {
     paddingBottom: spacing.xxl,
   },
   row: {

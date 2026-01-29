@@ -15,7 +15,7 @@ import {spacing, borderRadius} from '../theme/spacing';
 import {typography} from '../theme/typography';
 import {useTVEventHandler} from '../hooks/useTVEventHandler';
 import {useGlobalContext} from '../context/GlobalContext';
-import {generateurlplayer} from '../utils/constants';
+import {generateurlplayer, insertDatarecent} from '../utils/constants';
 import {Episode} from '../models/model';
 
 const {width, height} = Dimensions.get('window');
@@ -23,8 +23,8 @@ const {width, height} = Dimensions.get('window');
 const PlayerScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const {url, title, type} = route.params as any;
-  const {profile, serie, changeSerie} = useGlobalContext();
+  const {url, title, type, streamId} = route.params as any;
+  const {profile, serie, changeSerie, changeListLiveRecent, changeListVodRecent, changeListSerieRecent, listLiveRecent, listVodRecent, listSerieRecent} = useGlobalContext();
   const [paused, setPaused] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -48,6 +48,17 @@ const PlayerScreen: React.FC = () => {
 
     return () => backHandler.remove();
   }, [navigation]);
+
+  const recentRecorded = useRef(false);
+  useEffect(() => {
+    if (!profile || !streamId || !type || recentRecorded.current) return;
+    recentRecorded.current = true;
+    insertDatarecent(streamId, type, profile);
+    const add = (arr: string[]) => Array.from(new Set([...arr, streamId]));
+    if (type === 'live') changeListLiveRecent(add(listLiveRecent || []));
+    else if (type === 'movie') changeListVodRecent(add(listVodRecent || []));
+    else if (type === 'serie') changeListSerieRecent(add(listSerieRecent || []));
+  }, [profile, streamId, type]);
 
   useTVEventHandler({
     onPlayPause: () => {
@@ -187,6 +198,7 @@ const PlayerScreen: React.FC = () => {
         url: nextUrl,
         title: nextTitle,
         type: 'serie',
+        streamId: String(streamId),
       }),
     );
   };
@@ -214,6 +226,7 @@ const PlayerScreen: React.FC = () => {
         url: prevUrl,
         title: prevTitle,
         type: 'serie',
+        streamId: String(streamId),
       }),
     );
   };

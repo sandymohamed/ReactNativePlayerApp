@@ -5,16 +5,13 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   BackHandler,
 } from 'react-native';
-import {useNavigation, useRoute} from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 import {RootStackParamList} from '../navigation/AppNavigator';
 import {useGlobalContext} from '../context/GlobalContext';
-import {generateurl} from '../utils/constants';
-import {fetchJson} from '../utils/api';
 import {colors} from '../theme/colors';
 import {spacing} from '../theme/spacing';
 import {typography} from '../theme/typography';
@@ -26,21 +23,18 @@ import {useTVEventHandler} from '../hooks/useTVEventHandler';
 
 const SeriesScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Series'>>();
-  const route = useRoute();
   const {
     profile,
     listSerie,
-    changeListSerie,
+    listSerieFav,
+    listSerieRecent,
     catSerie,
-    changeCatSerie,
   } = useGlobalContext();
   const layout = useLandscapeLayout();
 
   const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
   const [gridFocusIndex, setGridFocusIndex] = useState(0);
   const [focusZone, setFocusZone] = useState<'sidebar' | 'grid'>('sidebar');
-  const [loading, setLoading] = useState(true);
-  const [loadingCategories, setLoadingCategories] = useState(true);
   const gridRef = useRef<FlatList>(null);
 
   const categories: CategoryItem[] = useMemo(() => {
@@ -51,37 +45,34 @@ const SeriesScreen: React.FC = () => {
     }));
   }, [catSerie]);
 
-  const items = useMemo(
-    () => [
-      {category_id: '', category_name: 'All'},
-      ...categories,
-    ],
-    [categories],
-  );
-  const selectedCategoryId = items[sidebarFocusIndex]?.category_id ?? '';
+  const items = categories;
+  const selectedCategoryId = items[Math.min(sidebarFocusIndex, Math.max(0, items.length - 1))]?.category_id ?? '0';
 
-  useEffect(() => {
-    if (profile) loadCategories();
-  }, [profile]);
-
-  useEffect(() => {
-    if (!profile) return;
-    loadSeries(selectedCategoryId);
-  }, [profile, selectedCategoryId]);
+  const filteredList = useMemo(() => {
+    if (!listSerie.length) return [];
+    if (selectedCategoryId === '0' || selectedCategoryId === '') return listSerie;
+    if (selectedCategoryId === '-1') {
+      return listSerie.filter(s => (listSerieFav || []).includes(String(s.stream_id)));
+    }
+    if (selectedCategoryId === '-2') {
+      return listSerie.filter(s => (listSerieRecent || []).includes(String(s.stream_id)));
+    }
+    return listSerie.filter(s => String(s.category_id) === selectedCategoryId);
+  }, [listSerie, listSerieFav, listSerieRecent, selectedCategoryId]);
 
   useEffect(() => {
     setGridFocusIndex(0);
-  }, [listSerie.length]);
+  }, [filteredList.length, selectedCategoryId]);
 
   useEffect(() => {
     const cols = layout.numColumns;
-    if (cols <= 0 || listSerie.length === 0) return;
+    if (cols <= 0 || filteredList.length === 0) return;
     gridRef.current?.scrollToIndex({
-      index: Math.min(gridFocusIndex, listSerie.length - 1),
+      index: Math.min(gridFocusIndex, filteredList.length - 1),
       animated: true,
       viewPosition: 0.25,
     });
-  }, [gridFocusIndex, layout.numColumns, listSerie.length]);
+  }, [gridFocusIndex, layout.numColumns, filteredList.length]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -107,7 +98,7 @@ const SeriesScreen: React.FC = () => {
       } else {
         const cols = layout.numColumns;
         setGridFocusIndex(i =>
-          Math.min(Math.max(0, listSerie.length - 1), i + cols),
+          Math.min(Math.max(0, filteredList.length - 1), i + cols),
         );
       }
     },
@@ -119,64 +110,21 @@ const SeriesScreen: React.FC = () => {
       navigation.goBack();
     },
     onRight: () => {
-      if (focusZone === 'sidebar' && listSerie.length > 0) {
+      if (focusZone === 'sidebar' && filteredList.length > 0) {
         setFocusZone('grid');
         setGridFocusIndex(0);
       } else if (focusZone === 'grid') {
         setGridFocusIndex(i =>
-          Math.min(Math.max(0, listSerie.length - 1), i + 1),
+          Math.min(Math.max(0, filteredList.length - 1), i + 1),
         );
       }
     },
     onSelect: () => {
-      if (focusZone === 'grid' && listSerie[gridFocusIndex]) {
-        handleSeriePress(listSerie[gridFocusIndex]);
+      if (focusZone === 'grid' && filteredList[gridFocusIndex]) {
+        handleSeriePress(filteredList[gridFocusIndex]);
       }
     },
   });
-
-  const loadCategories = async () => {
-    if (!profile) return;
-    setLoadingCategories(true);
-    try {
-      const url = generateurl('get_series_categories', profile);
-      const data = await fetchJson<{categories?: {category_id: string; category_name: string}[]}>(url);
-      if (data.categories?.length) {
-        changeCatSerie(data.categories);
-      }
-    } catch (e) {
-      console.error('Error loading series categories:', e);
-    } finally {
-      setLoadingCategories(false);
-    }
-  };
-
-  const loadSeries = async (categoryId: string) => {
-    if (!profile) return;
-    setLoading(true);
-    try {
-      const action = categoryId
-        ? `get_series&category_id=${categoryId}`
-        : 'get_series';
-      const url = generateurl(action, profile);
-      const data = await fetchJson<{streams?: Stream[]} | Stream[]>(url);
-      const raw = Array.isArray(data) ? data : (data as {streams?: Stream[]})?.streams;
-      if (raw?.length) {
-        const list = raw.map((s: any) => ({
-          ...s,
-          stream_id: String(s.stream_id ?? s.num ?? ''),
-        })) as Stream[];
-        changeListSerie(list);
-      } else {
-        changeListSerie([]);
-      }
-    } catch (error) {
-      console.error('Error loading series:', error);
-      changeListSerie([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCategorySelect = (categoryId: string) => {
     const idx = items.findIndex(it => it.category_id === categoryId);
@@ -208,11 +156,10 @@ const SeriesScreen: React.FC = () => {
     );
   };
 
-  if (loadingCategories && categories.length === 0) {
+  if (!profile) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading categories...</Text>
+        <Text style={styles.loadingText}>No profile.</Text>
       </View>
     );
   }
@@ -225,13 +172,13 @@ const SeriesScreen: React.FC = () => {
         <View style={styles.header}>
           <Text style={styles.title}>Series</Text>
           <Text style={styles.subtitle}>
-            {listSerie.length} title{listSerie.length !== 1 ? 's' : ''}
+            {filteredList.length} title{filteredList.length !== 1 ? 's' : ''}
           </Text>
         </View>
         <View style={styles.body}>
           <CategorySidebar
             title="Categories"
-            categories={categories}
+            categories={items}
             selectedId={selectedCategoryId}
             onSelect={handleCategorySelect}
             focusedIndex={sidebarFocusIndex}
@@ -239,32 +186,25 @@ const SeriesScreen: React.FC = () => {
             focusInSidebar={focusZone === 'sidebar'}
           />
           <View style={styles.content}>
-            {loading ? (
-              <View style={styles.loadingInner}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.loadingText}>Loading...</Text>
-              </View>
-            ) : (
-              <FlatList
-                ref={gridRef}
-                data={listSerie}
-                renderItem={renderItem}
-                keyExtractor={item => String(item.stream_id)}
-                numColumns={numColumns}
-                contentContainerStyle={styles.list}
-                columnWrapperStyle={styles.row}
-                key={numColumns}
-                onScrollToIndexFailed={({index}) => {
-                  setTimeout(() => {
-                    const row = Math.floor(index / numColumns);
-                    gridRef.current?.scrollToOffset({
-                      offset: row * (cardWidth * 0.6 + spacing.lg),
-                      animated: true,
-                    });
-                  }, 100);
-                }}
-              />
-            )}
+            <FlatList
+              ref={gridRef}
+              data={filteredList}
+              renderItem={renderItem}
+              keyExtractor={item => String(item.stream_id)}
+              numColumns={numColumns}
+              contentContainerStyle={styles.list}
+              columnWrapperStyle={styles.row}
+              key={numColumns}
+              onScrollToIndexFailed={({index}) => {
+                setTimeout(() => {
+                  const row = Math.floor(index / numColumns);
+                  gridRef.current?.scrollToOffset({
+                    offset: row * (cardWidth * 0.6 + spacing.lg),
+                    animated: true,
+                  });
+                }, 100);
+              }}
+            />
           </View>
         </View>
       </LinearGradient>
@@ -285,15 +225,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
   },
-  loadingInner: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   loadingText: {
     ...typography.body,
     color: colors.textSecondary,
-    marginTop: spacing.md,
   },
   header: {
     flexDirection: 'row',

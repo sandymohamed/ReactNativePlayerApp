@@ -77,6 +77,7 @@ const SeasonScreen: React.FC = () => {
       url,
       title: episode.title || episode.movie_data?.name || `Episode ${episode.episode_num}`,
       type: 'serie',
+      streamId: String(streamId),
     });
   };
 

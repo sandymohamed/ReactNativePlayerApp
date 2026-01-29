@@ -38,6 +38,7 @@ const MovieDetailScreen: React.FC = () => {
       url,
       title: movie.name || movie.movie_data?.name || 'Movie',
       type: 'movie',
+      streamId: String(streamId),
     });
   };
 

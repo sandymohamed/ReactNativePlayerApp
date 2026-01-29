@@ -5,15 +5,12 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   BackHandler,
 } from 'react-native';
-import {useNavigation, useRoute} from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 import {useGlobalContext} from '../context/GlobalContext';
-import {generateurl} from '../utils/constants';
-import {fetchJson} from '../utils/api';
 import {colors} from '../theme/colors';
 import {spacing} from '../theme/spacing';
 import {typography} from '../theme/typography';
@@ -31,21 +28,18 @@ type MoviesScreenNavigationProp = NativeStackNavigationProp<
 
 const MoviesScreen: React.FC = () => {
   const navigation = useNavigation<MoviesScreenNavigationProp>();
-  const route = useRoute();
   const {
     profile,
     listVod,
-    changeListVod,
+    listVodFav,
+    listVodRecent,
     catVod,
-    changeCatVod,
   } = useGlobalContext();
   const layout = useLandscapeLayout();
 
   const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
   const [gridFocusIndex, setGridFocusIndex] = useState(0);
   const [focusZone, setFocusZone] = useState<'sidebar' | 'grid'>('sidebar');
-  const [loading, setLoading] = useState(true);
-  const [loadingCategories, setLoadingCategories] = useState(true);
   const gridRef = useRef<FlatList>(null);
 
   const categories: CategoryItem[] = useMemo(() => {
@@ -56,38 +50,34 @@ const MoviesScreen: React.FC = () => {
     }));
   }, [catVod]);
 
-  const items = useMemo(
-    () => [
-      {category_id: '', category_name: 'All'},
-      ...categories,
-    ],
-    [categories],
-  );
-  const selectedCategoryId = items[sidebarFocusIndex]?.category_id ?? '';
+  const items = categories;
+  const selectedCategoryId = items[Math.min(sidebarFocusIndex, Math.max(0, items.length - 1))]?.category_id ?? '0';
 
-  useEffect(() => {
-    if (profile) loadCategories();
-  }, [profile]);
-
-  useEffect(() => {
-    if (!profile) return;
-    loadMovies(selectedCategoryId);
-  }, [profile, selectedCategoryId]);
+  const filteredList = useMemo(() => {
+    if (!listVod.length) return [];
+    if (selectedCategoryId === '0' || selectedCategoryId === '') return listVod;
+    if (selectedCategoryId === '-1') {
+      return listVod.filter(m => (listVodFav || []).includes(String(m.stream_id)));
+    }
+    if (selectedCategoryId === '-2') {
+      return listVod.filter(m => (listVodRecent || []).includes(String(m.stream_id)));
+    }
+    return listVod.filter(m => String(m.category_id) === selectedCategoryId);
+  }, [listVod, listVodFav, listVodRecent, selectedCategoryId]);
 
   useEffect(() => {
     setGridFocusIndex(0);
-  }, [listVod.length]);
+  }, [filteredList.length, selectedCategoryId]);
 
   useEffect(() => {
     const cols = layout.numColumns;
-    if (cols <= 0 || listVod.length === 0) return;
-    const row = Math.floor(gridFocusIndex / cols);
+    if (cols <= 0 || filteredList.length === 0) return;
     gridRef.current?.scrollToIndex({
-      index: Math.min(gridFocusIndex, listVod.length - 1),
+      index: Math.min(gridFocusIndex, filteredList.length - 1),
       animated: true,
       viewPosition: 0.25,
     });
-  }, [gridFocusIndex, layout.numColumns, listVod.length]);
+  }, [gridFocusIndex, layout.numColumns, filteredList.length]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -113,7 +103,7 @@ const MoviesScreen: React.FC = () => {
       } else {
         const cols = layout.numColumns;
         setGridFocusIndex(i =>
-          Math.min(Math.max(0, listVod.length - 1), i + cols),
+          Math.min(Math.max(0, filteredList.length - 1), i + cols),
         );
       }
     },
@@ -125,64 +115,21 @@ const MoviesScreen: React.FC = () => {
       navigation.goBack();
     },
     onRight: () => {
-      if (focusZone === 'sidebar' && listVod.length > 0) {
+      if (focusZone === 'sidebar' && filteredList.length > 0) {
         setFocusZone('grid');
         setGridFocusIndex(0);
       } else if (focusZone === 'grid') {
         setGridFocusIndex(i =>
-          Math.min(Math.max(0, listVod.length - 1), i + 1),
+          Math.min(Math.max(0, filteredList.length - 1), i + 1),
         );
       }
     },
     onSelect: () => {
-      if (focusZone === 'grid' && listVod[gridFocusIndex]) {
-        handleMoviePress(listVod[gridFocusIndex]);
+      if (focusZone === 'grid' && filteredList[gridFocusIndex]) {
+        handleMoviePress(filteredList[gridFocusIndex]);
       }
     },
   });
-
-  const loadCategories = async () => {
-    if (!profile) return;
-    setLoadingCategories(true);
-    try {
-      const url = generateurl('get_vod_categories', profile);
-      const data = await fetchJson<{categories?: {category_id: string; category_name: string}[]}>(url);
-      if (data.categories?.length) {
-        changeCatVod(data.categories);
-      }
-    } catch (e) {
-      console.error('Error loading movie categories:', e);
-    } finally {
-      setLoadingCategories(false);
-    }
-  };
-
-  const loadMovies = async (categoryId: string) => {
-    if (!profile) return;
-    setLoading(true);
-    try {
-      const action = categoryId
-        ? `get_vod_streams&category_id=${categoryId}`
-        : 'get_vod_streams';
-      const url = generateurl(action, profile);
-      const data = await fetchJson<{streams?: Stream[]} | Stream[]>(url);
-      const raw = Array.isArray(data) ? data : (data as {streams?: Stream[]})?.streams;
-      if (raw?.length) {
-        const list = raw.map((s: any) => ({
-          ...s,
-          stream_id: String(s.stream_id ?? s.num ?? ''),
-        })) as Stream[];
-        changeListVod(list);
-      } else {
-        changeListVod([]);
-      }
-    } catch (error) {
-      console.error('Error loading movies:', error);
-      changeListVod([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCategorySelect = (categoryId: string) => {
     const idx = items.findIndex(it => it.category_id === categoryId);
@@ -214,11 +161,10 @@ const MoviesScreen: React.FC = () => {
     );
   };
 
-  if (loadingCategories && categories.length === 0) {
+  if (!profile) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading categories...</Text>
+        <Text style={styles.loadingText}>No profile.</Text>
       </View>
     );
   }
@@ -231,13 +177,13 @@ const MoviesScreen: React.FC = () => {
         <View style={styles.header}>
           <Text style={styles.title}>Movies</Text>
           <Text style={styles.subtitle}>
-            {listVod.length} title{listVod.length !== 1 ? 's' : ''}
+            {filteredList.length} title{filteredList.length !== 1 ? 's' : ''}
           </Text>
         </View>
         <View style={styles.body}>
           <CategorySidebar
             title="Categories"
-            categories={categories}
+            categories={items}
             selectedId={selectedCategoryId}
             onSelect={handleCategorySelect}
             focusedIndex={sidebarFocusIndex}
@@ -245,32 +191,25 @@ const MoviesScreen: React.FC = () => {
             focusInSidebar={focusZone === 'sidebar'}
           />
           <View style={styles.content}>
-            {loading ? (
-              <View style={styles.loadingInner}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.loadingText}>Loading...</Text>
-              </View>
-            ) : (
-              <FlatList
-                ref={gridRef}
-                data={listVod}
-                renderItem={renderItem}
-                keyExtractor={item => String(item.stream_id)}
-                numColumns={numColumns}
-                contentContainerStyle={styles.list}
-                columnWrapperStyle={styles.row}
-                key={numColumns}
-                onScrollToIndexFailed={({index}) => {
-                  setTimeout(() => {
-                    const row = Math.floor(index / numColumns);
-                    gridRef.current?.scrollToOffset({
-                      offset: row * (cardWidth * 0.6 + spacing.lg),
-                      animated: true,
-                    });
-                  }, 100);
-                }}
-              />
-            )}
+            <FlatList
+              ref={gridRef}
+              data={filteredList}
+              renderItem={renderItem}
+              keyExtractor={item => String(item.stream_id)}
+              numColumns={numColumns}
+              contentContainerStyle={styles.list}
+              columnWrapperStyle={styles.row}
+              key={numColumns}
+              onScrollToIndexFailed={({index}) => {
+                setTimeout(() => {
+                  const row = Math.floor(index / numColumns);
+                  gridRef.current?.scrollToOffset({
+                    offset: row * (cardWidth * 0.6 + spacing.lg),
+                    animated: true,
+                  });
+                }, 100);
+              }}
+            />
           </View>
         </View>
       </LinearGradient>
@@ -291,15 +230,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
   },
-  loadingInner: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   loadingText: {
     ...typography.body,
     color: colors.textSecondary,
-    marginTop: spacing.md,
   },
   header: {
     flexDirection: 'row',

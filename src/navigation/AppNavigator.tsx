@@ -24,7 +24,7 @@ export type RootStackParamList = {
   Series: {categoryId?: string};
   SerieDetail: {serie: any};
   Live: {categoryId?: string; channelIndex?: number};
-  Player: {url: string; title: string; type: 'live' | 'movie' | 'serie'};
+  Player: {url: string; title: string; type: 'live' | 'movie' | 'serie'; streamId?: string};
   Search: undefined;
   Favorite: undefined;
   Recent: undefined;
