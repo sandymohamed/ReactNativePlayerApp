@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef, useMemo} from 'react';
+import React, {useState, useEffect, useRef, useMemo, useCallback, memo} from 'react';
 import {
   View,
   StyleSheet,
@@ -23,6 +23,106 @@ import CategorySidebar, {type CategoryItem} from '../components/CategorySidebar'
 
 const ROW_HEIGHT = 56;
 const LOGO_SIZE = 36;
+
+const LiveChannelRow = memo(({
+  item,
+  index,
+  isFocused,
+  isFav,
+  onPress,
+}: {
+  item: Stream;
+  index: number;
+  isFocused: boolean;
+  isFav: boolean;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity
+    activeOpacity={0.85}
+    onPress={onPress}
+    style={[liveRowStyles.row, isFocused && liveRowStyles.rowFocused]}>
+    {isFocused && <View style={liveRowStyles.rowAccent} />}
+    <View style={liveRowStyles.rowContent}>
+      <Text style={[liveRowStyles.channelNum, isFocused && liveRowStyles.channelNumFocused]}>
+        {index + 1}
+      </Text>
+      {item.stream_icon ? (
+        <FastImage
+          source={{uri: item.stream_icon, priority: FastImage.priority.low}}
+          style={liveRowStyles.logo}
+          resizeMode={FastImage.resizeMode.contain}
+        />
+      ) : (
+        <View style={liveRowStyles.logoPlaceholder}>
+          <Text style={liveRowStyles.logoPlaceholderText}>TV</Text>
+        </View>
+      )}
+      <Text
+        style={[liveRowStyles.channelName, isFocused && liveRowStyles.channelNameFocused]}
+        numberOfLines={1}>
+        {item.name}
+      </Text>
+      {isFav && <Text style={liveRowStyles.favBadge}>♥</Text>}
+    </View>
+  </TouchableOpacity>
+));
+
+const liveRowStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: ROW_HEIGHT,
+    marginHorizontal: spacing.sm,
+    marginVertical: 1,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.backgroundCard,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  rowFocused: {
+    backgroundColor: colors.backgroundTertiary,
+    borderColor: colors.borderLight,
+  },
+  rowAccent: {
+    position: 'absolute',
+    left: 0,
+    top: '20%',
+    bottom: '20%',
+    width: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+  rowContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: spacing.sm + 4,
+    paddingRight: spacing.md,
+    gap: spacing.md,
+  },
+  channelNum: {
+    ...typography.bodySmall,
+    color: colors.textTertiary,
+    fontWeight: '600',
+    minWidth: 28,
+    textAlign: 'right',
+  },
+  channelNumFocused: { color: colors.primaryLight },
+  logo: { width: LOGO_SIZE, height: LOGO_SIZE, borderRadius: borderRadius.sm },
+  logoPlaceholder: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.backgroundSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoPlaceholderText: { ...typography.labelSmall, color: colors.textTertiary },
+  channelName: { ...typography.body, color: colors.text, flex: 1 },
+  channelNameFocused: { color: colors.text, fontWeight: '600' },
+  favBadge: { fontSize: 14, color: colors.secondary },
+});
 
 const LiveScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Live'>>();
@@ -118,56 +218,36 @@ const LiveScreen: React.FC = () => {
     if (idx >= 0) setSidebarFocusIndex(idx);
   };
 
-  const handleChannelPress = (channel: Stream) => {
+  const handleChannelPress = useCallback((channel: Stream) => {
     if (!profile) return;
-    const url = generateurlplayer('live', channel.stream_id, 'm3u8', profile);
+    const u = generateurlplayer('live', channel.stream_id, 'm3u8', profile);
     navigation.navigate('Player', {
-      url,
+      url: u,
       title: channel.name,
       type: 'live',
       streamId: String(channel.stream_id),
     });
-  };
+  }, [profile, navigation]);
 
-  const renderChannelRow = ({item, index}: {item: Stream; index: number}) => {
-    const isFocused = focusZone === 'list' && listFocusIndex === index;
-    const isFav = Array.isArray(listLiveFav) && listLiveFav.includes(String(item.stream_id));
-
-    return (
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={() => {
-          setListFocusIndex(index);
-          handleChannelPress(item);
-        }}
-        onLongPress={() => setListFocusIndex(index)}
-        style={[styles.row, isFocused && styles.rowFocused]}>
-        {isFocused && <View style={styles.rowAccent} />}
-        <View style={styles.rowContent}>
-          <Text style={[styles.channelNum, isFocused && styles.channelNumFocused]}>
-            {index + 1}
-          </Text>
-          {item.stream_icon ? (
-            <FastImage
-              source={{uri: item.stream_icon, priority: FastImage.priority.low}}
-              style={styles.logo}
-              resizeMode={FastImage.resizeMode.contain}
-            />
-          ) : (
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoPlaceholderText}>TV</Text>
-            </View>
-          )}
-          <Text
-            style={[styles.channelName, isFocused && styles.channelNameFocused]}
-            numberOfLines={1}>
-            {item.name}
-          </Text>
-          {isFav && <Text style={styles.favBadge}>♥</Text>}
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const renderChannelRow = useCallback(
+    ({item, index}: {item: Stream; index: number}) => {
+      const isFocused = focusZone === 'list' && listFocusIndex === index;
+      const isFav = Array.isArray(listLiveFav) && listLiveFav.includes(String(item.stream_id));
+      return (
+        <LiveChannelRow
+          item={item}
+          index={index}
+          isFocused={isFocused}
+          isFav={isFav}
+          onPress={() => {
+            setListFocusIndex(index);
+            handleChannelPress(item);
+          }}
+        />
+      );
+    },
+    [focusZone, listFocusIndex, listLiveFav, handleChannelPress],
+  );
 
   const getItemLayout = (_: any, index: number) => ({
     length: ROW_HEIGHT + 2,
@@ -213,6 +293,10 @@ const LiveScreen: React.FC = () => {
               getItemLayout={getItemLayout}
               contentContainerStyle={styles.list}
               showsVerticalScrollIndicator={true}
+              initialNumToRender={14}
+              maxToRenderPerBatch={12}
+              windowSize={11}
+              removeClippedSubviews={true}
               onScrollToIndexFailed={({index}) => {
                 setTimeout(() => {
                   listRef.current?.scrollToOffset({
@@ -273,79 +357,6 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingBottom: spacing.xxl,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: ROW_HEIGHT,
-    marginHorizontal: spacing.sm,
-    marginVertical: 1,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.backgroundCard,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    overflow: 'hidden',
-  },
-  rowFocused: {
-    backgroundColor: colors.backgroundTertiary,
-    borderColor: colors.borderLight,
-  },
-  rowAccent: {
-    position: 'absolute',
-    left: 0,
-    top: '20%',
-    bottom: '20%',
-    width: 4,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-  },
-  rowContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: spacing.sm + 4,
-    paddingRight: spacing.md,
-    gap: spacing.md,
-  },
-  channelNum: {
-    ...typography.bodySmall,
-    color: colors.textTertiary,
-    fontWeight: '600',
-    minWidth: 28,
-    textAlign: 'right',
-  },
-  channelNumFocused: {
-    color: colors.primaryLight,
-  },
-  logo: {
-    width: LOGO_SIZE,
-    height: LOGO_SIZE,
-    borderRadius: borderRadius.sm,
-  },
-  logoPlaceholder: {
-    width: LOGO_SIZE,
-    height: LOGO_SIZE,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.backgroundSecondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoPlaceholderText: {
-    ...typography.labelSmall,
-    color: colors.textTertiary,
-  },
-  channelName: {
-    ...typography.body,
-    color: colors.text,
-    flex: 1,
-  },
-  channelNameFocused: {
-    color: colors.text,
-    fontWeight: '600',
-  },
-  favBadge: {
-    fontSize: 14,
-    color: colors.secondary,
   },
 });
 

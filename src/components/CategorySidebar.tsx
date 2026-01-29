@@ -1,4 +1,4 @@
-import React, {useRef, useEffect} from 'react';
+import React, {useRef, useEffect, useCallback} from 'react';
 import {
   View,
   StyleSheet,
@@ -55,34 +55,37 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
 
   const safeFocusIndex = items.length === 0 ? 0 : Math.min(Math.max(0, focusedIndex), items.length - 1);
 
-  const renderItem = ({item, index}: ListRenderItemInfo<CategoryItem>) => {
-    const isSelected = selectedId === item.category_id;
-    const isFocused = focusInSidebar && safeFocusIndex === index;
-    return (
-      <TouchableOpacity
-        style={[
-          styles.item,
-          isSelected && styles.itemSelected,
-          isFocused && styles.itemFocused,
-        ]}
-        onPress={() => {
-          onSelect(item.category_id);
-          onFocusChange?.(index);
-        }}
-        activeOpacity={0.8}>
-        {isFocused && <View style={styles.itemAccent} />}
-        <Text
+  const renderItem = useCallback(
+    ({item, index}: ListRenderItemInfo<CategoryItem>) => {
+      const isSelected = selectedId === item.category_id;
+      const isFocused = focusInSidebar && safeFocusIndex === index;
+      return (
+        <TouchableOpacity
           style={[
-            styles.itemText,
-            isSelected && styles.itemTextSelected,
-            isFocused && styles.itemTextFocused,
+            styles.item,
+            isSelected && styles.itemSelected,
+            isFocused && styles.itemFocused,
           ]}
-          numberOfLines={1}>
-          {item.category_name}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+          onPress={() => {
+            onSelect(item.category_id);
+            onFocusChange?.(index);
+          }}
+          activeOpacity={0.8}>
+          {isFocused && <View style={styles.itemAccent} />}
+          <Text
+            style={[
+              styles.itemText,
+              isSelected && styles.itemTextSelected,
+              isFocused && styles.itemTextFocused,
+            ]}
+            numberOfLines={1}>
+            {item.category_name}
+          </Text>
+        </TouchableOpacity>
+      );
+    },
+    [selectedId, focusInSidebar, safeFocusIndex, onSelect, onFocusChange],
+  );
 
   return (
     <View style={styles.container}>

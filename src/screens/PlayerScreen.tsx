@@ -35,6 +35,7 @@ const PlayerScreen: React.FC = () => {
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const videoRef = useRef<any>(null);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const [videoKey, setVideoKey] = useState(0);
   const isLive = type === 'live';
 
   useEffect(() => {
@@ -241,11 +242,16 @@ const PlayerScreen: React.FC = () => {
   const hasNextEpisode = type === 'serie' && getNextEpisode() !== null;
   const hasPreviousEpisode = type === 'serie' && getPreviousEpisode() !== null;
 
+  const videoSource = isLive
+    ? {uri: url, type: 'm3u8' as const}
+    : {uri: url};
+
   return (
     <View style={styles.container}>
       <Video
+        key={videoKey}
         ref={videoRef}
-        source={{uri: url}}
+        source={videoSource}
         style={styles.video}
         paused={paused}
         rate={playbackRate}
@@ -289,11 +295,15 @@ const PlayerScreen: React.FC = () => {
             setLoading(false);
           }
         }}
-        onError={(error: any) => {
-          console.error('Video player error:', error);
+        onError={(err: any) => {
+          const e = err?.error;
+          const hasCodes = e && (typeof e.extra === 'number' || typeof e.what === 'number');
+          const code = hasCodes ? ` (what: ${e.what ?? '?'}, extra: ${e.extra ?? '?'})` : '';
+          const msg = e?.localizedDescription || e?.code || (code ? `Playback error${code}. Try Retry.` : 'Failed to load video');
+          console.error('Video player error:', err);
           setLoading(false);
           setBuffering(false);
-          setError(error?.error?.localizedDescription || error?.error?.code || 'Failed to load video');
+          setError(msg);
         }}
         onProgress={(data: {currentTime: number; seekableDuration?: number}) => {
           setCurrentTime(data.currentTime);
@@ -340,10 +350,8 @@ const PlayerScreen: React.FC = () => {
             onPress={() => {
               setError(null);
               setLoading(true);
-              // Force reload by updating the key
-              if (videoRef.current) {
-                videoRef.current.seek(0);
-              }
+              setBuffering(true);
+              setVideoKey(k => k + 1);
             }}
             style={styles.retryButton}>
             <Text style={styles.retryButtonText}>Retry</Text>

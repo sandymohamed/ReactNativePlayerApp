@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef, useMemo} from 'react';
+import React, {useState, useEffect, useRef, useMemo, useCallback} from 'react';
 import {
   View,
   StyleSheet,
@@ -136,30 +136,33 @@ const MoviesScreen: React.FC = () => {
     if (idx >= 0) setSidebarFocusIndex(idx);
   };
 
-  const handleMoviePress = (movie: Stream) => {
+  const handleMoviePress = useCallback((movie: Stream) => {
     navigation.navigate('MovieDetail', {movie});
-  };
+  }, [navigation]);
 
   const numColumns = layout.numColumns;
   const cardWidth = layout.cardWidth;
 
-  const renderItem = ({item, index}: {item: Stream; index: number}) => {
-    const focused = focusZone === 'grid' && gridFocusIndex === index;
-    return (
-      <TouchableOpacity
-        style={[styles.cardContainer, {width: cardWidth}]}
-        onPress={() => handleMoviePress(item)}
-        activeOpacity={0.85}>
-        <Card
-          title={item.name}
-          image={item.stream_icon}
+  const renderItem = useCallback(
+    ({item, index}: {item: Stream; index: number}) => {
+      const focused = focusZone === 'grid' && gridFocusIndex === index;
+      return (
+        <TouchableOpacity
+          style={[styles.cardContainer, {width: cardWidth}]}
           onPress={() => handleMoviePress(item)}
-          focused={focused}
-          style={{width: cardWidth}}
-        />
-      </TouchableOpacity>
-    );
-  };
+          activeOpacity={0.85}>
+          <Card
+            title={item.name}
+            image={item.stream_icon}
+            onPress={() => handleMoviePress(item)}
+            focused={focused}
+            style={{width: cardWidth}}
+          />
+        </TouchableOpacity>
+      );
+    },
+    [focusZone, gridFocusIndex, cardWidth, handleMoviePress],
+  );
 
   if (!profile) {
     return (
@@ -200,6 +203,10 @@ const MoviesScreen: React.FC = () => {
               contentContainerStyle={styles.list}
               columnWrapperStyle={styles.row}
               key={numColumns}
+              initialNumToRender={numColumns * 4}
+              maxToRenderPerBatch={numColumns * 3}
+              windowSize={7}
+              removeClippedSubviews={true}
               onScrollToIndexFailed={({index}) => {
                 setTimeout(() => {
                   const row = Math.floor(index / numColumns);
