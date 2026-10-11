@@ -18,7 +18,7 @@ import {typography} from '../theme/typography';
 import Card from '../components/Card';
 import {RootStackParamList} from '../navigation/AppNavigator';
 import {Episode} from '../models/model';
-import FastImage from 'react-native-fast-image';
+// import FastImage from 'react-native-fast-image';
 
 type SeasonScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -26,7 +26,7 @@ type SeasonScreenNavigationProp = NativeStackNavigationProp<
 >;
 
 const {width} = Dimensions.get('window');
-const CARD_WIDTH = (width - spacing.xl * 3) / 2;
+const CARD_WIDTH = (width - spacing.xl * 3) / 3;
 
 const SeasonScreen: React.FC = () => {
   const navigation = useNavigation<SeasonScreenNavigationProp>();
@@ -156,7 +156,7 @@ const SeasonScreen: React.FC = () => {
             keyExtractor={(item, index) => 
               item.id || item.stream_id || `episode-${index}`
             }
-            numColumns={2}
+            numColumns={3}
             contentContainerStyle={styles.list}
             columnWrapperStyle={styles.row}
           />
@@ -178,13 +178,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: spacing.xl,
-    paddingTop: spacing.xxl,
+    padding: spacing.xs,
+    paddingTop: spacing.xl,
   },
   title: {
-    ...typography.h1,
+    ...typography.body,
     color: colors.text,
-    marginBottom: spacing.md,
+    paddingRight: spacing.xl,
   },
   seasonSelector: {
     flexDirection: 'row',
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xxl,
+    padding: spacing.xl,
   },
   emptyText: {
     ...typography.body,

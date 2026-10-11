@@ -96,6 +96,13 @@ const MainScreen: React.FC = () => {
       image: 'https://via.placeholder.com/400x225/EF4444/FFFFFF?text=Recent',
       onPress: () => nav.navigate('Recent'),
     },
+    {
+      id: 'settings',
+      title: 'Settings',
+      subtitle: 'Language, parental, stream format & more',
+      image: 'https://via.placeholder.com/400x225/64748B/FFFFFF?text=Settings',
+      onPress: () => nav.navigate('Settings'),
+    },
   ];
 
   useTVEventHandler({
@@ -216,7 +223,7 @@ const MainScreen: React.FC = () => {
             </Text>
           </View>
 
-          <View style={[styles.grid, {gap: spacing.md}]}>
+          <View style={[styles.grid, {gap: spacing.sm}]}>
             {cards.map((card, index) => (
               <View
                 key={card.id}
@@ -264,6 +271,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
+    alignContent: 'flex-start',
   },
   cardWrapper: {},
 });

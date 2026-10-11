@@ -1,5 +1,30 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export const SETTINGS_KEYS = {
+  LANGUAGE: 'language',
+  STREAM_FORMAT: 'streamFormat',
+  TIME_FORMAT: 'timeformat',
+  LIST_TYPE: 'listType',
+  PARENTAL_PASSWORD: 'password',
+} as const;
+
+export async function getSetting(key: string): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(key);
+  } catch (e) {
+    console.error('getSetting', key, e);
+    return null;
+  }
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(key, value);
+  } catch (e) {
+    console.error('setSetting', key, e);
+  }
+}
+
 export const storeVideoPositions = async (videoPositions: any) => {
   try {
     const jsonVideoPositions = JSON.stringify(videoPositions);

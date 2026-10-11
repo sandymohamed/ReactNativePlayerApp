@@ -44,9 +44,9 @@ export function getMainGridNumColumns(screenWidth: number): number {
 }
 
 export function getMainCardWidth(screenWidth: number, numColumns: number): number {
-  const pad = spacing.xl * 2;
-  const gap = spacing.md;
-  const available = screenWidth - pad;
+  const pad = spacing.md * 2;
+  const gap = spacing.lg;
+  const available = screenWidth - pad - gap;
   const totalGap = (numColumns - 1) * gap;
   return (available - totalGap) / numColumns;
 }

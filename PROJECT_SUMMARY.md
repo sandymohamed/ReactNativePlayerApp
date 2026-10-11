@@ -136,6 +136,10 @@ The app uses the same API endpoints as the web version:
 - Recents: `https://api.uiplayer.com/api/v2/recents/*`
 - Stream URLs: Generated from profile configuration
 
+## Documentation
+
+- **LIVE_VIDEO_DOCUMENTATION.md** – Full live video flow, URL generation, recent tracking, and playback error details (including `{"error": {"extra": -1, "what": 1}}` on Android).
+
 ## Notes
 
 - All screens are functional with proper navigation

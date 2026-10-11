@@ -5,6 +5,7 @@
  */
 export async function fetchJson<T = unknown>(url: string): Promise<T> {
   const res = await fetch(url);
+  console.log('fetchJson response status:', res.status, res, 'for URL:', url);
   const text = await res.text();
   const t = (text && text.trim()) || '';
   if (!t) {
@@ -16,7 +17,8 @@ export async function fetchJson<T = unknown>(url: string): Promise<T> {
   }
   try {
     return JSON.parse(text) as T;
-  } catch {
+  } catch (error){
+    console.error('Error parsing JSON:', error, 'Response text:', t);
     throw new Error(`Invalid JSON: ${t.slice(0, 80)}`);
   }
 }

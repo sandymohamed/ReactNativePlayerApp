@@ -38,6 +38,12 @@ const Card: React.FC<CardProps> = ({
       activeOpacity={0.8}
       style={[styles.container, style, focused && styles.focused]}>
       <View style={styles.imageContainer}>
+        <LinearGradient
+          colors={[colors.primary, colors.secondary]}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 0}}
+          style={styles.accentBar}
+        />
         {image ? (
           <FastImage
             source={{uri: image, priority: FastImage.priority.normal}}
@@ -86,17 +92,39 @@ const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
     overflow: 'hidden',
     backgroundColor: colors.backgroundCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   focused: {
-    transform: [{scale: 1.05}],
+    transform: [{scale: 1.04}],
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
   imageContainer: {
     width: '100%',
     aspectRatio: 16 / 9,
     position: 'relative',
+  },
+  accentBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    zIndex: 1,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
   },
   image: {
     width: '100%',
@@ -135,11 +163,12 @@ const styles = StyleSheet.create({
     height: '40%',
   },
   content: {
-    padding: spacing.md,
+    padding: spacing.lg,
   },
   title: {
     color: colors.text,
     ...typography.body,
+    fontSize: 17,
     fontWeight: '600',
     marginBottom: spacing.xs,
   },
@@ -152,18 +181,18 @@ const styles = StyleSheet.create({
   },
   focusRing: {
     position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: borderRadius.lg + 2,
-    borderWidth: 2,
-    borderColor: colors.focus,
-    shadowColor: colors.focus,
+    top: -3,
+    left: -3,
+    right: -3,
+    bottom: -3,
+    borderRadius: borderRadius.xl + 3,
+    borderWidth: 3,
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: {width: 0, height: 0},
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 12,
   },
 });
 

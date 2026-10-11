@@ -130,6 +130,8 @@ export function getetprofile(profile: Playlist) {
     prof.password = profile.password;
     prof.host = host;
   }
+  console.log('*********** getetprofile', prof);
+
   if (PLAYER_HOST_OVERRIDE && PLAYER_HOST_OVERRIDE.trim()) {
     let override = PLAYER_HOST_OVERRIDE.trim();
     if (override.endsWith('/')) override = override.slice(0, -1);
@@ -158,7 +160,11 @@ export async function deleterow(
     body: raw,
   };
 
-  fetch('https://api.uiplayer.com/api/v2/favorites/createDelete', requestOptions)
+  // 'http://192.168.1.16:5000/api/v2/favorites/createDelete',
+//   requestOptions,
+// )
+
+    fetch('https://api.uiplayer.com/api/v2/favorites/createDelete', requestOptions)
     .then(response => response.text())
     .then(result => console.log(result))
     .catch(error => console.log('error', error));
@@ -184,7 +190,11 @@ export async function insertData(
     body: raw,
   };
 
-  fetch('https://api.uiplayer.com/api/v2/favorites/createDelete', requestOptions)
+  // fetch(
+    //   'http://192.168.1.16:5000/api/v2/favorites/createDelete',
+    //   requestOptions,
+    // )
+    fetch('https://api.uiplayer.com/api/v2/favorites/createDelete', requestOptions)
     .then(response => response.text())
     .then(result => console.log(result))
     .catch(error => console.log('error', error));
@@ -212,6 +222,7 @@ export async function insertDatarecent(
 
   fetch(
     'https://api.uiplayer.com/api/v2/recents/insertDatarecent',
+    // 'http://192.168.1.16:5000/api/v2/recents/insertDatarecent',
     requestOptions,
   )
     .then(response => response.text())
@@ -219,10 +230,7 @@ export async function insertDatarecent(
     .catch(error => console.log('error', error));
 }
 
-export function selectall(
-  type: string,
-  profile: Playlist,
-): Promise<any[]> {
+export function selectall(type: string, profile: Playlist): Promise<any[]> {
   return new Promise(function (resolve) {
     var myHeaders = new Headers();
     myHeaders.append('Content-Type', 'application/json');
@@ -240,6 +248,7 @@ export function selectall(
 
     fetch(
       'https://api.uiplayer.com/api/v2/favorites/selectall',
+      // 'http://192.168.1.16:5000/api/v2/favorites/selectall',
       requestOptions,
     )
       .then(response => response.json())
@@ -265,6 +274,7 @@ export function selectrecentAll(profile: Playlist): Promise<any[]> {
 
     fetch(
       'https://api.uiplayer.com/api/v2/recents/selectrecentAll',
+      // 'http://192.168.1.16:5000/api/v2/recents/selectrecentAll',
       requestOptions,
     )
       .then(response => response.json())
