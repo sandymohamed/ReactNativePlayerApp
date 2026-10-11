@@ -51,6 +51,8 @@ export interface Stream {
   name: string;
   stream_type: string;
   stream_icon: string;
+  backdrop_path?: string;
+  cover?: string;
   epg_channel_id?: string;
   added?: string;
   category_id?: string;

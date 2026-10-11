@@ -67,7 +67,7 @@ const SearchSection = memo<SearchSectionProps>(
         <View style={[styles.cardContainer, { width: cardWidth }]}>
           <Card
             title={item.name}
-            image={item.stream_icon}
+            image={item.stream_icon || item.cover || item.backdrop_path }
             onPress={() => onItemPress(item)}
             style={{ width: cardWidth }}
           />

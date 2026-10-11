@@ -148,7 +148,7 @@ const SeriesScreen: React.FC = () => {
           activeOpacity={0.85}>
           <Card
             title={item.name}
-            image={item.stream_icon}
+            image={item.backdrop_path}
             onPress={() => handleSeriePress(item)}
             focused={focused}
             style={{width: cardWidth}}
