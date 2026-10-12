@@ -1,4 +1,10 @@
-import React, {useState, useEffect, useRef, useMemo, useCallback} from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from 'react';
 import {
   View,
   StyleSheet,
@@ -7,29 +13,27 @@ import {
   TouchableOpacity,
   BackHandler,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
-import {RootStackParamList} from '../navigation/AppNavigator';
-import {useGlobalContext} from '../context/GlobalContext';
-import {colors} from '../theme/colors';
-import {spacing} from '../theme/spacing';
-import {typography} from '../theme/typography';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { useGlobalContext } from '../context/GlobalContext';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
 import Card from '../components/Card';
-import CategorySidebar, {type CategoryItem} from '../components/CategorySidebar';
-import {useLandscapeLayout} from '../utils/layout';
-import {Stream} from '../models/model';
-import {useTVEventHandler} from '../hooks/useTVEventHandler';
+import CategorySidebar, {
+  type CategoryItem,
+} from '../components/CategorySidebar';
+import { useLandscapeLayout } from '../utils/layout';
+import { Stream } from '../models/model';
+import { useTVEventHandler } from '../hooks/useTVEventHandler';
 
 const SeriesScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Series'>>();
-  const {
-    profile,
-    listSerie,
-    listSerieFav,
-    listSerieRecent,
-    catSerie,
-  } = useGlobalContext();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList, 'Series'>>();
+  const { profile, listSerie, listSerieFav, listSerieRecent, catSerie } =
+    useGlobalContext();
   const layout = useLandscapeLayout();
 
   const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
@@ -38,7 +42,10 @@ const SeriesScreen: React.FC = () => {
   const gridRef = useRef<FlatList>(null);
 
   const categories: CategoryItem[] = useMemo(() => {
-    const raw = (catSerie || []) as {category_id?: string; category_name?: string}[];
+    const raw = (catSerie || []) as {
+      category_id?: string;
+      category_name?: string;
+    }[];
     return raw.map(c => ({
       category_id: String(c.category_id ?? ''),
       category_name: String(c.category_name ?? ''),
@@ -46,16 +53,23 @@ const SeriesScreen: React.FC = () => {
   }, [catSerie]);
 
   const items = categories;
-  const selectedCategoryId = items[Math.min(sidebarFocusIndex, Math.max(0, items.length - 1))]?.category_id ?? '0';
+  const selectedCategoryId =
+    items[Math.min(sidebarFocusIndex, Math.max(0, items.length - 1))]
+      ?.category_id ?? '0';
 
   const filteredList = useMemo(() => {
     if (!listSerie.length) return [];
-    if (selectedCategoryId === '0' || selectedCategoryId === '') return listSerie;
+    if (selectedCategoryId === '0' || selectedCategoryId === '')
+      return listSerie;
     if (selectedCategoryId === '-1') {
-      return listSerie.filter(s => (listSerieFav || []).includes(String(s.stream_id)));
+      return listSerie.filter(s =>
+        (listSerieFav || []).includes(String(s.stream_id)),
+      );
     }
     if (selectedCategoryId === '-2') {
-      return listSerie.filter(s => (listSerieRecent || []).includes(String(s.stream_id)));
+      return listSerie.filter(s =>
+        (listSerieRecent || []).includes(String(s.stream_id)),
+      );
     }
     return listSerie.filter(s => String(s.category_id) === selectedCategoryId);
   }, [listSerie, listSerieFav, listSerieRecent, selectedCategoryId]);
@@ -76,14 +90,28 @@ const SeriesScreen: React.FC = () => {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      navigation.goBack();
+      if (navigation.canGoBack()) {
+        console.log('SeriesScreen: going back');
+        navigation.goBack();
+      } else {
+        console.log('SeriesScreen: navigating to Main');
+        navigation.navigate('Main');
+      }
       return true;
     });
     return () => sub.remove();
   }, [navigation]);
 
   useTVEventHandler({
-    onBack: () => navigation.goBack(),
+    onBack: () => {
+      if (navigation.canGoBack()) {
+        console.log('SeriesScreen: going back');
+        navigation.goBack();
+      } else {
+        console.log('SeriesScreen: navigating to Main');
+        navigation.navigate('Main');
+      }
+    },
     onUp: () => {
       if (focusZone === 'sidebar') {
         setSidebarFocusIndex(i => Math.max(0, i - 1));
@@ -107,7 +135,13 @@ const SeriesScreen: React.FC = () => {
         setFocusZone('sidebar');
         return;
       }
-      navigation.goBack();
+      if (navigation.canGoBack()) {
+        console.log('SeriesScreen: going back');
+        navigation.goBack();
+      } else {
+        console.log('SeriesScreen: navigating to Main');
+        navigation.navigate('Main');
+      }
     },
     onRight: () => {
       if (focusZone === 'sidebar' && filteredList.length > 0) {
@@ -131,27 +165,30 @@ const SeriesScreen: React.FC = () => {
     if (idx >= 0) setSidebarFocusIndex(idx);
   };
 
-  const handleSeriePress = useCallback((serie: Stream) => {
-    navigation.navigate('SerieDetail', {serie});
-  }, [navigation]);
+  const handleSeriePress = useCallback(
+    (serie: Stream) => {
+      navigation.navigate('SerieDetail', { serie });
+    },
+    [navigation],
+  );
 
   const numColumns = layout.numColumns;
   const cardWidth = layout.cardWidth;
 
   const renderItem = useCallback(
-    ({item, index}: {item: Stream; index: number}) => {
+    ({ item, index }: { item: Stream; index: number }) => {
       const focused = focusZone === 'grid' && gridFocusIndex === index;
       return (
         <TouchableOpacity
-          style={[styles.cardContainer, {width: cardWidth}]}
+          style={[styles.cardContainer, { width: cardWidth }]}
           onPress={() => handleSeriePress(item)}
           activeOpacity={0.85}>
           <Card
             title={item.name}
-            image={item.backdrop_path}
+            image={item.cover  }
             onPress={() => handleSeriePress(item)}
             focused={focused}
-            style={{width: cardWidth}}
+            style={{ width: cardWidth }}
           />
         </TouchableOpacity>
       );
@@ -169,13 +206,11 @@ const SeriesScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={colors.gradients.dark}
-        style={styles.background}>
+      <LinearGradient colors={colors.gradients.dark} style={styles.background}>
         <View style={styles.header}>
           <Text style={styles.title}>Series</Text>
           <Text style={styles.subtitle}>
-            {filteredList.length} title{filteredList.length !== 1 ? 's' : ''}
+            {filteredList.length} serie{filteredList.length !== 1 ? 's' : ''}
           </Text>
         </View>
         <View style={styles.body}>
@@ -202,7 +237,7 @@ const SeriesScreen: React.FC = () => {
               maxToRenderPerBatch={numColumns * 3}
               windowSize={7}
               removeClippedSubviews={true}
-              onScrollToIndexFailed={({index}) => {
+              onScrollToIndexFailed={({ index }) => {
                 setTimeout(() => {
                   const row = Math.floor(index / numColumns);
                   gridRef.current?.scrollToOffset({
@@ -262,12 +297,12 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   list: {
-    paddingBottom: spacing.xxl,
+    // paddingBottom: spacing.xxl,
   },
   row: {
     justifyContent: 'flex-start',
     gap: spacing.md,
-    marginBottom: spacing.md,
+    // marginBottom: spacing.md,
   },
   cardContainer: {
     marginBottom: spacing.lg,

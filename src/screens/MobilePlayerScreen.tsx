@@ -1,4 +1,4 @@
-import React, {useState, useRef, useEffect} from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 import {
   View,
@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   BackHandler,
+  Alert,
 } from 'react-native';
 
 import {
@@ -18,21 +19,31 @@ import {
 
 import Video from 'react-native-video';
 
-import {colors} from '../theme/colors';
-import {spacing, borderRadius} from '../theme/spacing';
-import {typography} from '../theme/typography';
-import {useTVEventHandler} from '../hooks/useTVEventHandler';
-import {useGlobalContext} from '../context/GlobalContext';
-import {generateurlplayer, insertDatarecent} from '../utils/constants';
-import {Episode} from '../models/model';
+import { colors } from '../theme/colors';
+import { spacing, borderRadius } from '../theme/spacing';
+import { typography } from '../theme/typography';
+import { useTVEventHandler } from '../hooks/useTVEventHandler';
+import { useGlobalContext } from '../context/GlobalContext';
+import { generateurlplayer, insertDatarecent } from '../utils/constants';
+import { Episode } from '../models/model';
 
-const {width, height} = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const PlayerScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
-  const {url, title, type, streamId} = route.params as any;
+  const { url, title, type, streamId } = route.params as any;
+  console.log(
+    'PlayerScreen: url =',
+    url,
+    'title =',
+    title,
+    'type =',
+    type,
+    'streamId =',
+    streamId,
+  );
 
   const {
     profile,
@@ -65,9 +76,7 @@ const PlayerScreen: React.FC = () => {
 
   const videoRef = useRef<any>(null);
 
-  const controlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const controlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -149,8 +158,7 @@ const PlayerScreen: React.FC = () => {
 
     insertDatarecent(streamId, type, profile);
 
-    const add = (arr: string[]) =>
-      Array.from(new Set([...arr, streamId]));
+    const add = (arr: string[]) => Array.from(new Set([...arr, streamId]));
 
     if (type === 'live') {
       changeListLiveRecent(add(listLiveRecent || []));
@@ -217,9 +225,7 @@ const PlayerScreen: React.FC = () => {
   // Double tap handling
   // ------------------------------------------------------------
 
-  const handleVideoTap = (
-    side: 'left' | 'center' | 'right',
-  ) => {
+  const handleVideoTap = (side: 'left' | 'center' | 'right') => {
     const now = Date.now();
 
     const DOUBLE_TAP_DELAY = 280;
@@ -302,12 +308,7 @@ const PlayerScreen: React.FC = () => {
   };
 
   const getNextEpisode = (): Episode | null => {
-    if (
-      type !== 'serie' ||
-      !serie ||
-      !serie.episodes ||
-      !serie.epi
-    ) {
+    if (type !== 'serie' || !serie || !serie.episodes || !serie.epi) {
       return null;
     }
 
@@ -315,40 +316,27 @@ const PlayerScreen: React.FC = () => {
 
     const currentSeason = String(currentEpi.season || '1');
 
-    const currentEpisodeNum = Number(
-      currentEpi.episode_num || 0,
-    );
+    const currentEpisodeNum = Number(currentEpi.episode_num || 0);
 
-    const seasonEpisodes =
-      serie.episodes[currentSeason] || [];
+    const seasonEpisodes = serie.episodes[currentSeason] || [];
 
     const currentIndex = seasonEpisodes.findIndex(
-      (ep: Episode) =>
-        Number(ep.episode_num) === currentEpisodeNum,
+      (ep: Episode) => Number(ep.episode_num) === currentEpisodeNum,
     );
 
-    if (
-      currentIndex >= 0 &&
-      currentIndex < seasonEpisodes.length - 1
-    ) {
+    if (currentIndex >= 0 && currentIndex < seasonEpisodes.length - 1) {
       return seasonEpisodes[currentIndex + 1];
     }
 
     // Try next season
     const seasons = serie.sea || [];
 
-    const currentSeasonIndex =
-      seasons.indexOf(currentSeason);
+    const currentSeasonIndex = seasons.indexOf(currentSeason);
 
-    if (
-      currentSeasonIndex >= 0 &&
-      currentSeasonIndex < seasons.length - 1
-    ) {
-      const nextSeason =
-        seasons[currentSeasonIndex + 1];
+    if (currentSeasonIndex >= 0 && currentSeasonIndex < seasons.length - 1) {
+      const nextSeason = seasons[currentSeasonIndex + 1];
 
-      const nextSeasonEpisodes =
-        serie.episodes[nextSeason] || [];
+      const nextSeasonEpisodes = serie.episodes[nextSeason] || [];
 
       if (nextSeasonEpisodes.length > 0) {
         return nextSeasonEpisodes[0];
@@ -359,12 +347,7 @@ const PlayerScreen: React.FC = () => {
   };
 
   const getPreviousEpisode = (): Episode | null => {
-    if (
-      type !== 'serie' ||
-      !serie ||
-      !serie.episodes ||
-      !serie.epi
-    ) {
+    if (type !== 'serie' || !serie || !serie.episodes || !serie.epi) {
       return null;
     }
 
@@ -372,16 +355,12 @@ const PlayerScreen: React.FC = () => {
 
     const currentSeason = String(currentEpi.season || '1');
 
-    const currentEpisodeNum = Number(
-      currentEpi.episode_num || 0,
-    );
+    const currentEpisodeNum = Number(currentEpi.episode_num || 0);
 
-    const seasonEpisodes =
-      serie.episodes[currentSeason] || [];
+    const seasonEpisodes = serie.episodes[currentSeason] || [];
 
     const currentIndex = seasonEpisodes.findIndex(
-      (ep: Episode) =>
-        Number(ep.episode_num) === currentEpisodeNum,
+      (ep: Episode) => Number(ep.episode_num) === currentEpisodeNum,
     );
 
     if (currentIndex > 0) {
@@ -391,20 +370,15 @@ const PlayerScreen: React.FC = () => {
     // Try previous season
     const seasons = serie.sea || [];
 
-    const currentSeasonIndex =
-      seasons.indexOf(currentSeason);
+    const currentSeasonIndex = seasons.indexOf(currentSeason);
 
     if (currentSeasonIndex > 0) {
-      const prevSeason =
-        seasons[currentSeasonIndex - 1];
+      const prevSeason = seasons[currentSeasonIndex - 1];
 
-      const prevSeasonEpisodes =
-        serie.episodes[prevSeason] || [];
+      const prevSeasonEpisodes = serie.episodes[prevSeason] || [];
 
       if (prevSeasonEpisodes.length > 0) {
-        return prevSeasonEpisodes[
-          prevSeasonEpisodes.length - 1
-        ];
+        return prevSeasonEpisodes[prevSeasonEpisodes.length - 1];
       }
     }
 
@@ -427,16 +401,13 @@ const PlayerScreen: React.FC = () => {
     }
 
     const nextStreamId =
-      nextEpi.id ||
-      nextEpi.stream_id ||
-      nextEpi.movie_data?.stream_id;
+      nextEpi.id || nextEpi.stream_id || nextEpi.movie_data?.stream_id;
 
     if (!nextStreamId) {
       return;
     }
 
-    const ext =
-      nextEpi.container_extension || 'mp4';
+    const ext = nextEpi.container_extension || 'mp4';
 
     const nextUrl = generateurlplayer(
       'series',
@@ -484,16 +455,13 @@ const PlayerScreen: React.FC = () => {
     }
 
     const prevStreamId =
-      prevEpi.id ||
-      prevEpi.stream_id ||
-      prevEpi.movie_data?.stream_id;
+      prevEpi.id || prevEpi.stream_id || prevEpi.movie_data?.stream_id;
 
     if (!prevStreamId) {
       return;
     }
 
-    const ext =
-      prevEpi.container_extension || 'mp4';
+    const ext = prevEpi.container_extension || 'mp4';
 
     const prevUrl = generateurlplayer(
       'series',
@@ -538,18 +506,12 @@ const PlayerScreen: React.FC = () => {
 
     const secs = Math.floor(seconds % 60);
 
-    return `${mins}:${secs
-      .toString()
-      .padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const hasNextEpisode =
-    type === 'serie' &&
-    getNextEpisode() !== null;
+  const hasNextEpisode = type === 'serie' && getNextEpisode() !== null;
 
-  const hasPreviousEpisode =
-    type === 'serie' &&
-    getPreviousEpisode() !== null;
+  const hasPreviousEpisode = type === 'serie' && getPreviousEpisode() !== null;
 
   // ------------------------------------------------------------
   // Video source
@@ -570,7 +532,6 @@ const PlayerScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-
       {/* ======================================================
           VIDEO
       ====================================================== */}
@@ -584,7 +545,6 @@ const PlayerScreen: React.FC = () => {
         rate={playbackRate}
         resizeMode="contain"
         live={isLive}
-
         hlsConfig={{
           enableWorker: false,
           lowLatencyMode: isLive,
@@ -595,9 +555,7 @@ const PlayerScreen: React.FC = () => {
 
           maxMaxBufferLength: isLive ? 20 : 60,
 
-          maxBufferSize: isLive
-            ? 10 * 1000 * 1000
-            : 60 * 1000 * 1000,
+          maxBufferSize: isLive ? 10 * 1000 * 1000 : 60 * 1000 * 1000,
 
           maxBufferHole: 0.5,
 
@@ -615,57 +573,39 @@ const PlayerScreen: React.FC = () => {
 
           maxStarvationDelay: 4,
         }}
-
         bufferConfig={{
           minBufferMs: isLive ? 1000 : 15000,
 
           maxBufferMs: isLive ? 10000 : 50000,
 
-          bufferForPlaybackMs: isLive
-            ? 1000
-            : 2500,
+          bufferForPlaybackMs: isLive ? 1000 : 2500,
 
-          bufferForPlaybackAfterRebufferMs:
-            isLive ? 1000 : 5000,
+          bufferForPlaybackAfterRebufferMs: isLive ? 1000 : 5000,
         }}
-
         onLoad={() => {
           setLoading(false);
           setBuffering(false);
           setError(null);
         }}
-
         onLoadStart={() => {
           setLoading(true);
           setBuffering(true);
         }}
-
-        onBuffer={({
-          isBuffering,
-        }: {
-          isBuffering: boolean;
-        }) => {
+        onBuffer={({ isBuffering }: { isBuffering: boolean }) => {
           setBuffering(isBuffering);
 
           if (!isBuffering) {
             setLoading(false);
           }
         }}
-
         onError={(err: any) => {
           const e = err?.error;
 
           const hasCodes =
-            e &&
-            (
-              typeof e.extra === 'number' ||
-              typeof e.what === 'number'
-            );
+            e && (typeof e.extra === 'number' || typeof e.what === 'number');
 
           const code = hasCodes
-            ? ` (what: ${e.what ?? '?'}, extra: ${
-                e.extra ?? '?'
-              })`
+            ? ` (what: ${e.what ?? '?'}, extra: ${e.extra ?? '?'})`
             : '';
 
           const msg =
@@ -675,16 +615,12 @@ const PlayerScreen: React.FC = () => {
               ? `Playback error${code}. Try Retry.`
               : 'Failed to load video');
 
-          console.error(
-            'Video player error:',
-            err,
-          );
+          console.error('Video player error:', err);
 
           setLoading(false);
           setBuffering(false);
           setError(msg);
         }}
-
         onProgress={(data: {
           currentTime: number;
           seekableDuration?: number;
@@ -696,12 +632,9 @@ const PlayerScreen: React.FC = () => {
             data.seekableDuration > 0 &&
             !isLive
           ) {
-            setDuration(
-              data.seekableDuration,
-            );
+            setDuration(data.seekableDuration);
           }
         }}
-
         onEnd={() => {
           if (!isLive) {
             setPaused(true);
@@ -709,27 +642,25 @@ const PlayerScreen: React.FC = () => {
 
             if (hasNextEpisode) {
               setTimeout(() => {
-                handleNextEpisode();
+                Alert.alert(
+                  'DEBUG: handleNextEpisode called from onEnd',
+                  `Source: PlayerScreen.tsx → Video onEnd\nCurrent time: ${currentTime}\nHas next episode: ${hasNextEpisode}`,
+                );
+                // handleNextEpisode();
               }, 2000);
             }
           }
         }}
-
         seek={isLive ? undefined : undefined}
-
         /*
          * Important:
          * Disable native controls because we use our own
          * compact mobile controls.
          */
         controls={false}
-
         playInBackground={false}
-
         playWhenInactive={false}
-
         ignoreSilentSwitch="ignore"
-
         pictureInPicture={false}
       />
 
@@ -738,13 +669,8 @@ const PlayerScreen: React.FC = () => {
       ====================================================== */}
 
       {(loading || buffering) && (
-        <View
-          pointerEvents="none"
-          style={styles.loadingIndicator}>
-          <ActivityIndicator
-            size="small"
-            color={colors.primary}
-          />
+        <View pointerEvents="none" style={styles.loadingIndicator}>
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
       )}
 
@@ -754,9 +680,7 @@ const PlayerScreen: React.FC = () => {
 
       {error && (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>
-            Error: {error}
-          </Text>
+          <Text style={styles.errorText}>Error: {error}</Text>
 
           <TouchableOpacity
             onPress={() => {
@@ -766,9 +690,7 @@ const PlayerScreen: React.FC = () => {
               setVideoKey(k => k + 1);
             }}
             style={styles.retryButton}>
-            <Text style={styles.retryButtonText}>
-              Retry
-            </Text>
+            <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -787,21 +709,16 @@ const PlayerScreen: React.FC = () => {
           - right -> +10
       ====================================================== */}
 
-      <View
-        pointerEvents="box-none"
-        style={styles.tapArea}>
+      <View pointerEvents="box-none" style={styles.tapArea}>
         <TouchableOpacity
           style={styles.fullTapArea}
           activeOpacity={1}
           onPress={event => {
-            const locationX =
-              event.nativeEvent.locationX;
+            const locationX = event.nativeEvent.locationX;
 
             if (locationX < width * 0.35) {
               handleVideoTap('left');
-            } else if (
-              locationX > width * 0.65
-            ) {
+            } else if (locationX > width * 0.65) {
               handleVideoTap('right');
             } else {
               handleVideoTap('center');
@@ -820,14 +737,9 @@ const PlayerScreen: React.FC = () => {
               TOP BAR
           ================================================== */}
 
-          <View
-            pointerEvents="box-none"
-            style={styles.topBar}>
-
+          <View pointerEvents="box-none" style={styles.topBar}>
             <TouchableOpacity
-              onPress={() =>
-                navigation.goBack()
-              }
+              onPress={() => navigation.goBack()}
               style={styles.backButton}
               hitSlop={{
                 top: 8,
@@ -835,27 +747,18 @@ const PlayerScreen: React.FC = () => {
                 left: 8,
                 right: 8,
               }}>
-              <Text style={styles.backText}>
-                ←
-              </Text>
+              <Text style={styles.backText}>←</Text>
             </TouchableOpacity>
 
-            <Text
-              style={styles.title}
-              numberOfLines={1}>
+            <Text style={styles.title} numberOfLines={1}>
               {title}
             </Text>
 
             {isLive && (
               <View style={styles.liveBadge}>
-                <View
-                  style={styles.liveDot}
-                />
+                <View style={styles.liveDot} />
 
-                <Text
-                  style={styles.liveBadgeText}>
-                  LIVE
-                </Text>
+                <Text style={styles.liveBadgeText}>LIVE</Text>
               </View>
             )}
           </View>
@@ -868,30 +771,21 @@ const PlayerScreen: React.FC = () => {
             onPress={handlePlayPause}
             style={styles.centerPlayButton}
             activeOpacity={0.8}>
-            <Text style={styles.centerPlayText}>
-              {paused ? '▶' : 'Ⅱ'}
-            </Text>
+            <Text style={styles.centerPlayText}>{paused ? '▶' : 'Ⅱ'}</Text>
           </TouchableOpacity>
 
           {/* ==================================================
               COMPACT BOTTOM CONTROLS
           ================================================== */}
 
-          <View
-            pointerEvents="box-none"
-            style={styles.controlsWrapper}>
-
+          <View pointerEvents="box-none" style={styles.controlsWrapper}>
             {/* Small progress */}
 
             {!isLive && (
               <View style={styles.progressContainer}>
+                <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
 
-                <Text style={styles.timeText}>
-                  {formatTime(currentTime)}
-                </Text>
-
-                <View
-                  style={styles.progressTrack}>
+                <View style={styles.progressTrack}>
                   <View
                     style={[
                       styles.progressFill,
@@ -900,12 +794,7 @@ const PlayerScreen: React.FC = () => {
                           duration > 0
                             ? Math.min(
                                 100,
-                                Math.max(
-                                  0,
-                                  (currentTime /
-                                    duration) *
-                                    100,
-                                ),
+                                Math.max(0, (currentTime / duration) * 100),
                               )
                             : 0
                         }%`,
@@ -914,29 +803,18 @@ const PlayerScreen: React.FC = () => {
                   />
                 </View>
 
-                <Text style={styles.timeText}>
-                  {formatTime(duration)}
-                </Text>
+                <Text style={styles.timeText}>{formatTime(duration)}</Text>
               </View>
             )}
 
             {/* Live indicator */}
 
             {isLive && (
-              <View
-                style={styles.liveProgressContainer}>
-                <View
-                  style={styles.liveSmallBadge}>
-                  <View
-                    style={styles.liveDot}
-                  />
+              <View style={styles.liveProgressContainer}>
+                <View style={styles.liveSmallBadge}>
+                  <View style={styles.liveDot} />
 
-                  <Text
-                    style={
-                      styles.liveSmallBadgeText
-                    }>
-                    LIVE
-                  </Text>
+                  <Text style={styles.liveSmallBadgeText}>LIVE</Text>
                 </View>
               </View>
             )}
@@ -945,31 +823,19 @@ const PlayerScreen: React.FC = () => {
                 COMPACT BUTTON ROW
             ================================================== */}
 
-            <View
-              style={styles.compactControlsRow}>
-
+            <View style={styles.compactControlsRow}>
               {/* Previous episode */}
 
               {type === 'serie' && (
                 <TouchableOpacity
-                  onPress={
-                    handlePreviousEpisode
-                  }
-                  disabled={
-                    !hasPreviousEpisode
-                  }
+                  onPress={handlePreviousEpisode}
+                  disabled={!hasPreviousEpisode}
                   style={[
                     styles.compactButton,
-                    !hasPreviousEpisode &&
-                      styles.disabledButton,
+                    !hasPreviousEpisode && styles.disabledButton,
                   ]}
                   activeOpacity={0.7}>
-                  <Text
-                    style={
-                      styles.compactButtonText
-                    }>
-                    ‹‹
-                  </Text>
+                  <Text style={styles.compactButtonText}>‹‹</Text>
                 </TouchableOpacity>
               )}
 
@@ -977,17 +843,10 @@ const PlayerScreen: React.FC = () => {
 
               {!isLive && (
                 <TouchableOpacity
-                  onPress={
-                    handleSkipBackward
-                  }
+                  onPress={handleSkipBackward}
                   style={styles.compactButton}
                   activeOpacity={0.7}>
-                  <Text
-                    style={
-                      styles.compactButtonText
-                    }>
-                    −10
-                  </Text>
+                  <Text style={styles.compactButtonText}>−10</Text>
                 </TouchableOpacity>
               )}
 
@@ -997,29 +856,17 @@ const PlayerScreen: React.FC = () => {
                 onPress={handlePlayPause}
                 style={styles.compactPlayButton}
                 activeOpacity={0.8}>
-                <Text
-                  style={
-                    styles.compactPlayText
-                  }>
-                  {paused ? '▶' : 'Ⅱ'}
-                </Text>
+                <Text style={styles.compactPlayText}>{paused ? '▶' : 'Ⅱ'}</Text>
               </TouchableOpacity>
 
               {/* Forward 10 */}
 
               {!isLive && (
                 <TouchableOpacity
-                  onPress={
-                    handleSkipForward
-                  }
+                  onPress={handleSkipForward}
                   style={styles.compactButton}
                   activeOpacity={0.7}>
-                  <Text
-                    style={
-                      styles.compactButtonText
-                    }>
-                    +10
-                  </Text>
+                  <Text style={styles.compactButtonText}>+10</Text>
                 </TouchableOpacity>
               )}
 
@@ -1027,50 +874,40 @@ const PlayerScreen: React.FC = () => {
 
               {type === 'serie' && (
                 <TouchableOpacity
-                  onPress={
-                    handleNextEpisode
-                  }
+                  onPress={() => {
+                    Alert.alert(
+                      'DEBUG: handleNextEpisode called from onPress',
+                      `Source: PlayerScreen.tsx → Video onPress\nCurrent time: ${currentTime}\nHas next episode: ${hasNextEpisode}`,
+                    );
+                    handleNextEpisode();
+                  }}
                   disabled={!hasNextEpisode}
                   style={[
                     styles.compactButton,
-                    !hasNextEpisode &&
-                      styles.disabledButton,
+                    !hasNextEpisode && styles.disabledButton,
                   ]}
                   activeOpacity={0.7}>
-                  <Text
-                    style={
-                      styles.compactButtonText
-                    }>
-                    ››
-                  </Text>
+                  <Text style={styles.compactButtonText}>››</Text>
                 </TouchableOpacity>
               )}
 
               {/* Speed */}
 
               {!isLive && (
-                <View
-                  style={styles.speedSelector}>
+                <View style={styles.speedSelector}>
                   {speedOptions.map(speed => (
                     <TouchableOpacity
                       key={speed}
-                      onPress={() =>
-                        handleSpeedChange(
-                          speed,
-                        )
-                      }
+                      onPress={() => handleSpeedChange(speed)}
                       style={[
                         styles.speedButton,
-                        playbackRate ===
-                          speed &&
-                          styles.speedButtonActive,
+                        playbackRate === speed && styles.speedButtonActive,
                       ]}
                       activeOpacity={0.7}>
                       <Text
                         style={[
                           styles.speedButtonText,
-                          playbackRate ===
-                            speed &&
+                          playbackRate === speed &&
                             styles.speedButtonTextActive,
                         ]}>
                         {speed}x
@@ -1119,8 +956,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 22,
 
-    backgroundColor:
-      'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
 
     justifyContent: 'center',
     alignItems: 'center',
@@ -1159,8 +995,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
 
-    backgroundColor:
-      'rgba(0,0,0,0.50)',
+    backgroundColor: 'rgba(0,0,0,0.50)',
   },
 
   backButton: {
@@ -1169,8 +1004,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 18,
 
-    backgroundColor:
-      'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
 
     justifyContent: 'center',
     alignItems: 'center',
@@ -1208,8 +1042,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 10,
 
-    backgroundColor:
-      'rgba(220,38,38,0.85)',
+    backgroundColor: 'rgba(220,38,38,0.85)',
   },
 
   liveDot: {
@@ -1249,8 +1082,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 27,
 
-    backgroundColor:
-      'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
 
     justifyContent: 'center',
     alignItems: 'center',
@@ -1279,8 +1111,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     paddingTop: 8,
 
-    backgroundColor:
-      'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
 
   // ----------------------------------------------------------
@@ -1317,8 +1148,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 2,
 
-    backgroundColor:
-      'rgba(255,255,255,0.28)',
+    backgroundColor: 'rgba(255,255,255,0.28)',
 
     overflow: 'hidden',
   },
@@ -1326,8 +1156,7 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
 
-    backgroundColor:
-      colors.primary,
+    backgroundColor: colors.primary,
   },
 
   // ----------------------------------------------------------
@@ -1353,8 +1182,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 10,
 
-    backgroundColor:
-      'rgba(220,38,38,0.75)',
+    backgroundColor: 'rgba(220,38,38,0.75)',
   },
 
   liveSmallBadgeText: {
@@ -1388,8 +1216,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 17,
 
-    backgroundColor:
-      'rgba(0,0,0,0.68)',
+    backgroundColor: 'rgba(0,0,0,0.68)',
 
     justifyContent: 'center',
     alignItems: 'center',
@@ -1409,8 +1236,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 21,
 
-    backgroundColor:
-      colors.primary,
+    backgroundColor: colors.primary,
 
     justifyContent: 'center',
     alignItems: 'center',
@@ -1450,16 +1276,14 @@ const styles = StyleSheet.create({
 
     borderRadius: 7,
 
-    backgroundColor:
-      'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
 
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   speedButtonActive: {
-    backgroundColor:
-      colors.primary,
+    backgroundColor: colors.primary,
   },
 
   speedButtonText: {
@@ -1495,13 +1319,11 @@ const styles = StyleSheet.create({
       },
     ],
 
-    backgroundColor:
-      'rgba(0,0,0,0.85)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
 
     padding: spacing.lg,
 
-    borderRadius:
-      borderRadius.md,
+    borderRadius: borderRadius.md,
 
     alignItems: 'center',
   },
@@ -1517,17 +1339,13 @@ const styles = StyleSheet.create({
   },
 
   retryButton: {
-    backgroundColor:
-      colors.primary,
+    backgroundColor: colors.primary,
 
-    paddingHorizontal:
-      spacing.lg,
+    paddingHorizontal: spacing.lg,
 
-    paddingVertical:
-      spacing.sm,
+    paddingVertical: spacing.sm,
 
-    borderRadius:
-      borderRadius.sm,
+    borderRadius: borderRadius.sm,
 
     marginTop: spacing.sm,
   },

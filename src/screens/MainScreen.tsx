@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,20 +8,20 @@ import {
   useWindowDimensions,
   BackHandler,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
-import {useGlobalContext} from '../context/GlobalContext';
-import {generateurl, selectall, selectrecentAll} from '../utils/constants';
-import {fetchJson, normalizeCategories, normalizeStreams} from '../utils/api';
-import type {Stream} from '../models/model';
-import {colors} from '../theme/colors';
-import {spacing} from '../theme/spacing';
-import {typography} from '../theme/typography';
+import { useGlobalContext } from '../context/GlobalContext';
+import { generateurl, selectall, selectrecentAll } from '../utils/constants';
+import { fetchJson, normalizeCategories, normalizeStreams } from '../utils/api';
+import type { Stream } from '../models/model';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
 import Card from '../components/Card';
-import {RootStackParamList} from '../navigation/AppNavigator';
-import {useTVEventHandler} from '../hooks/useTVEventHandler';
-import {getMainGridNumColumns, getMainCardWidth} from '../utils/layout';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { useTVEventHandler } from '../hooks/useTVEventHandler';
+import { getMainGridNumColumns, getMainCardWidth } from '../utils/layout';
 
 type MainScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -30,7 +30,7 @@ type MainScreenNavigationProp = NativeStackNavigationProp<
 
 const MainScreen: React.FC = () => {
   const navigation = useNavigation<MainScreenNavigationProp>();
-  const {width} = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const numColumns = getMainGridNumColumns(width);
   const cardWidth = getMainCardWidth(width, numColumns);
 
@@ -106,7 +106,13 @@ const MainScreen: React.FC = () => {
   ];
 
   useTVEventHandler({
-    onBack: () => navigation.goBack(),
+    onBack: () => {
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('Home');
+      }
+    },
     onSelect: () => handleCardPress(focusedIndex),
     onUp: () => {
       setFocusedIndex(prev => Math.max(0, prev - numColumns));
@@ -130,16 +136,22 @@ const MainScreen: React.FC = () => {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      navigation.goBack();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('Home');
+      }
       return true;
     });
     return () => sub.remove();
   }, [navigation]);
 
-  const prependAllFavRecent = (arr: {category_id?: string; category_name?: string}[]) => [
-    {category_id: '0', category_name: 'all', parent_id: 0},
-    {category_id: '-1', category_name: 'favorite', parent_id: 0},
-    {category_id: '-2', category_name: 'recent', parent_id: 0},
+  const prependAllFavRecent = (
+    arr: { category_id?: string; category_name?: string }[],
+  ) => [
+    { category_id: '0', category_name: 'all', parent_id: 0 },
+    { category_id: '-1', category_name: 'favorite', parent_id: 0 },
+    { category_id: '-2', category_name: 'recent', parent_id: 0 },
     ...arr,
   ];
 
@@ -173,13 +185,17 @@ const MainScreen: React.FC = () => {
       fetchJson<unknown>(seriesUrl),
     ]);
     if (liveRes.status === 'fulfilled') {
-      changeListLive(normalizeStreams(liveRes.value).map(mapStream) as Stream[]);
+      changeListLive(
+        normalizeStreams(liveRes.value).map(mapStream) as Stream[],
+      );
     } else console.error('Live streams:', liveRes.reason);
     if (vodRes.status === 'fulfilled') {
       changeListVod(normalizeStreams(vodRes.value).map(mapStream) as Stream[]);
     } else console.error('VOD streams:', vodRes.reason);
     if (seriesRes.status === 'fulfilled') {
-      changeListSerie(normalizeStreams(seriesRes.value).map(mapStream) as Stream[]);
+      changeListSerie(
+        normalizeStreams(seriesRes.value).map(mapStream) as Stream[],
+      );
     } else console.error('Series:', seriesRes.reason);
 
     try {
@@ -188,16 +204,44 @@ const MainScreen: React.FC = () => {
         selectall('movie', profile),
         selectall('serie', profile),
       ]);
-      changeListLiveFav(Array.isArray(favLive) ? favLive.map((i: any) => String(i?.streamid ?? i)) : []);
-      changeListVodFav(Array.isArray(favVod) ? favVod.map((i: any) => String(i?.streamid ?? i)) : []);
-      changeListSerieFav(Array.isArray(favSerie) ? favSerie.map((i: any) => String(i?.streamid ?? i)) : []);
+      changeListLiveFav(
+        Array.isArray(favLive)
+          ? favLive.map((i: any) => String(i?.streamid ?? i))
+          : [],
+      );
+      changeListVodFav(
+        Array.isArray(favVod)
+          ? favVod.map((i: any) => String(i?.streamid ?? i))
+          : [],
+      );
+      changeListSerieFav(
+        Array.isArray(favSerie)
+          ? favSerie.map((i: any) => String(i?.streamid ?? i))
+          : [],
+      );
 
       const recent = await selectrecentAll(profile);
       if (recent && typeof recent === 'object' && !Array.isArray(recent)) {
-        const r = recent as {live?: {streamid?: string}[]; movie?: {streamid?: string}[]; serie?: {streamid?: string}[]};
-        changeListLiveRecent(Array.isArray(r.live) ? r.live.map((i: any) => String(i?.streamid ?? i)) : []);
-        changeListVodRecent(Array.isArray(r.movie) ? r.movie.map((i: any) => String(i?.streamid ?? i)) : []);
-        changeListSerieRecent(Array.isArray(r.serie) ? r.serie.map((i: any) => String(i?.streamid ?? i)) : []);
+        const r = recent as {
+          live?: { streamid?: string }[];
+          movie?: { streamid?: string }[];
+          serie?: { streamid?: string }[];
+        };
+        changeListLiveRecent(
+          Array.isArray(r.live)
+            ? r.live.map((i: any) => String(i?.streamid ?? i))
+            : [],
+        );
+        changeListVodRecent(
+          Array.isArray(r.movie)
+            ? r.movie.map((i: any) => String(i?.streamid ?? i))
+            : [],
+        );
+        changeListSerieRecent(
+          Array.isArray(r.serie)
+            ? r.serie.map((i: any) => String(i?.streamid ?? i))
+            : [],
+        );
       }
     } catch (e) {
       console.error('Error loading fav/recent:', e);
@@ -210,9 +254,7 @@ const MainScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={colors.gradients.dark}
-        style={styles.background}>
+      <LinearGradient colors={colors.gradients.dark} style={styles.background}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
@@ -223,11 +265,11 @@ const MainScreen: React.FC = () => {
             </Text>
           </View>
 
-          <View style={[styles.grid, {gap: spacing.sm}]}>
+          <View style={[styles.grid, { gap: spacing.sm }]}>
             {cards.map((card, index) => (
               <View
                 key={card.id}
-                style={[styles.cardWrapper, {width: cardWidth}]}>
+                style={[styles.cardWrapper, { width: cardWidth }]}>
                 <Card
                   title={card.title}
                   subtitle={card.subtitle}

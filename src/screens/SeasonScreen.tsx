@@ -26,7 +26,9 @@ type SeasonScreenNavigationProp = NativeStackNavigationProp<
 >;
 
 const {width} = Dimensions.get('window');
-const CARD_WIDTH = (width - spacing.xl * 3) / 3;
+console.log('SeasonScreen: window width =', width);
+const colsNum = width >= 1200 ? 5 :  4;
+const CARD_WIDTH = (width - spacing.xl * 3) / colsNum;
 
 const SeasonScreen: React.FC = () => {
   const navigation = useNavigation<SeasonScreenNavigationProp>();
@@ -156,7 +158,7 @@ const SeasonScreen: React.FC = () => {
             keyExtractor={(item, index) => 
               item.id || item.stream_id || `episode-${index}`
             }
-            numColumns={3}
+            numColumns={colsNum}
             contentContainerStyle={styles.list}
             columnWrapperStyle={styles.row}
           />

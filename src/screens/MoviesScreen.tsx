@@ -1,4 +1,10 @@
-import React, {useState, useEffect, useRef, useMemo, useCallback} from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from 'react';
 import {
   View,
   StyleSheet,
@@ -7,19 +13,21 @@ import {
   TouchableOpacity,
   BackHandler,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
-import {useGlobalContext} from '../context/GlobalContext';
-import {colors} from '../theme/colors';
-import {spacing} from '../theme/spacing';
-import {typography} from '../theme/typography';
+import { useGlobalContext } from '../context/GlobalContext';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import { typography } from '../theme/typography';
 import Card from '../components/Card';
-import CategorySidebar, {type CategoryItem} from '../components/CategorySidebar';
-import {useLandscapeLayout} from '../utils/layout';
-import {RootStackParamList} from '../navigation/AppNavigator';
-import {Stream} from '../models/model';
-import {useTVEventHandler} from '../hooks/useTVEventHandler';
+import CategorySidebar, {
+  type CategoryItem,
+} from '../components/CategorySidebar';
+import { useLandscapeLayout } from '../utils/layout';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { Stream } from '../models/model';
+import { useTVEventHandler } from '../hooks/useTVEventHandler';
 
 type MoviesScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -28,13 +36,8 @@ type MoviesScreenNavigationProp = NativeStackNavigationProp<
 
 const MoviesScreen: React.FC = () => {
   const navigation = useNavigation<MoviesScreenNavigationProp>();
-  const {
-    profile,
-    listVod,
-    listVodFav,
-    listVodRecent,
-    catVod,
-  } = useGlobalContext();
+  const { profile, listVod, listVodFav, listVodRecent, catVod } =
+    useGlobalContext();
   const layout = useLandscapeLayout();
 
   const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
@@ -43,7 +46,10 @@ const MoviesScreen: React.FC = () => {
   const gridRef = useRef<FlatList>(null);
 
   const categories: CategoryItem[] = useMemo(() => {
-    const raw = (catVod || []) as {category_id?: string; category_name?: string}[];
+    const raw = (catVod || []) as {
+      category_id?: string;
+      category_name?: string;
+    }[];
     return raw.map(c => ({
       category_id: String(c.category_id ?? ''),
       category_name: String(c.category_name ?? ''),
@@ -51,16 +57,22 @@ const MoviesScreen: React.FC = () => {
   }, [catVod]);
 
   const items = categories;
-  const selectedCategoryId = items[Math.min(sidebarFocusIndex, Math.max(0, items.length - 1))]?.category_id ?? '0';
+  const selectedCategoryId =
+    items[Math.min(sidebarFocusIndex, Math.max(0, items.length - 1))]
+      ?.category_id ?? '0';
 
   const filteredList = useMemo(() => {
     if (!listVod.length) return [];
     if (selectedCategoryId === '0' || selectedCategoryId === '') return listVod;
     if (selectedCategoryId === '-1') {
-      return listVod.filter(m => (listVodFav || []).includes(String(m.stream_id)));
+      return listVod.filter(m =>
+        (listVodFav || []).includes(String(m.stream_id)),
+      );
     }
     if (selectedCategoryId === '-2') {
-      return listVod.filter(m => (listVodRecent || []).includes(String(m.stream_id)));
+      return listVod.filter(m =>
+        (listVodRecent || []).includes(String(m.stream_id)),
+      );
     }
     return listVod.filter(m => String(m.category_id) === selectedCategoryId);
   }, [listVod, listVodFav, listVodRecent, selectedCategoryId]);
@@ -81,7 +93,11 @@ const MoviesScreen: React.FC = () => {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      navigation.goBack();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('Main');
+      }
       return true;
     });
     return () => sub.remove();
@@ -136,28 +152,32 @@ const MoviesScreen: React.FC = () => {
     if (idx >= 0) setSidebarFocusIndex(idx);
   };
 
-  const handleMoviePress = useCallback((movie: Stream) => {
-    navigation.navigate('MovieDetail', {movie});
-  }, [navigation]);
+  const handleMoviePress = useCallback(
+    (movie: Stream) => {
+      navigation.navigate('MovieDetail', { movie });
+    },
+    [navigation],
+  );
 
   const numColumns = layout.numColumns;
   const cardWidth = layout.cardWidth;
 
   const renderItem = useCallback(
-    ({item, index}: {item: Stream; index: number}) => {
+    ({ item, index }: { item: Stream; index: number }) => {
       const focused = focusZone === 'grid' && gridFocusIndex === index;
       return (
         <TouchableOpacity
-          style={[styles.cardContainer, {width: cardWidth}]}
+          style={[styles.cardContainer, { width: cardWidth }]}
           onPress={() => handleMoviePress(item)}
           activeOpacity={0.85}>
           <Card
             title={item.name}
-            image={item.stream_icon}
+            image={item.stream_icon }
             onPress={() => handleMoviePress(item)}
             focused={focused}
-            style={{width: cardWidth}}
+            style={{ width: cardWidth }}
           />
+          <Text>{item.stream_icon ? "": `${item.backdrop_path} + ${item.cover}`}</Text>
         </TouchableOpacity>
       );
     },
@@ -174,13 +194,11 @@ const MoviesScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={colors.gradients.dark}
-        style={styles.background}>
+      <LinearGradient colors={colors.gradients.dark} style={styles.background}>
         <View style={styles.header}>
           <Text style={styles.title}>Movies</Text>
           <Text style={styles.subtitle}>
-            {filteredList.length} title{filteredList.length !== 1 ? 's' : ''}
+            {filteredList.length} movie{filteredList.length !== 1 ? 's' : ''}
           </Text>
         </View>
         <View style={styles.body}>
@@ -207,7 +225,7 @@ const MoviesScreen: React.FC = () => {
               maxToRenderPerBatch={numColumns * 3}
               windowSize={7}
               removeClippedSubviews={true}
-              onScrollToIndexFailed={({index}) => {
+              onScrollToIndexFailed={({ index }) => {
                 setTimeout(() => {
                   const row = Math.floor(index / numColumns);
                   gridRef.current?.scrollToOffset({
@@ -267,12 +285,12 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   list: {
-    paddingBottom: spacing.xxl,
+    // paddingBottom: spacing.xxl,
   },
   row: {
     justifyContent: 'flex-start',
     gap: spacing.md,
-    marginBottom: spacing.md,
+    // marginBottom: spacing.md,
   },
   cardContainer: {
     marginBottom: spacing.lg,
