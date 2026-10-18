@@ -9,6 +9,10 @@
     "start": "react-native start",
     "start:reset": "react-native start --reset-cache",
     "test": "jest",
+    "android:apk": "cd android && gradlew.bat assembleRelease",
+    "android:apk:debug": "cd android && gradlew.bat assembleDebug",
+    "pair": "adb pair 192.168.1.32:38357",
+    "connect": "adb connect 192.168.1.32:37031",
     "postinstall": "patch-package"
   },
   "dependencies": {

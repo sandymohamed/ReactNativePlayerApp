@@ -34,6 +34,7 @@ const SeriesScreen: React.FC = () => {
     useNavigation<NativeStackNavigationProp<RootStackParamList, 'Series'>>();
   const { profile, listSerie, listSerieFav, listSerieRecent, catSerie } =
     useGlobalContext();
+ 
   const layout = useLandscapeLayout();
 
   const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
@@ -74,6 +75,7 @@ const SeriesScreen: React.FC = () => {
     return listSerie.filter(s => String(s.category_id) === selectedCategoryId);
   }, [listSerie, listSerieFav, listSerieRecent, selectedCategoryId]);
 
+
   useEffect(() => {
     setGridFocusIndex(0);
   }, [filteredList.length, selectedCategoryId]);
@@ -91,10 +93,8 @@ const SeriesScreen: React.FC = () => {
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (navigation.canGoBack()) {
-        console.log('SeriesScreen: going back');
         navigation.goBack();
       } else {
-        console.log('SeriesScreen: navigating to Main');
         navigation.navigate('Main');
       }
       return true;
@@ -105,10 +105,8 @@ const SeriesScreen: React.FC = () => {
   useTVEventHandler({
     onBack: () => {
       if (navigation.canGoBack()) {
-        console.log('SeriesScreen: going back');
         navigation.goBack();
       } else {
-        console.log('SeriesScreen: navigating to Main');
         navigation.navigate('Main');
       }
     },
@@ -136,10 +134,8 @@ const SeriesScreen: React.FC = () => {
         return;
       }
       if (navigation.canGoBack()) {
-        console.log('SeriesScreen: going back');
         navigation.goBack();
       } else {
-        console.log('SeriesScreen: navigating to Main');
         navigation.navigate('Main');
       }
     },
@@ -185,7 +181,7 @@ const SeriesScreen: React.FC = () => {
           activeOpacity={0.85}>
           <Card
             title={item.name}
-            image={item.cover  }
+            image={item.cover}
             onPress={() => handleSeriePress(item)}
             focused={focused}
             style={{ width: cardWidth }}

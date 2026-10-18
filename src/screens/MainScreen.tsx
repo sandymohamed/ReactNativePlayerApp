@@ -33,6 +33,7 @@ const MainScreen: React.FC = () => {
   const { width } = useWindowDimensions();
   const numColumns = getMainGridNumColumns(width);
   const cardWidth = getMainCardWidth(width, numColumns);
+  const [isLoading, setIsLoading] = useState(false);
 
   const {
     profile,
@@ -158,6 +159,7 @@ const MainScreen: React.FC = () => {
   const loadData = async () => {
     if (!profile) return;
 
+    setIsLoading(true);
     const mapStream = (s: any) => ({
       ...s,
       stream_id: String(s?.stream_id ?? s?.num ?? ''),
@@ -184,6 +186,7 @@ const MainScreen: React.FC = () => {
       fetchJson<unknown>(vodUrl),
       fetchJson<unknown>(seriesUrl),
     ]);
+
     if (liveRes.status === 'fulfilled') {
       changeListLive(
         normalizeStreams(liveRes.value).map(mapStream) as Stream[],
@@ -196,7 +199,7 @@ const MainScreen: React.FC = () => {
       changeListSerie(
         normalizeStreams(seriesRes.value).map(mapStream) as Stream[],
       );
-    } else console.error('Series:', seriesRes.reason);
+    } else console.error('Error fetch Series:', seriesRes.reason);
 
     try {
       const [favLive, favVod, favSerie] = await Promise.all([
@@ -243,12 +246,17 @@ const MainScreen: React.FC = () => {
             : [],
         );
       }
+      setIsLoading(false);
     } catch (e) {
+      setIsLoading(false);
+
       console.error('Error loading fav/recent:', e);
     }
   };
 
   const handleCardPress = (index: number) => {
+    if (isLoading) return;
+
     cards[index].onPress();
   };
 

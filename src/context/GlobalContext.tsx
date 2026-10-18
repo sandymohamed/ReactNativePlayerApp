@@ -1,5 +1,11 @@
-import React, {createContext, useContext, FC, ReactNode, useState} from 'react';
-import {Playlist, Stream, MovieInfo, SerieInfo} from '../models/model';
+import React, {
+  createContext,
+  useContext,
+  FC,
+  ReactNode,
+  useState,
+} from 'react';
+import { Playlist, Stream, MovieInfo, SerieInfo } from '../models/model';
 
 interface GlobalContextProps {
   deviceInfo: any;
@@ -62,13 +68,13 @@ interface GlobalProviderProps {
   children: ReactNode;
 }
 
-export const GlobalProvider: FC<GlobalProviderProps> = ({children}) => {
+export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
   const [deviceInfo, setDeviceInfo] = useState<any>({});
   const [parentalEnable, setParentalEnable] = useState<boolean>(false);
 
   const [profile, setProfile] = useState<Playlist | null>(null);
   const [profileShow, setProfileShow] = useState<boolean>(false);
-  const [settings, setSettings] = useState<any>({position: 0});
+  const [settings, setSettings] = useState<any>({ position: 0 });
   const changeParental = (item: boolean) => {
     setParentalEnable(item);
   };

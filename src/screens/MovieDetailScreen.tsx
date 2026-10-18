@@ -41,19 +41,19 @@ const MovieDetailScreen: React.FC = () => {
   const handlePlay = () => {
     if (!profile || !movie) return;
 
-    const streamId = movie.stream_id || movie.movie_data?.stream_id;
+    const streamId = movie?.stream_id || movie?.movie_data?.stream_id;
     const url = generateurlplayer('movie', streamId, 'mp4', profile);
 
     navigation.navigate('Player', {
       url,
-      title: movie.name || movie.movie_data?.name || 'Movie',
+      title: movie?.name || movie?.movie_data?.name || 'Movie',
       type: 'movie',
       streamId: String(streamId),
     });
   };
 
-  const movieInfo = movie.movie_data || movie.info || movie;
-  const cover = movieInfo.cover || movie.stream_icon;
+  const movieInfo = movie?.movie_data || movie?.info || movie;
+  const cover = movieInfo?.cover || movie?.stream_icon;
 
   const contentBlock = (
     <View style={[styles.content, styles.contentWide]}>

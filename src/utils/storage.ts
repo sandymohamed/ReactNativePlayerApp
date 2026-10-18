@@ -29,6 +29,7 @@ export const storeVideoPositions = async (videoPositions: any) => {
   try {
     const jsonVideoPositions = JSON.stringify(videoPositions);
     await AsyncStorage.setItem('vodPositions', jsonVideoPositions);
+    console.log("Video positions stored successfully:", await getVideoPositions());
   } catch (error) {
     console.error('Error storing video positions:', error);
   }
@@ -48,6 +49,7 @@ export const storeSeriePositions = async (videoPositions: any) => {
   try {
     const jsonVideoPositions = JSON.stringify(videoPositions);
     await AsyncStorage.setItem('seriePositions', jsonVideoPositions);
+    console.log("Serie positions stored successfully:", await getSeriePositions());
   } catch (error) {
     console.error('Error storing serie positions:', error);
   }

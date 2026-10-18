@@ -1,6 +1,6 @@
 import React from 'react';
-import {NavigationContainer} from '@react-navigation/native';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
 import MainScreen from '../screens/MainScreen';
 import MoviesScreen from '../screens/MoviesScreen';
@@ -15,22 +15,33 @@ import RecentScreen from '../screens/RecentScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import SeasonScreen from '../screens/SeasonScreen';
+import { Season, SerieInfo } from '../models/model';
 
 export type RootStackParamList = {
   Home: undefined;
   Main: undefined;
-  Movies: {categoryId?: string};
-  MovieDetail: {movie: any};
-  Series: {categoryId?: string};
-  SerieDetail: {serie: any};
-  Live: {categoryId?: string; channelIndex?: number};
-  Player: {url: string; title: string; type: 'live' | 'movie' | 'serie'; streamId?: string};
+  Movies: { categoryId?: string };
+  MovieDetail: { movie: any };
+  Series: { categoryId?: string };
+  SerieDetail: { serie: any };
+  Live: { categoryId?: string; channelIndex?: number };
+  Player: {
+    url: string;
+    title: string;
+    type: 'live' | 'movie' | 'serie';
+    streamId?: string;
+    seriesId?: string;
+  };
   Search: undefined;
   Favorite: undefined;
   Recent: undefined;
   Settings: undefined;
-  Category: {type: 'live' | 'movie' | 'serie'; categoryId: string};
-  Season: {serie: any; season: any};
+  Category: { type: 'live' | 'movie' | 'serie'; categoryId: string };
+  Season: {
+    serie: SerieInfo;
+    season: { season_number: number; id: string };
+    seriesId: string;
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

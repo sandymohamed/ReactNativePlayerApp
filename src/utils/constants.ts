@@ -214,6 +214,8 @@ export async function insertDatarecent(
     profileid: profile.id,
   });
 
+  console.log("raw:",raw)
+
   var requestOptions: RequestInit = {
     method: 'POST',
     headers: myHeaders,

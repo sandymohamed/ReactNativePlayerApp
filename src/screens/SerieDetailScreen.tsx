@@ -77,7 +77,11 @@ const SerieDetailScreen: React.FC = () => {
   };
 
   const handleSeasonPress = (season: { season_number: number; id: string }) => {
-    navigation.navigate('Season', { serie: serie || routeSerie, season });
+    navigation.navigate('Season', { 
+      serie: serie || routeSerie, 
+      season, 
+      seriesId: routeSerie.series_id || routeSerie.stream_id
+    });
   };
 
   if (loading || !serie) {
