@@ -228,9 +228,6 @@
 
 // export default Card;
 
-
-
-
 import React from 'react';
 import {
   View,
@@ -238,6 +235,7 @@ import {
   TouchableOpacity,
   Text,
   ViewStyle,
+  StyleProp,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { spacing } from '../theme/spacing';
@@ -248,7 +246,7 @@ interface CardProps {
   image?: string;
   onPress?: () => void;
   focused?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   subtitle?: string;
   badge?: string;
 }
@@ -268,15 +266,9 @@ const Card: React.FC<CardProps> = ({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.82}
-      style={[
-        styles.container,
-        style,
-        focused && styles.focused,
-      ]}
+      style={[styles.container, style, focused && styles.focused]}
       accessibilityRole="button"
-      accessibilityLabel={[title, subtitle, badge]
-        .filter(Boolean)
-        .join(', ')}
+      accessibilityLabel={[title, subtitle, badge].filter(Boolean).join(', ')}
       accessibilityState={{ selected: focused }}>
       <View style={styles.posterWrapper}>
         {image ? (
@@ -291,7 +283,7 @@ const Card: React.FC<CardProps> = ({
         ) : (
           <View style={styles.placeholder}>
             <Text style={styles.placeholderLetter}>
-            {title?.charAt(0)?.toUpperCase() || '?'}
+              {title?.charAt(0)?.toUpperCase() || '?'}
             </Text>
           </View>
         )}
@@ -340,7 +332,6 @@ const Card: React.FC<CardProps> = ({
                 {subtitle}
               </Text>
             ) : null}
-
           </View>
         )}
       </View>
