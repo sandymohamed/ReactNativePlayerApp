@@ -177,7 +177,6 @@ const MoviesScreen: React.FC = () => {
             focused={focused}
             style={{ width: cardWidth }}
           />
-          <Text>{item.stream_icon ? "": `${item.backdrop_path} + ${item.cover}`}</Text>
         </TouchableOpacity>
       );
     },

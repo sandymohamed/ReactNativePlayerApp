@@ -42,7 +42,8 @@ const MovieDetailScreen: React.FC = () => {
     if (!profile || !movie) return;
 
     const streamId = movie?.stream_id || movie?.movie_data?.stream_id;
-    const url = generateurlplayer('movie', streamId, 'mp4', profile);
+    const ext = movie.container_extension || 'mp4';
+    const url = generateurlplayer('movie', streamId, ext, profile);
 
     navigation.navigate('Player', {
       url,
@@ -79,27 +80,27 @@ const MovieDetailScreen: React.FC = () => {
   return (
     <ScrollView style={styles.container}>
       <LinearGradient colors={colors.gradients.dark} style={styles.background}>
-          <FastImage
-            source={{ uri: cover || "" }}
-            style={[styles.cover, { opacity: 0.7 }]}
-            resizeMode={FastImage.resizeMode.cover}>
-              <LinearGradient
-                colors={colors.gradients.dark}
-                style={[styles.backgroundWide, { opacity: 1 }]}>
-                {cover && (
-                  <FastImage
-                    source={{ uri: cover }}
-                    style={[styles.coverWide]}
-                    resizeMode={FastImage.resizeMode.cover}
-                  />
-                )}
-                <LinearGradient
-                  colors={[colors.overlay, colors.background]}
-                  style={[styles.overlayWide, { opacity: 1 }]}>
-                  {contentBlock}
-                </LinearGradient>
-              </LinearGradient>
-          </FastImage>
+        <FastImage
+          source={{ uri: cover || '' }}
+          style={[styles.cover, { opacity: 0.7 }]}
+          resizeMode={FastImage.resizeMode.cover}>
+          <LinearGradient
+            colors={colors.gradients.dark}
+            style={[styles.backgroundWide, { opacity: 1 }]}>
+            {cover && (
+              <FastImage
+                source={{ uri: cover }}
+                style={[styles.coverWide]}
+                resizeMode={FastImage.resizeMode.cover}
+              />
+            )}
+            <LinearGradient
+              colors={[colors.overlay, colors.background]}
+              style={[styles.overlayWide, { opacity: 1 }]}>
+              {contentBlock}
+            </LinearGradient>
+          </LinearGradient>
+        </FastImage>
       </LinearGradient>
     </ScrollView>
   );

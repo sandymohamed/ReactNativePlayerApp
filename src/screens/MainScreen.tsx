@@ -256,7 +256,6 @@ const MainScreen: React.FC = () => {
 
   const handleCardPress = (index: number) => {
     if (isLoading) return;
-
     cards[index].onPress();
   };
 
@@ -277,13 +276,19 @@ const MainScreen: React.FC = () => {
             {cards.map((card, index) => (
               <View
                 key={card.id}
-                style={[styles.cardWrapper, { width: cardWidth }]}>
+                >
                 <Card
                   title={card.title}
                   subtitle={card.subtitle}
                   image={card.image}
                   onPress={() => handleCardPress(index)}
                   focused={focusedIndex === index}
+                  style={{
+                    width: cardWidth,
+                    height: cardWidth * 1.2,
+                    borderColor: '#fff',
+                    borderWidth: 3,
+               } }
                 />
               </View>
             ))}
@@ -323,7 +328,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     alignContent: 'flex-start',
   },
-  cardWrapper: {},
 });
 
 export default MainScreen;

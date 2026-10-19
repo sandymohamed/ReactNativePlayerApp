@@ -40,16 +40,16 @@ const PlayerScreen: React.FC = () => {
   const route = useRoute();
 
   const { url, title, type, streamId, seriesId } = route.params as any;
-  // console.log(
-  //   'PlayerScreen: url =',
-  //   url,
-  //   'title =',
-  //   title,
-  //   'type =',
-  //   type,
-  //   'streamId =',
-  //   streamId,
-  // );
+  console.log(
+    'PlayerScreen: url =',
+    url,
+    'title =',
+    title,
+    'type =',
+    type,
+    'streamId =',
+    streamId,
+  );
 
   const {
     profile,
@@ -169,7 +169,7 @@ const PlayerScreen: React.FC = () => {
         'currentTime:',
         currentTimeRef.current,
       );
-      saveCurrentPlaybackPosition();
+      saveCurrentPlaybackPosition(); //* ****************** */
     };
   }, []);
   // ------------------------------------------------------------
@@ -329,13 +329,13 @@ const PlayerScreen: React.FC = () => {
   // Series helpers
   // ------------------------------------------------------------
 
-  const getCurrentEpisode = (): Episode | null => {
-    if (type !== 'serie' || !serie || !serie.epi) {
-      return null;
-    }
+  // const getCurrentEpisode = (): Episode | null => {
+  //   if (type !== 'serie' || !serie || !serie.epi) {
+  //     return null;
+  //   }
 
-    return serie.epi;
-  };
+  //   return serie.epi;
+  // };
 
   const getNextEpisode = (): Episode | null => {
     if (type !== 'serie' || !serie || !serie.episodes || !serie.epi) {
@@ -585,7 +585,6 @@ const PlayerScreen: React.FC = () => {
   // ------------------------------------------------------------
 
   const saveCurrentPlaybackPosition = async () => {
-    console.log('befoooooooooooooooooooore');
     if (
       isLive ||
       !streamId ||
@@ -670,38 +669,23 @@ const PlayerScreen: React.FC = () => {
         hlsConfig={{
           enableWorker: false,
           lowLatencyMode: isLive,
-
           backBufferLength: isLive ? 1 : 90,
-
           maxBufferLength: isLive ? 10 : 30,
-
           maxMaxBufferLength: isLive ? 20 : 60,
-
           maxBufferSize: isLive ? 10 * 1000 * 1000 : 60 * 1000 * 1000,
-
           maxBufferHole: 0.5,
-
           highBufferWatchdogPeriod: 2,
-
           nudgeOffset: 0.1,
-
           nudgeMaxRetry: 3,
-
           maxFragLoadingTimeOut: 20000,
-
           maxLoadingDelay: 4,
-
           minAutoBitrate: 0,
-
           maxStarvationDelay: 4,
         }}
         bufferConfig={{
           minBufferMs: isLive ? 1000 : 15000,
-
           maxBufferMs: isLive ? 10000 : 50000,
-
           bufferForPlaybackMs: isLive ? 1000 : 2500,
-
           bufferForPlaybackAfterRebufferMs: isLive ? 1000 : 5000,
         }}
         onLoad={async (data: { duration?: number }) => {
@@ -844,7 +828,7 @@ const PlayerScreen: React.FC = () => {
                   'DEBUG: handleNextEpisode called from onEnd',
                   `Source: PlayerScreen.tsx → Video onEnd\nCurrent time: ${currentTime}\nHas next episode: ${hasNextEpisode}`,
                 );
-                // handleNextEpisode();
+                handleNextEpisode();
               }, 2000);
             }
           }
@@ -895,16 +879,6 @@ const PlayerScreen: React.FC = () => {
 
       {/* ======================================================
           TAP AREA
-          
-          This sits above the video but below the controls.
-          
-          Single tap:
-          - hidden -> show
-          - visible -> hide
-
-          Double tap:
-          - left -> -10
-          - right -> +10
       ====================================================== */}
 
       <View pointerEvents="box-none" style={styles.tapArea}>

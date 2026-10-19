@@ -21,13 +21,14 @@ import { useTVEventHandler } from '../hooks/useTVEventHandler';
 import { useGlobalContext } from '../context/GlobalContext';
 import { generateurlplayer, insertDatarecent } from '../utils/constants';
 import { Episode } from '../models/model';
+import { getSeriePositions, getVideoPositions, storeSeriePositions, storeVideoPositions } from '../utils/storage';
 
 const { width, height } = Dimensions.get('window');
 
 const PlayerScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { url, title, type, streamId } = route.params as any;
+  const { url, title, type, streamId, seriesId } = route.params as any;
   const {
     profile,
     serie,
@@ -39,6 +40,11 @@ const PlayerScreen: React.FC = () => {
     listVodRecent,
     listSerieRecent,
   } = useGlobalContext();
+
+  // ------------------------------------------------------------
+  // State
+  // ------------------------------------------------------------
+
   const [paused, setPaused] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -47,9 +53,16 @@ const PlayerScreen: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1.0);
-  const videoRef = useRef<any>(null);
-  const controlsTimeout = useRef<ReturnType<typeof setTimeout>>();
   const [videoKey, setVideoKey] = useState(0);
+
+  const videoRef = useRef<any>(null);
+  const resumePositionRef = useRef(0);
+  const currentTimeRef = useRef(0);
+  const durationRef = useRef(0);
+  const resumeHandledRef = useRef(false);
+  const lastSaveTimeRef = useRef(0);
+
+  const controlsTimeout = useRef<ReturnType<typeof setTimeout>>();
   const isLive = type === 'live';
 
   useEffect(() => {
@@ -64,16 +77,31 @@ const PlayerScreen: React.FC = () => {
     return () => backHandler.remove();
   }, [navigation]);
 
+  // ------------------------------------------------------------
+  // Recent tracking
+  // ------------------------------------------------------------
+
   const recentRecorded = useRef(false);
+
   useEffect(() => {
-    if (!profile || !streamId || !type || recentRecorded.current) return;
+    if (!profile || !streamId || !type || recentRecorded.current) {
+      return;
+    }
+
+    const currentID = type === 'serie' ? seriesId : streamId;
     recentRecorded.current = true;
-    insertDatarecent(streamId, type, profile);
-    const add = (arr: string[]) => Array.from(new Set([...arr, streamId]));
-    if (type === 'live') changeListLiveRecent(add(listLiveRecent || []));
-    else if (type === 'movie') changeListVodRecent(add(listVodRecent || []));
-    else if (type === 'serie')
+
+    // this is an API request
+    insertDatarecent(currentID, type, profile);
+
+    const add = (arr: string[]) => Array.from(new Set([...arr, currentID]));
+    if (type === 'live') {
+      changeListLiveRecent(add(listLiveRecent || []));
+    } else if (type === 'movie') {
+      changeListVodRecent(add(listVodRecent || []));
+    } else if (type === 'serie') {
       changeListSerieRecent(add(listSerieRecent || []));
+    }
   }, [profile, streamId, type]);
 
   useTVEventHandler({
@@ -126,10 +154,10 @@ const PlayerScreen: React.FC = () => {
     showControlsTemporarily();
   };
 
-  const getCurrentEpisode = (): Episode | null => {
-    if (type !== 'serie' || !serie || !serie.epi) return null;
-    return serie.epi;
-  };
+  // const getCurrentEpisode = (): Episode | null => {
+  //   if (type !== 'serie' || !serie || !serie.epi) return null;
+  //   return serie.epi;
+  // };
 
   const getNextEpisode = (): Episode | null => {
     if (type !== 'serie' || !serie || !serie.episodes || !serie.epi)
@@ -267,6 +295,101 @@ const PlayerScreen: React.FC = () => {
   const hasNextEpisode = type === 'serie' && getNextEpisode() !== null;
   const hasPreviousEpisode = type === 'serie' && getPreviousEpisode() !== null;
 
+  // ------------------------------------------------------------
+  // restore playback position
+  // ------------------------------------------------------------
+
+  const restorePlaybackPosition = async () => {
+    if (isLive || !streamId || resumeHandledRef.current) {
+      return;
+    }
+
+    resumeHandledRef.current = true;
+
+    try {
+      if (type === 'movie') {
+        const positions = await getVideoPositions();
+        const saved = positions[String(streamId)];
+
+        if (saved && Number.isFinite(saved.position)) {
+          resumePositionRef.current = saved.position;
+        }
+      } else if (type === 'serie' && seriesId) {
+        const positions = await getSeriePositions();
+        const saved = positions[String(seriesId)];
+
+        // Restore only when the saved episode matches this episode.
+        if (
+          saved &&
+          String(saved.episodeId) === String(streamId) &&
+          Number.isFinite(saved.position)
+        ) {
+          resumePositionRef.current = saved.position;
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring playback position:', error);
+    }
+  };
+
+  // ------------------------------------------------------------
+  // Save final playback position on unmount
+  // ------------------------------------------------------------
+
+  const saveCurrentPlaybackPosition = async () => {
+    if (
+      isLive ||
+      !streamId ||
+      !resumeHandledRef.current ||
+      currentTimeRef.current <= 0
+    ) {
+      return;
+    }
+
+    console.log(
+      'Saving final playback position for streamId:',
+      streamId,
+      'currentTime:',
+      currentTimeRef.current,
+    );
+    try {
+      const position = currentTimeRef.current;
+      const duration = durationRef.current;
+
+      if (type === 'movie') {
+        const positions = await getVideoPositions();
+        console.log('Saving final playback position for movie:', positions);
+
+        await storeVideoPositions({
+          ...positions,
+          [String(streamId)]: {
+            position,
+            duration,
+            title,
+          },
+        });
+      } else if (type === 'serie' && seriesId) {
+        const positions = await getSeriePositions();
+
+        await storeSeriePositions({
+          ...positions,
+          [String(seriesId)]: {
+            episodeId: String(streamId),
+            position,
+            duration,
+            title,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Error saving final playback position:', error);
+    }
+  };
+
+  // ------------------------------------------------------------
+  // Video source
+  // ------------------------------------------------------------
+
   const videoSource = isLive
     ? { uri: url, type: 'm3u8' as const }
     : { uri: url };
@@ -306,14 +429,30 @@ const PlayerScreen: React.FC = () => {
           bufferForPlaybackMs: isLive ? 1000 : 2500,
           bufferForPlaybackAfterRebufferMs: isLive ? 1000 : 5000,
         }}
-        // onLoad={() => {
-        //   setLoading(false);
-        //   setError(null);
-        // }}
-        onLoad={() => {
+        onLoad={async (data: { duration?: number }) => {
           setLoading(false);
           setBuffering(false);
           setError(null);
+
+          if (data.duration && data.duration > 0) {
+            setDuration(data.duration);
+            durationRef.current = data.duration;
+          }
+
+          await restorePlaybackPosition();
+
+          const savedPosition = resumePositionRef.current;
+
+          if (
+            savedPosition > 0 &&
+            data.duration &&
+            savedPosition < data.duration - 5 &&
+            videoRef.current
+          ) {
+            videoRef.current.seek(savedPosition);
+            setCurrentTime(savedPosition);
+            currentTimeRef.current = savedPosition;
+          }
         }}
         onLoadStart={() => {
           setLoading(true);
@@ -352,13 +491,70 @@ const PlayerScreen: React.FC = () => {
           seekableDuration?: number;
         }) => {
           setCurrentTime(data.currentTime);
+          currentTimeRef.current = data.currentTime;
+
           if (
             data.seekableDuration != null &&
             data.seekableDuration > 0 &&
             !isLive
           ) {
             setDuration(data.seekableDuration);
+            durationRef.current = data.seekableDuration;
           }
+
+          // Wait until the saved position has been loaded.
+          if (isLive || !resumeHandledRef.current || !streamId) {
+            return;
+          }
+
+          const now = Date.now();
+
+          // Save at most once every 5 seconds.
+          if (now - lastSaveTimeRef.current < 5000) {
+            return;
+          }
+
+          lastSaveTimeRef.current = now;
+
+          const position = data.currentTime;
+          const savedDuration = data.seekableDuration ?? durationRef.current;
+
+          if (position <= 0) {
+            return;
+          }
+
+          const savePosition = async () => {
+            try {
+              if (type === 'movie') {
+                const positions = await getVideoPositions();
+
+                await storeVideoPositions({
+                  ...positions,
+                  [String(streamId)]: {
+                    position,
+                    duration: savedDuration,
+                    title,
+                  },
+                });
+              } else if (type === 'serie' && seriesId) {
+                const positions = await getSeriePositions();
+
+                await storeSeriePositions({
+                  ...positions,
+                  [String(seriesId)]: {
+                    episodeId: String(streamId),
+                    position,
+                    duration: savedDuration,
+                    title,
+                  },
+                });
+              }
+            } catch (error) {
+              console.error('Error saving playback position:', error);
+            }
+          };
+
+          void savePosition();
         }}
         onEnd={() => {
           if (!isLive) {
@@ -390,11 +586,11 @@ const PlayerScreen: React.FC = () => {
         </View>
       )} */}
 
-      {(loading || buffering) && (
-        <View style={styles.loadingIndicator}>
-          <ActivityIndicator size="small" color={colors.primary} />
-        </View>
-      )}
+        {(loading || buffering) && (
+          <View pointerEvents="none" style={styles.loadingIndicator}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        )}
 
       {error && (
         <View style={styles.errorContainer}>
