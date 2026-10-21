@@ -22,6 +22,7 @@ import { spacing } from '../theme/spacing';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
 import { getMainGridNumColumns } from '../utils/layout';
+import TVFocusable from '../components/TVFocusable';
 
 type MainScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -338,12 +339,15 @@ const MainScreen: React.FC = () => {
     const focused = focusedIndex === index;
 
     return (
-      <TouchableOpacity
+      <TVFocusable
         key={destination.id}
         activeOpacity={0.85}
         disabled={isLoading || loadError}
         onPress={() => handleCardPress(index)}
         onFocus={() => setFocusedIndex(index)}
+         focusedStyle={{
+    borderColor: '#5EEAD4',
+  }}
         accessibilityRole="button"
         accessibilityLabel={destination.title}
         accessibilityState={{
@@ -356,12 +360,12 @@ const MainScreen: React.FC = () => {
           (isLoading || loadError) && styles.disabledTile,
         ]}>
         <Text style={[styles.quickIcon, focused && styles.quickIconFocused]}>
-          {destination.icon}
+          {destination.icon} mmmmmmmmmmmmmmm
         </Text>
         <Text style={styles.quickTitle} numberOfLines={1}>
-          {destination.title}
+          {destination.title} ffffffffffff
         </Text>
-      </TouchableOpacity>
+      </TVFocusable>
     );
   };
 
@@ -412,12 +416,12 @@ const MainScreen: React.FC = () => {
         {!isLoading && loadError && (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>Some lists could not be loaded.</Text>
-            <TouchableOpacity
+            <TVFocusable
               style={styles.retryButton}
               onPress={loadData}
               accessibilityRole="button">
               <Text style={styles.retryText}>Retry</Text>
-            </TouchableOpacity>
+            </TVFocusable>
           </View>
         )}
       </LinearGradient>
@@ -606,7 +610,7 @@ const MainScreenCard: React.FC<{
   onPress: () => void;
   onFocus: () => void;
 }> = ({ title, countLabel, image, focused, disabled, onPress, onFocus }) => (
-  <TouchableOpacity
+  <TVFocusable
     activeOpacity={0.9}
     disabled={disabled}
     onPress={onPress}
@@ -628,7 +632,7 @@ const MainScreenCard: React.FC<{
         <Text style={styles.mainCardCount} numberOfLines={1}>{countLabel}</Text>
       </LinearGradient>
     </ImageBackground>
-  </TouchableOpacity>
+  </TVFocusable>
 );
 
 export default MainScreen;

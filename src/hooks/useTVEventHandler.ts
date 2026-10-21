@@ -24,6 +24,8 @@ export const useTVEventHandler = (handlers: TVEventHandlers) => {
     const tvEventHandler = new TVEventHandler();
 
     tvEventHandler.enable(null, (cmp, evt) => {
+      console.log("cmp:",cmp)
+      console.log("evt:",evt)
       if (evt && evt.eventType === 'playPause' && handlers.onPlayPause) {
         handlers.onPlayPause();
       } else if (evt && evt.eventType === 'select' && handlers.onSelect) {

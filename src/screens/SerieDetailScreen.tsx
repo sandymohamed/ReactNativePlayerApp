@@ -13,7 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useGlobalContext } from '../context/GlobalContext';
-import { generateurl } from '../utils/constants';
+import { deleterow, generateurl, insertData } from '../utils/constants';
 import { fetchJson } from '../utils/api';
 import { colors } from '../theme/colors';
 import { spacing, borderRadius } from '../theme/spacing';
@@ -21,6 +21,7 @@ import { typography } from '../theme/typography';
 import Card from '../components/Card';
 import { SerieInfo, Season } from '../models/model';
 import FastImage from 'react-native-fast-image';
+import { TouchableOpacity } from 'react-native-gesture-handler';
 
 const SerieDetailScreen: React.FC = () => {
   const navigation =
@@ -30,11 +31,36 @@ const SerieDetailScreen: React.FC = () => {
   const route = useRoute();
   const { width } = useWindowDimensions();
   const { serie: routeSerie } = route.params as any;
-  const { profile, changeSerie } = useGlobalContext();
+  const { profile, changeSerie, listSerieFav, changeListSerieFav } =
+    useGlobalContext();
   const [serie, setSerie] = useState<SerieInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const wide = width >= 800;
   const seasonCardWidth = wide ? 260 : 200;
+
+  const [isFav, setIsFav] = useState<boolean>(false);
+
+  const handlePressFav = () => {
+    var streamId = String(routeSerie.series_id);
+    const arrayFav = [...listSerieFav];
+    if (listSerieFav.includes(streamId)) {
+      let arr = arrayFav.filter(el => el !== streamId);
+      console.log('arr : ', arr);
+      profile ? deleterow(streamId, 'serie', profile) : null;
+
+      changeListSerieFav(arr);
+    } else {
+      arrayFav.push(streamId);
+      console.log('arrayFav : ', arrayFav);
+      profile ? insertData(streamId, 'serie', profile) : null;
+      changeListSerieFav(arrayFav);
+    }
+    setIsFav(isFav => !isFav);
+  };
+
+  useEffect(() => {
+    setIsFav(listSerieFav.includes(String(routeSerie.series_id)));
+  }, [listSerieFav]);
 
   useEffect(() => {
     loadSerieDetails();
@@ -77,10 +103,10 @@ const SerieDetailScreen: React.FC = () => {
   };
 
   const handleSeasonPress = (season: { season_number: number; id: string }) => {
-    navigation.navigate('Season', { 
-      serie: serie || routeSerie, 
-      season, 
-      seriesId: routeSerie.series_id || routeSerie.stream_id
+    navigation.navigate('Season', {
+      serie: serie || routeSerie,
+      season,
+      seriesId: routeSerie.series_id || routeSerie.stream_id,
     });
   };
 
@@ -104,7 +130,7 @@ const SerieDetailScreen: React.FC = () => {
                 ? serieInfo?.cover
                 : undefined,
           }}
-          style={[styles.cover, { opacity: 0.4 }]}
+          style={[styles.cover, { opacity: 0.9 }]}
           resizeMode={FastImage.resizeMode.cover}>
           <View style={[styles.content, wide && styles.contentWide]}>
             <Text style={styles.title}>
@@ -113,15 +139,23 @@ const SerieDetailScreen: React.FC = () => {
             {serieInfo.plot && (
               <Text style={styles.plot}>{serieInfo.plot}</Text>
             )}
-            <View style={styles.meta}>
-              {serieInfo.genre && (
-                <Text style={styles.metaText}>Genre: {serieInfo.genre}</Text>
-              )}
-              {serieInfo.releaseDate && (
-                <Text style={styles.metaText}>
-                  Year: {serieInfo.releaseDate}
-                </Text>
-              )}
+
+            <View style={styles.row}>
+              <View style={styles.meta}>
+                {serieInfo.genre && (
+                  <Text style={styles.metaText}>Genre: {serieInfo.genre}</Text>
+                )}
+                {serieInfo.releaseDate && (
+                  <Text style={styles.metaText}>
+                    Year: {serieInfo.releaseDate}
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity onPress={handlePressFav}>
+                <View style={styles.favoriteIconContainer}>
+                  <Text style={styles.favoriteIcon}>{isFav ? '❤' : '🤍'}</Text>
+                </View>
+              </TouchableOpacity>
             </View>
             {(() => {
               const seasonsList: Array<{
@@ -202,6 +236,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.xl,
+    backgroundColor: '#715f5f',
   },
   contentWide: {
     paddingHorizontal: spacing.xxl,
@@ -224,13 +259,33 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     lineHeight: 24,
   },
+  row: {
+    display: 'flex',
+    flexDirection: 'row',
+    paddingHorizontal: 15,
+  },
   meta: {
-    marginBottom: spacing.xl,
+    flex: 1,
   },
   metaText: {
     ...typography.bodySmall,
-    color:colors.white,
+    color: colors.white,
     marginBottom: spacing.sm,
+  },
+
+  favoriteIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: 'rgba(124, 108, 246, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 108, 246, 0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favoriteIcon: {
+    fontSize: 29,
+    color: colors.primaryDark,
   },
   seasonsContainer: {
     marginTop: spacing.xl,

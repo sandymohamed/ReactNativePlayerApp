@@ -32,6 +32,10 @@ type DeviceInfoShow = '-2' | '-1' | '0' | '1';
 const PROFILE_SIZE = 120;
 const PROFILE_GAP = spacing.lg;
 
+const DEF_MAC = 'b8:b4:09:45:24:f6';
+// const DEF_MAC = "a0:d7:f3:f6:52:03";
+const DEF_VERSION = "'1.0.2'";
+const DEF_TYPE = 3;
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { width } = useWindowDimensions();
@@ -145,9 +149,10 @@ const HomeScreen: React.FC = () => {
   );
 
   const initializeDevice = useCallback(() => {
-    const defaultMac = 'b8:b4:09:45:24:f6';
-    const defaultVersion = '1.0.2';
-    const defaultType = 3;
+    // const defaultMac = 'b8:b4:09:45:24:f6';
+    const defaultMac = DEF_MAC;
+    const defaultVersion = DEF_VERSION;
+    const defaultType = DEF_TYPE;
     changeDeviceInfo({
       mac: defaultMac,
       version: defaultVersion,
@@ -166,7 +171,7 @@ const HomeScreen: React.FC = () => {
     setError('');
     const info = deviceInfo?.mac
       ? deviceInfo
-      : { mac: 'b8:b4:09:45:24:f6', version: '1.0.2', type: 3 };
+      : { mac: DEF_MAC, version: DEF_VERSION, type: DEF_TYPE };
     callService(info.mac, info.version || '1.0.2', info.type ?? 3);
   }, [deviceInfo, callService]);
 
@@ -203,9 +208,12 @@ const HomeScreen: React.FC = () => {
       }
     },
     onLeft: () => {
+       console.log('TV LEFT pressed');
       if (showProfilePicker) setSelectedProfileIndex(i => Math.max(0, i - 1));
     },
     onRight: () => {
+        console.log('TV RIGHT pressed');
+
       if (showProfilePicker)
         setSelectedProfileIndex(i => Math.min(profileList.length - 1, i + 1));
     },
@@ -232,9 +240,14 @@ const HomeScreen: React.FC = () => {
     item: Playlist;
     index: number;
   }) => {
+    console.log("selectedProfileIndex:",selectedProfileIndex
+
+
+    )
     const focused = showProfilePicker && selectedProfileIndex === index;
     return (
       <TouchableOpacity
+        onFocus={() => setSelectedProfileIndex(index)}
         onPress={() => {
           setSelectedProfileIndex(index);
           handleProfileSelect(item);
@@ -259,9 +272,7 @@ const HomeScreen: React.FC = () => {
             <View style={styles.profileCircle}>
               <Logo size={44} />
             </View>
-            <Text style={styles.selectedProfileName}>
-              {item.profile_name}
-            </Text>
+            <Text style={styles.selectedProfileName}>{item.profile_name}</Text>
           </>
         )}
       </TouchableOpacity>
@@ -291,6 +302,7 @@ const HomeScreen: React.FC = () => {
                 <FlatList
                   ref={profileListRef}
                   data={profileList}
+                  extraData={selectedProfileIndex}
                   horizontal
                   renderItem={renderProfileItem}
                   keyExtractor={item => String(item.id)}

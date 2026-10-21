@@ -28,11 +28,11 @@ interface SettingItem {
 }
 
 const SETTINGS: SettingItem[] = [
-  {id: 'language', title: 'Select Language'},
-  {id: 'parental', title: 'Parental control'},
+  // {id: 'language', title: 'Select Language'},
+  // {id: 'parental', title: 'Parental control'},
   {id: 'stream', title: 'Stream Format'},
-  {id: 'time', title: 'Time Format'},
-  {id: 'list', title: 'List Type'},
+  // {id: 'time', title: 'Time Format'},
+  // {id: 'list', title: 'List Type'},
 ];
 
 const LANGUAGE_OPTIONS = [{id: 'en', title: 'English'}];

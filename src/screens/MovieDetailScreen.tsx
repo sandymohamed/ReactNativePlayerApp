@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -12,12 +12,13 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useGlobalContext } from '../context/GlobalContext';
-import { generateurlplayer } from '../utils/constants';
+import { deleterow, generateurlplayer, insertData } from '../utils/constants';
 import { colors } from '../theme/colors';
 import { spacing, borderRadius } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import Button from '../components/Button';
 import FastImage from 'react-native-fast-image';
+import { TouchableOpacity } from 'react-native-gesture-handler';
 
 const MovieDetailScreen: React.FC = () => {
   const navigation =
@@ -25,9 +26,28 @@ const MovieDetailScreen: React.FC = () => {
       NativeStackNavigationProp<RootStackParamList, 'MovieDetail'>
     >();
   const route = useRoute();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { movie } = route.params as any;
-  const { profile } = useGlobalContext();
+  const { profile, listVodFav, changeListVodFav } = useGlobalContext();
+  const [isFav, setIsFav] = useState<boolean>(false);
+
+  const handlePressFav = () => {
+    var streamId = String(movie.stream_id);
+    const arrayFav = [...listVodFav];
+    if (listVodFav.includes(streamId)) {
+      let arr = arrayFav.filter(el => el !== streamId);
+      console.log('arr : ', arr);
+      profile ? deleterow(streamId, 'serie', profile) : null;
+
+      changeListVodFav(arr);
+    } else {
+      arrayFav.push(streamId);
+      console.log('arrayFav : ', arrayFav);
+      profile ? insertData(streamId, 'serie', profile) : null;
+      changeListVodFav(arrayFav);
+    }
+    setIsFav(isFav => !isFav);
+  };
 
   useEffect(() => {
     console.log('MovieDetailScreen: movie =', movie);
@@ -62,27 +82,38 @@ const MovieDetailScreen: React.FC = () => {
         {movieInfo.name || movie.name || 'Movie'}
       </Text>
       {movieInfo.plot && <Text style={styles.plot}>{movieInfo.plot}</Text>}
-      <View style={styles.meta}>
-        {movieInfo.genre && (
-          <Text style={styles.metaText}>Genre: {movieInfo.genre}</Text>
-        )}
-        {movieInfo.releaseDate && (
-          <Text style={styles.metaText}>Year: {movieInfo.releaseDate}</Text>
-        )}
-        {movieInfo.rating && (
-          <Text style={styles.metaText}>Rating: {movieInfo.rating}</Text>
-        )}
+
+      <View style={styles.row}>
+        <View style={styles.meta}>
+          {movieInfo.genre && (
+            <Text style={styles.metaText}>Genre: {movieInfo.genre}</Text>
+          )}
+          {movieInfo.releaseDate && (
+            <Text style={styles.metaText}>Year: {movieInfo.releaseDate}</Text>
+          )}
+          {movieInfo.rating && (
+            <Text style={styles.metaText}>Rating: {movieInfo.rating}</Text>
+          )}
+        </View>
+        <TouchableOpacity onPress={handlePressFav}>
+          <View style={styles.favoriteIconContainer}>
+            <Text style={styles.favoriteIcon}>{isFav ? '❤' : '🤍'}</Text>
+          </View>
+        </TouchableOpacity>
       </View>
+
       <Button title="Play" onPress={handlePlay} style={styles.playButton} />
     </View>
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <LinearGradient colors={colors.gradients.dark} style={styles.background}>
+    <ScrollView style={[styles.container ]}>
+      <LinearGradient
+        colors={colors.gradients.dark}
+        style={[styles.background ]}>
         <FastImage
           source={{ uri: cover || '' }}
-          style={[styles.cover, { opacity: 0.7 }]}
+          style={[styles.cover, {  height, opacity: 0.7 }]}
           resizeMode={FastImage.resizeMode.cover}>
           <LinearGradient
             colors={colors.gradients.dark}
@@ -156,13 +187,34 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     lineHeight: 24,
   },
+  row: {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'row',
+    paddingHorizontal: 15,
+  },
   meta: {
-    marginBottom: spacing.xl,
+    flex: 1,
   },
   metaText: {
     ...typography.bodySmall,
     color: colors.textTertiary,
     marginBottom: spacing.sm,
+  },
+
+  favoriteIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: 'rgba(124, 108, 246, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 108, 246, 0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favoriteIcon: {
+    fontSize: 29,
+    color: colors.primaryDark,
   },
   playButton: {
     marginTop: spacing.lg,

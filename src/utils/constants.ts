@@ -161,10 +161,13 @@ export async function deleterow(
   };
 
   // 'http://192.168.1.16:5000/api/v2/favorites/createDelete',
-//   requestOptions,
-// )
+  //   requestOptions,
+  // )
 
-    fetch('https://api.uiplayer.com/api/v2/favorites/createDelete', requestOptions)
+  fetch(
+    'https://api.uiplayer.com/api/v2/favorites/createDelete',
+    requestOptions,
+  )
     .then(response => response.text())
     .then(result => console.log(result))
     .catch(error => console.log('error', error));
@@ -191,10 +194,13 @@ export async function insertData(
   };
 
   // fetch(
-    //   'http://192.168.1.16:5000/api/v2/favorites/createDelete',
-    //   requestOptions,
-    // )
-    fetch('https://api.uiplayer.com/api/v2/favorites/createDelete', requestOptions)
+  //   'http://192.168.1.16:5000/api/v2/favorites/createDelete',
+  //   requestOptions,
+  // )
+  fetch(
+    'https://api.uiplayer.com/api/v2/favorites/createDelete',
+    requestOptions,
+  )
     .then(response => response.text())
     .then(result => console.log(result))
     .catch(error => console.log('error', error));
@@ -214,7 +220,7 @@ export async function insertDatarecent(
     profileid: profile.id,
   });
 
-  console.log("raw:",raw)
+  console.log('raw:', raw);
 
   var requestOptions: RequestInit = {
     method: 'POST',
