@@ -351,7 +351,7 @@ const SearchScreen: React.FC = () => {
               />
             ) : searchQuery.length > 0 ? (
               <TouchableOpacity
-                focusable
+                // focusable
                 accessibilityRole="button"
                 accessibilityLabel="Clear search"
                 onPress={clearSearch}
@@ -403,7 +403,7 @@ const SearchScreen: React.FC = () => {
 
             {totalResults === 0 && (
               <TouchableOpacity
-                focusable
+                // focusable
                 onPress={clearSearch}
                 style={styles.tryAgainButton}>
                 <Text style={styles.tryAgainText}>Clear search</Text>

@@ -1,5 +1,6 @@
-import {useEffect} from 'react';
-import {TVEventHandler} from 'react-native';
+
+import { useEffect, useRef } from 'react';
+import { TVEventHandler } from 'react-native';
 
 interface TVEventHandlers {
   onSelect?: () => void;
@@ -12,41 +13,58 @@ interface TVEventHandlers {
   onMenu?: () => void;
 }
 
-/**
- * TVEventHandler is undefined on non‑TV Android/iOS. Using it causes
- * "Cannot read property 'prototype' of undefined". Only enable on TV.
- */
 export const useTVEventHandler = (handlers: TVEventHandlers) => {
+  const handlersRef = useRef(handlers);
+
   useEffect(() => {
-    if (typeof TVEventHandler === 'undefined') {
+    handlersRef.current = handlers;
+  }, [handlers]);
+
+  useEffect(() => {
+    if (
+      typeof TVEventHandler === 'undefined' ||
+      typeof TVEventHandler.addListener !== 'function'
+    ) {
       return;
     }
-    const tvEventHandler = new TVEventHandler();
 
-    tvEventHandler.enable(null, (cmp, evt) => {
-      console.log("cmp:",cmp)
-      console.log("evt:",evt)
-      if (evt && evt.eventType === 'playPause' && handlers.onPlayPause) {
-        handlers.onPlayPause();
-      } else if (evt && evt.eventType === 'select' && handlers.onSelect) {
-        handlers.onSelect();
-      } else if (evt && evt.eventType === 'up' && handlers.onUp) {
-        handlers.onUp();
-      } else if (evt && evt.eventType === 'down' && handlers.onDown) {
-        handlers.onDown();
-      } else if (evt && evt.eventType === 'left' && handlers.onLeft) {
-        handlers.onLeft();
-      } else if (evt && evt.eventType === 'right' && handlers.onRight) {
-        handlers.onRight();
-      } else if (evt && evt.eventType === 'menu' && handlers.onMenu) {
-        handlers.onMenu();
-      } else if (evt && evt.eventType === 'back' && handlers.onBack) {
-        handlers.onBack();
+    const subscription = TVEventHandler.addListener((evt) => {
+      if (!evt?.eventType) {
+        return;
+      }
+
+      const currentHandlers = handlersRef.current;
+
+      switch (evt.eventType) {
+        case 'select':
+          currentHandlers.onSelect?.();
+          break;
+        case 'playPause':
+          currentHandlers.onPlayPause?.();
+          break;
+        case 'up':
+          currentHandlers.onUp?.();
+          break;
+        case 'down':
+          currentHandlers.onDown?.();
+          break;
+        case 'left':
+          currentHandlers.onLeft?.();
+          break;
+        case 'right':
+          currentHandlers.onRight?.();
+          break;
+        case 'back':
+          currentHandlers.onBack?.();
+          break;
+        case 'menu':
+          currentHandlers.onMenu?.();
+          break;
       }
     });
 
     return () => {
-      tvEventHandler.disable();
+      subscription?.remove();
     };
-  }, [handlers]);
+  }, []);
 };

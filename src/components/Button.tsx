@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, {useState} from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -6,6 +7,7 @@ import {
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  StyleProp,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import {colors} from '../theme/colors';
@@ -19,8 +21,11 @@ interface ButtonProps {
   size?: 'small' | 'medium' | 'large';
   loading?: boolean;
   disabled?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  focusable?: boolean;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -32,72 +37,70 @@ const Button: React.FC<ButtonProps> = ({
   disabled = false,
   style,
   textStyle,
+  onFocus,
+  onBlur,
+  focusable = true,
 }) => {
-  const getButtonContent = () => {
-    if (variant === 'primary') {
-      return (
+  const [focused, setFocused] = useState(false);
+
+  const isDisabled = disabled || loading;
+
+  const handleFocus = () => {
+    setFocused(true);
+    onFocus?.();
+  };
+
+  const handleBlur = () => {
+    setFocused(false);
+    onBlur?.();
+  };
+
+  const isPrimary = variant === 'primary';
+
+  const indicatorColor =
+    variant === 'outline' ? colors.primary : colors.text;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      disabled={isDisabled}
+      // focusable={focusable && !isDisabled}
+      activeOpacity={isPrimary ? 0.8 : 0.7}
+      style={[
+        styles.button,
+        isPrimary ? styles.primaryButton : variantStyles[variant],
+        sizeStyles[size],
+        disabled && styles.disabled,
+        style,
+        focused && styles.focused,
+      ]}>
+      {isPrimary && (
         <LinearGradient
           colors={colors.gradients.primary}
           start={{x: 0, y: 0}}
           end={{x: 1, y: 0}}
+          pointerEvents="none"
+          style={styles.gradientBackground}
+        />
+      )}
+
+      {loading ? (
+        <ActivityIndicator color={indicatorColor} />
+      ) : (
+        <Text
           style={[
-            styles.gradient,
-            sizeStyles[size],
-            disabled && styles.disabled,
-            style,
+            styles.text,
+            isPrimary ? styles.primaryText : variantTextStyles[variant],
+            sizeTextStyles[size],
+            textStyle,
           ]}>
-          {loading ? (
-            <ActivityIndicator color={colors.text} />
-          ) : (
-            <Text style={[styles.primaryText, textStyle]}>{title}</Text>
-          )}
-        </LinearGradient>
-      );
-    }
-
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        disabled={disabled || loading}
-        activeOpacity={0.7}
-        style={[
-          styles.button,
-          variantStyles[variant],
-          sizeStyles[size],
-          disabled && styles.disabled,
-          style,
-        ]}>
-        {loading ? (
-          <ActivityIndicator
-            color={variant === 'outline' ? colors.primary : colors.text}
-          />
-        ) : (
-          <Text
-            style={[
-              styles.text,
-              variantTextStyles[variant],
-              sizeTextStyles[size],
-              textStyle,
-            ]}>
-            {title}
-          </Text>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  if (variant === 'primary') {
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        disabled={disabled || loading}
-        activeOpacity={0.8}>
-        {getButtonContent()}
-      </TouchableOpacity>
-    );
-  }
-
-  return getButtonContent();
+          {title}
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -105,17 +108,28 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
   },
-  gradient: {
+  primaryButton: {
+    backgroundColor: colors.primary,
+  },
+  gradientBackground: {
+    ...StyleSheet.absoluteFillObject,
     borderRadius: borderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
+  },
+  focused: {
+    borderWidth: 3,
+    borderColor: colors.text,
+    elevation: 8,
+    transform: [{scale: 1.04}],
   },
   disabled: {
     opacity: 0.5,
   },
   text: {
     ...typography.button,
+    zIndex: 1,
   },
   primaryText: {
     ...typography.button,
@@ -142,19 +156,6 @@ const sizeStyles = StyleSheet.create({
   },
 });
 
-const sizeTextStyles = StyleSheet.create({
-  small: {
-    ...typography.buttonSmall,
-  },
-  medium: {
-    ...typography.button,
-  },
-  large: {
-    ...typography.button,
-    fontSize: 18,
-  },
-});
-
 const variantStyles = StyleSheet.create({
   secondary: {
     backgroundColor: colors.backgroundSecondary,
@@ -178,6 +179,19 @@ const variantTextStyles = StyleSheet.create({
   },
   ghost: {
     color: colors.text,
+  },
+});
+
+const sizeTextStyles = StyleSheet.create({
+  small: {
+    ...typography.buttonSmall,
+  },
+  medium: {
+    ...typography.button,
+  },
+  large: {
+    ...typography.button,
+    fontSize: 18,
   },
 });
 

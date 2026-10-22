@@ -29,16 +29,18 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<
 
 type DeviceInfoShow = '-2' | '-1' | '0' | '1';
 
-const PROFILE_SIZE = 120;
+// let PROFILE_SIZE:number= 120;
 const PROFILE_GAP = spacing.lg;
 
 const DEF_MAC = 'b8:b4:09:45:24:f6';
 // const DEF_MAC = "a0:d7:f3:f6:52:03";
 const DEF_VERSION = "'1.0.2'";
 const DEF_TYPE = 3;
+
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const PROFILE_SIZE = height / 2 - 100;
   const { deviceInfo, changeDeviceInfo, changeProfile } = useGlobalContext();
 
   const [deviceInfoShow, setDeviceInfoShow] = useState<DeviceInfoShow>('-2');
@@ -46,7 +48,9 @@ const HomeScreen: React.FC = () => {
   const [isTrial, setIsTrial] = useState(false);
   const [expiredAt, setExpiredAt] = useState('');
   const [profileList, setProfileList] = useState<Playlist[]>([]);
-  const [selectedProfileIndex, setSelectedProfileIndex] = useState(0);
+  const [selectedProfileIndex, setSelectedProfileIndex] = useState<
+    number | null
+  >(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const profileListRef = useRef<FlatList>(null);
@@ -118,7 +122,7 @@ const HomeScreen: React.FC = () => {
 
         if (data.playlist && data.playlist.length > 0) {
           setProfileList(data.playlist);
-          setSelectedProfileIndex(0);
+          // setSelectedProfileIndex(0);
           setDeviceInfoShowForce(false);
         } else {
           setProfileList([]);
@@ -181,7 +185,6 @@ const HomeScreen: React.FC = () => {
 
   const handleProfileSelect = useCallback(
     (profile: Playlist) => {
-      console.warn('Selected profile:', profile);
       changeProfile(profile);
       navigation.replace('Main');
     },
@@ -202,34 +205,21 @@ const HomeScreen: React.FC = () => {
         return;
       }
     },
-    onSelect: () => {
-      if (showProfilePicker && profileList[selectedProfileIndex]) {
-        handleProfileSelect(profileList[selectedProfileIndex]);
-      }
-    },
-    onLeft: () => {
-       console.log('TV LEFT pressed');
-      if (showProfilePicker) setSelectedProfileIndex(i => Math.max(0, i - 1));
-    },
-    onRight: () => {
-        console.log('TV RIGHT pressed');
-
-      if (showProfilePicker)
-        setSelectedProfileIndex(i => Math.min(profileList.length - 1, i + 1));
-    },
   });
 
   useEffect(() => {
-    if (
-      showProfilePicker &&
-      profileList.length > 0 &&
-      selectedProfileIndex >= 0
-    ) {
-      profileListRef.current?.scrollToIndex({
-        index: selectedProfileIndex,
-        animated: true,
-        viewPosition: 0.5,
-      });
+    if (selectedProfileIndex) {
+      if (
+        showProfilePicker &&
+        profileList.length > 0 &&
+        selectedProfileIndex >= 0
+      ) {
+        profileListRef.current?.scrollToIndex({
+          index: selectedProfileIndex,
+          animated: true,
+          viewPosition: 0.5,
+        });
+      }
     }
   }, [selectedProfileIndex, showProfilePicker, profileList.length]);
 
@@ -240,39 +230,96 @@ const HomeScreen: React.FC = () => {
     item: Playlist;
     index: number;
   }) => {
-    console.log("selectedProfileIndex:",selectedProfileIndex
-
-
-    )
     const focused = showProfilePicker && selectedProfileIndex === index;
     return (
       <TouchableOpacity
-        onFocus={() => setSelectedProfileIndex(index)}
-        onPress={() => {
+        // focusable
+        hasTVPreferredFocus={index === 0}
+        onFocus={() => {
           setSelectedProfileIndex(index);
+        }}
+        onBlur={() => {
+          setSelectedProfileIndex(current =>
+            current === index ? null : current,
+          );
+        }}
+        onPress={() => {
           handleProfileSelect(item);
         }}
         activeOpacity={0.9}
-        style={[styles.profileItem, focused && styles.profileItemFocused]}>
+        style={[
+          styles.profileItem,
+          { width: PROFILE_SIZE, height: PROFILE_SIZE },
+          focused && styles.profileItemFocused,
+        ]}>
         {focused ? (
           <>
             <LinearGradient
               colors={[colors.primary, colors.secondary]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.profileRing}>
-              <View style={styles.profileCircleInner}>
-                <Logo size={40} />
+              style={[
+                styles.profileRing,
+                {
+                  width: PROFILE_SIZE,
+                  height: PROFILE_SIZE,
+                  borderRadius: PROFILE_SIZE / 2,
+                },
+              ]}>
+              <View
+                style={[
+                  styles.profileCircleInner,
+                  {
+                    width: PROFILE_SIZE - 8,
+                    height: PROFILE_SIZE - 8,
+                    borderRadius: (PROFILE_SIZE - 8) / 2,
+                  },
+                ]}>
+                <Logo
+                  size={
+                    PROFILE_SIZE > 120 ? PROFILE_SIZE - 100 : PROFILE_SIZE - 40
+                  }
+                />
               </View>
             </LinearGradient>
-            <Text style={styles.selectedProfileName}>{item.profile_name}</Text>
+            <Text
+              style={[
+                styles.selectedProfileName,
+
+                PROFILE_SIZE > 120
+                  ? { ...typography.h1, marginTop: spacing.lg }
+                  : { ...typography.bodyLarge, marginTop: spacing.sm },
+              ]}>
+              {item.profile_name}
+            </Text>
           </>
         ) : (
           <>
-            <View style={styles.profileCircle}>
-              <Logo size={44} />
+            <View
+              style={[
+                styles.profileCircle,
+                {
+                  width: PROFILE_SIZE,
+                  height: PROFILE_SIZE,
+                  borderRadius: PROFILE_SIZE / 2,
+                },
+              ]}>
+              <Logo
+                size={
+                  PROFILE_SIZE > 120 ? PROFILE_SIZE - 100 : PROFILE_SIZE - 40
+                }
+              />
             </View>
-            <Text style={styles.selectedProfileName}>{item.profile_name}</Text>
+            <Text
+              style={[
+                styles.selectedProfileName,
+
+                PROFILE_SIZE > 120
+                  ? { ...typography.h1, marginTop: spacing.lg }
+                  : { ...typography.bodyLarge, marginTop: spacing.sm },
+              ]}>
+              {item.profile_name}
+            </Text>
           </>
         )}
       </TouchableOpacity>
@@ -280,7 +327,7 @@ const HomeScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { width, height }]}>
       <LinearGradient colors={colors.gradients.dark} style={styles.gradient}>
         <ScrollView
           contentContainerStyle={[
@@ -297,7 +344,11 @@ const HomeScreen: React.FC = () => {
             )}
 
             {showProfilePicker && (
-              <View style={styles.profileSection}>
+              <View
+                style={[
+                  styles.profileSection,
+                  { width, height: height / 1.8 },
+                ]}>
                 <Text style={styles.whoConnected}>Who Connected</Text>
                 <FlatList
                   ref={profileListRef}
@@ -325,12 +376,12 @@ const HomeScreen: React.FC = () => {
                     }, 100);
                   }}
                 />
-                {profileList.length > 0 &&
+                {/* {profileList.length > 0 &&
                   profileList[selectedProfileIndex] && (
                     <Text style={styles.selectedProfileName}>
                       {profileList[selectedProfileIndex].profile_name}
                     </Text>
-                  )}
+                  )} */}
               </View>
             )}
 
@@ -488,12 +539,12 @@ const styles = StyleSheet.create({
   },
   profileSection: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
   },
   whoConnected: {
     ...typography.h1,
     color: colors.text,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   profileList: {
@@ -501,8 +552,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   profileItem: {
-    width: PROFILE_SIZE,
-    height: PROFILE_SIZE,
     marginTop: PROFILE_GAP,
     marginRight: PROFILE_GAP,
     alignItems: 'center',
@@ -516,17 +565,11 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   profileRing: {
-    width: PROFILE_SIZE,
-    height: PROFILE_SIZE,
-    borderRadius: PROFILE_SIZE / 2,
     padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   profileCircle: {
-    width: PROFILE_SIZE,
-    height: PROFILE_SIZE,
-    borderRadius: PROFILE_SIZE / 2,
     backgroundColor: colors.backgroundCard,
     alignItems: 'center',
     justifyContent: 'center',
@@ -534,17 +577,12 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   profileCircleInner: {
-    width: PROFILE_SIZE - 8,
-    height: PROFILE_SIZE - 8,
-    borderRadius: (PROFILE_SIZE - 8) / 2,
     backgroundColor: colors.backgroundTertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectedProfileName: {
-    ...typography.h3,
     color: colors.text,
-    marginTop: spacing.lg,
     textAlign: 'center',
     fontWeight: '600',
   },

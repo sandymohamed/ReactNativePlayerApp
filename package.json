@@ -22,7 +22,7 @@
     "@react-navigation/native": "^6.1.9",
     "@react-navigation/native-stack": "^6.9.17",
     "react": "18.2.0",
-    "react-native": "0.73.2",
+    "react-native": "npm:react-native-tvos@0.73.7-2",
     "react-native-device-info": "^10.11.0",
     "react-native-fast-image": "^8.6.3",
     "react-native-gesture-handler": "2.9.0",

@@ -208,7 +208,10 @@ const SettingsScreen: React.FC = () => {
       return (
         <Modal visible animationType="slide" transparent>
           <View style={styles.modalOverlay}>
-            <Pressable style={StyleSheet.absoluteFill} onPress={handleCloseModal} />
+            
+            <Pressable onFocus={()=>{
+              console.log("focuss", this)
+            }} style={StyleSheet.absoluteFill} onPress={handleCloseModal} />
             <View style={[styles.modalBox, {minHeight: modalHeight, maxHeight: modalHeight}]}>
               <Text style={styles.modalTitle}>{titre}</Text>
               <View style={styles.modalOptions}>

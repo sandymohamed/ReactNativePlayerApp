@@ -5,6 +5,7 @@ export const typography = {
     fontWeight: '700' as const,
     lineHeight: 40,
     letterSpacing: -0.5,
+
   },
   h2: {
     fontSize: 24,

@@ -360,10 +360,10 @@ const MainScreen: React.FC = () => {
           (isLoading || loadError) && styles.disabledTile,
         ]}>
         <Text style={[styles.quickIcon, focused && styles.quickIconFocused]}>
-          {destination.icon} mmmmmmmmmmmmmmm
+          {destination.icon} 
         </Text>
         <Text style={styles.quickTitle} numberOfLines={1}>
-          {destination.title} ffffffffffff
+          {destination.title} 
         </Text>
       </TVFocusable>
     );
