@@ -1,6 +1,12 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useCallback } from 'react';
+import { BackHandler } from 'react-native';
+import {
+  NavigationContainer,
+  useFocusEffect,
+} from '@react-navigation/native';
+
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
 import HomeScreen from '../screens/HomeScreen';
 import MainScreen from '../screens/MainScreen';
 import MoviesScreen from '../screens/MoviesScreen';
@@ -15,7 +21,7 @@ import RecentScreen from '../screens/RecentScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import SeasonScreen from '../screens/SeasonScreen';
-import { Season, SerieInfo } from '../models/model';
+import { SerieInfo } from '../models/model';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -46,6 +52,21 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const HomeScreenWithBackBlock = () => {
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => true,
+      );
+
+      return () => subscription.remove();
+    }, []),
+  );
+
+  return <HomeScreen />;
+};
+
 const AppNavigator = () => {
   return (
     <NavigationContainer>
@@ -55,7 +76,10 @@ const AppNavigator = () => {
           headerShown: false,
           animation: 'slide_from_right',
         }}>
-        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen
+          name="Home"
+          component={HomeScreenWithBackBlock}
+        />
         <Stack.Screen name="Main" component={MainScreen} />
         <Stack.Screen name="Movies" component={MoviesScreen} />
         <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />

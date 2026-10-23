@@ -110,50 +110,50 @@ const SeriesScreen: React.FC = () => {
         navigation.navigate('Main');
       }
     },
-    onUp: () => {
-      if (focusZone === 'sidebar') {
-        setSidebarFocusIndex(i => Math.max(0, i - 1));
-      } else {
-        const cols = layout.numColumns;
-        setGridFocusIndex(i => Math.max(0, i - cols));
-      }
-    },
-    onDown: () => {
-      if (focusZone === 'sidebar') {
-        setSidebarFocusIndex(i => Math.min(items.length - 1, i + 1));
-      } else {
-        const cols = layout.numColumns;
-        setGridFocusIndex(i =>
-          Math.min(Math.max(0, filteredList.length - 1), i + cols),
-        );
-      }
-    },
-    onLeft: () => {
-      if (focusZone === 'grid') {
-        setFocusZone('sidebar');
-        return;
-      }
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Main');
-      }
-    },
-    onRight: () => {
-      if (focusZone === 'sidebar' && filteredList.length > 0) {
-        setFocusZone('grid');
-        setGridFocusIndex(0);
-      } else if (focusZone === 'grid') {
-        setGridFocusIndex(i =>
-          Math.min(Math.max(0, filteredList.length - 1), i + 1),
-        );
-      }
-    },
-    onSelect: () => {
-      if (focusZone === 'grid' && filteredList[gridFocusIndex]) {
-        handleSeriePress(filteredList[gridFocusIndex]);
-      }
-    },
+    // onUp: () => {
+    //   if (focusZone === 'sidebar') {
+    //     setSidebarFocusIndex(i => Math.max(0, i - 1));
+    //   } else {
+    //     const cols = layout.numColumns;
+    //     setGridFocusIndex(i => Math.max(0, i - cols));
+    //   }
+    // },
+    // onDown: () => {
+    //   if (focusZone === 'sidebar') {
+    //     setSidebarFocusIndex(i => Math.min(items.length - 1, i + 1));
+    //   } else {
+    //     const cols = layout.numColumns;
+    //     setGridFocusIndex(i =>
+    //       Math.min(Math.max(0, filteredList.length - 1), i + cols),
+    //     );
+    //   }
+    // },
+    // onLeft: () => {
+    //   if (focusZone === 'grid') {
+    //     setFocusZone('sidebar');
+    //     return;
+    //   }
+    //   if (navigation.canGoBack()) {
+    //     navigation.goBack();
+    //   } else {
+    //     navigation.navigate('Main');
+    //   }
+    // },
+    // onRight: () => {
+    //   if (focusZone === 'sidebar' && filteredList.length > 0) {
+    //     setFocusZone('grid');
+    //     setGridFocusIndex(0);
+    //   } else if (focusZone === 'grid') {
+    //     setGridFocusIndex(i =>
+    //       Math.min(Math.max(0, filteredList.length - 1), i + 1),
+    //     );
+    //   }
+    // },
+    // onSelect: () => {
+    //   if (focusZone === 'grid' && filteredList[gridFocusIndex]) {
+    //     handleSeriePress(filteredList[gridFocusIndex]);
+    //   }
+    // },
   });
 
   const handleCategorySelect = (categoryId: string) => {
@@ -163,6 +163,7 @@ const SeriesScreen: React.FC = () => {
 
   const handleSeriePress = useCallback(
     (serie: Stream) => {
+      console.log("******** serie:",serie)
       navigation.navigate('SerieDetail', { serie });
     },
     [navigation],
@@ -171,26 +172,40 @@ const SeriesScreen: React.FC = () => {
   const numColumns = layout.numColumns;
   const cardWidth = layout.cardWidth;
 
-  const renderItem = useCallback(
-    ({ item, index }: { item: Stream; index: number }) => {
-      const focused = focusZone === 'grid' && gridFocusIndex === index;
-      return (
-        <TouchableOpacity
-          style={[styles.cardContainer, { width: cardWidth }]}
-          onPress={() => handleSeriePress(item)}
-          activeOpacity={0.85}>
-          <Card
-            title={item.name}
-            image={item.cover}
-            onPress={() => handleSeriePress(item)}
-            focused={focused}
-            style={{ width: cardWidth }}
-          />
-        </TouchableOpacity>
-      );
-    },
-    [focusZone, gridFocusIndex, cardWidth, handleSeriePress],
-  );
+ 
+const renderItem = useCallback(
+  ({ item, index }: { item: Stream; index: number }) => {
+    const focused =
+      focusZone === 'grid' && gridFocusIndex === index;
+
+    return (
+      <TouchableOpacity
+        // focusable={true}
+        key={index}
+        hasTVPreferredFocus={focused && index === 0}
+        style={[
+          styles.cardContainer,
+          { width: cardWidth },
+          focused && styles.focusedCard,
+        ]}
+        onFocus={() => {
+          setFocusZone('grid');
+          setGridFocusIndex(index);
+        }}
+        onPress={() => handleSeriePress(item)}
+        activeOpacity={0.85}
+      >
+        <Card
+          title={item.name}
+          image={item.cover}
+          focused={focused}
+          style={{ width: cardWidth }}
+        />
+      </TouchableOpacity>
+    );
+  },
+  [focusZone, gridFocusIndex, cardWidth, handleSeriePress],
+);
 
   if (!profile) {
     return (
@@ -303,6 +318,15 @@ const styles = StyleSheet.create({
   cardContainer: {
     marginBottom: spacing.lg,
   },
+  focusedCard: {
+  transform: [{ scale: 1.03 }],
+  zIndex: 10,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+},
 });
 
 export default SeriesScreen;

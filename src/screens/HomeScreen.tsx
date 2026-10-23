@@ -202,8 +202,9 @@ const HomeScreen: React.FC = () => {
     onBack: () => {
       if (showDeviceInfoCard && deviceInfoShowForce && profileList.length > 0) {
         setDeviceInfoShowForce(false);
-        return;
       }
+
+      return;
     },
   });
 

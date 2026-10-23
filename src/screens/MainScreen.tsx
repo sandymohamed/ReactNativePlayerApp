@@ -22,7 +22,6 @@ import { spacing } from '../theme/spacing';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
 import { getMainGridNumColumns } from '../utils/layout';
-import TVFocusable from '../components/TVFocusable';
 
 type MainScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -214,7 +213,9 @@ const MainScreen: React.FC = () => {
     ]);
 
     if (liveRes.status === 'fulfilled') {
-      const liveStreams = normalizeStreams(liveRes.value).map(mapStream) as Stream[];
+      const liveStreams = normalizeStreams(liveRes.value).map(
+        mapStream,
+      ) as Stream[];
       changeListLive(liveStreams);
       setCounts(previous => ({ ...previous, live: liveStreams.length }));
     } else console.error('Live streams:', liveRes.reason);
@@ -224,7 +225,9 @@ const MainScreen: React.FC = () => {
       setCounts(previous => ({ ...previous, movies: movies.length }));
     } else console.error('VOD streams:', vodRes.reason);
     if (seriesRes.status === 'fulfilled') {
-      const series = normalizeStreams(seriesRes.value).map(mapStream) as Stream[];
+      const series = normalizeStreams(seriesRes.value).map(
+        mapStream,
+      ) as Stream[];
       changeListSerie(series);
       setCounts(previous => ({ ...previous, series: series.length }));
     } else console.error('Error fetch Series:', seriesRes.reason);
@@ -314,40 +317,37 @@ const MainScreen: React.FC = () => {
 
     onSelect: () => handleCardPress(focusedIndex),
 
-    onUp: () => {
-      setFocusedIndex(previous => Math.max(0, previous - numColumns));
-    },
+    // onUp: () => {
+    //   setFocusedIndex(previous => Math.max(0, previous - numColumns));
+    // },
 
-    onDown: () => {
-      setFocusedIndex(previous =>
-        Math.min(destinations.length - 1, previous + numColumns),
-      );
-    },
+    // onDown: () => {
+    //   setFocusedIndex(previous =>
+    //     Math.min(destinations.length - 1, previous + numColumns),
+    //   );
+    // },
 
-    onLeft: () => {
-      setFocusedIndex(previous => Math.max(0, previous - 1));
-    },
+    // onLeft: () => {
+    //   setFocusedIndex(previous => Math.max(0, previous - 1));
+    // },
 
-    onRight: () => {
-      setFocusedIndex(previous =>
-        Math.min(destinations.length - 1, previous + 1),
-      );
-    },
+    // onRight: () => {
+    //   setFocusedIndex(previous =>
+    //     Math.min(destinations.length - 1, previous + 1),
+    //   );
+    // },
   });
 
   const renderQuickTile = (destination: Destination, index: number) => {
     const focused = focusedIndex === index;
 
     return (
-      <TVFocusable
+      <TouchableOpacity
         key={destination.id}
         activeOpacity={0.85}
         disabled={isLoading || loadError}
         onPress={() => handleCardPress(index)}
         onFocus={() => setFocusedIndex(index)}
-         focusedStyle={{
-    borderColor: '#5EEAD4',
-  }}
         accessibilityRole="button"
         accessibilityLabel={destination.title}
         accessibilityState={{
@@ -360,12 +360,12 @@ const MainScreen: React.FC = () => {
           (isLoading || loadError) && styles.disabledTile,
         ]}>
         <Text style={[styles.quickIcon, focused && styles.quickIconFocused]}>
-          {destination.icon} 
+          {destination.icon}
         </Text>
         <Text style={styles.quickTitle} numberOfLines={1}>
-          {destination.title} 
+          {destination.title}
         </Text>
-      </TVFocusable>
+      </TouchableOpacity>
     );
   };
 
@@ -373,7 +373,11 @@ const MainScreen: React.FC = () => {
     <View style={styles.container}>
       <LinearGradient colors={colors.gradients.dark} style={styles.background}>
         <View style={styles.screenContent}>
-          <View style={[styles.featuredGrid, { height: Math.min(height * 0.55, 560) }]}>
+          <View
+            style={[
+              styles.featuredGrid,
+              { height: Math.min(height * 0.55, 560) },
+            ]}>
             {destinations.slice(0, 3).map((destination, index) => (
               <View key={destination.id} style={styles.featuredItem}>
                 <MainScreenCard
@@ -415,13 +419,15 @@ const MainScreen: React.FC = () => {
 
         {!isLoading && loadError && (
           <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>Some lists could not be loaded.</Text>
-            <TVFocusable
+            <Text style={styles.errorText}>
+              Some lists could not be loaded.
+            </Text>
+            <TouchableOpacity
               style={styles.retryButton}
               onPress={loadData}
               accessibilityRole="button">
               <Text style={styles.retryText}>Retry</Text>
-            </TVFocusable>
+            </TouchableOpacity>
           </View>
         )}
       </LinearGradient>
@@ -432,7 +438,7 @@ const MainScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    height:"100%",
+    height: '100%',
     backgroundColor: '#0A0A0F',
   },
   background: {
@@ -610,7 +616,7 @@ const MainScreenCard: React.FC<{
   onPress: () => void;
   onFocus: () => void;
 }> = ({ title, countLabel, image, focused, disabled, onPress, onFocus }) => (
-  <TVFocusable
+  <TouchableOpacity
     activeOpacity={0.9}
     disabled={disabled}
     onPress={onPress}
@@ -618,7 +624,11 @@ const MainScreenCard: React.FC<{
     accessibilityRole="button"
     accessibilityLabel={`${title}, ${countLabel}`}
     accessibilityState={{ selected: focused, disabled }}
-    style={[styles.mainCard, focused && styles.mainCardFocused, disabled && styles.mainCardDisabled]}>
+    style={[
+      styles.mainCard,
+      focused && styles.mainCardFocused,
+      disabled && styles.mainCardDisabled,
+    ]}>
     <ImageBackground
       source={{ uri: image }}
       resizeMode="cover"
@@ -629,10 +639,12 @@ const MainScreenCard: React.FC<{
         locations={[0, 0.48, 1]}
         style={styles.mainCardGradient}>
         {/* <Text style={styles.mainCardTitle} numberOfLines={1}>{title}</Text> */}
-        <Text style={styles.mainCardCount} numberOfLines={1}>{countLabel}</Text>
+        <Text style={styles.mainCardCount} numberOfLines={1}>
+          {countLabel}
+        </Text>
       </LinearGradient>
     </ImageBackground>
-  </TVFocusable>
+  </TouchableOpacity>
 );
 
 export default MainScreen;
