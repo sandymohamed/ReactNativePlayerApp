@@ -1,9 +1,6 @@
 import React, { useCallback } from 'react';
-import { BackHandler } from 'react-native';
-import {
-  NavigationContainer,
-  useFocusEffect,
-} from '@react-navigation/native';
+import { BackHandler, Text, View } from 'react-native';
+import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -22,6 +19,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import SeasonScreen from '../screens/SeasonScreen';
 import { SerieInfo } from '../models/model';
+import { useGlobalContext } from '../context/GlobalContext';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -68,18 +66,28 @@ const HomeScreenWithBackBlock = () => {
 };
 
 const AppNavigator = () => {
+  const { isAppReady, hasCachedData, profile } = useGlobalContext();
+
+  // if (!isAppReady) {
+  //   return (
+  //     <View>
+  //       {' '}
+  //       <Text>SplashScreen</Text>
+  //     </View>
+  //   );
+  // }
+
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Home"
+        key={profile && hasCachedData ? 'main' : 'home'}
+        initialRouteName={profile && hasCachedData ? 'Main' : 'Home'}
+        // initialRouteName="Home"
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
         }}>
-        <Stack.Screen
-          name="Home"
-          component={HomeScreenWithBackBlock}
-        />
+        <Stack.Screen name="Home" component={HomeScreenWithBackBlock} />
         <Stack.Screen name="Main" component={MainScreen} />
         <Stack.Screen name="Movies" component={MoviesScreen} />
         <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />

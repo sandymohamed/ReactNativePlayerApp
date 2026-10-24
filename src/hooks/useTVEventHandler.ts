@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from 'react';
 import { TVEventHandler } from 'react-native';
 
@@ -28,7 +27,7 @@ export const useTVEventHandler = (handlers: TVEventHandlers) => {
       return;
     }
 
-    const subscription = TVEventHandler.addListener((evt) => {
+    const subscription = TVEventHandler.addListener(evt => {
       if (!evt?.eventType) {
         return;
       }

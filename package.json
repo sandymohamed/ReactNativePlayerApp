@@ -25,6 +25,7 @@
     "react-native": "npm:react-native-tvos@0.73.7-2",
     "react-native-device-info": "^10.11.0",
     "react-native-fast-image": "^8.6.3",
+    "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "2.9.0",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-modal": "^13.0.1",

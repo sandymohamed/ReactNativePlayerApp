@@ -5,17 +5,11 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
-import {
-  View,
-  StyleSheet,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  BackHandler,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { View, StyleSheet, Text, FlatList, BackHandler } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
+
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useGlobalContext } from '../context/GlobalContext';
 import { colors } from '../theme/colors';
@@ -26,82 +20,183 @@ import CategorySidebar, {
   type CategoryItem,
 } from '../components/CategorySidebar';
 import { useLandscapeLayout } from '../utils/layout';
-import { Stream } from '../models/model';
+import {  SeriesWithInfo } from '../models/model';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
 
 const SeriesScreen: React.FC = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList, 'Series'>>();
+
   const { profile, listSerie, listSerieFav, listSerieRecent, catSerie } =
     useGlobalContext();
- 
+
   const layout = useLandscapeLayout();
 
   const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
-  const [gridFocusIndex, setGridFocusIndex] = useState(0);
-  const [focusZone, setFocusZone] = useState<'sidebar' | 'grid'>('sidebar');
-  const gridRef = useRef<FlatList>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Remember the focused series by ID, not by array position.
+  const [selectedSerieId, setSelectedSerieId] = useState<string | null>(null);
+
+  const sidebarRef = useRef<FlatList<CategoryItem>>(null);
+  const seriesListRef = useRef<FlatList<SeriesWithInfo>>(null);
+
+  const navigatingToSerieRef = useRef(false);
+  const restorePositionRef = useRef(false);
 
   const categories: CategoryItem[] = useMemo(() => {
     const raw = (catSerie || []) as {
       category_id?: string;
       category_name?: string;
     }[];
-    return raw.map(c => ({
-      category_id: String(c.category_id ?? ''),
-      category_name: String(c.category_name ?? ''),
+
+    return raw.map(category => ({
+      category_id: String(category.category_id ?? ''),
+      category_name: String(category.category_name ?? ''),
     }));
   }, [catSerie]);
 
-  const items = categories;
   const selectedCategoryId =
-    items[Math.min(sidebarFocusIndex, Math.max(0, items.length - 1))]
-      ?.category_id ?? '0';
+    selectedCategory ?? categories[0]?.category_id ?? '0';
 
-  const filteredList = useMemo(() => {
-    if (!listSerie.length) return [];
-    if (selectedCategoryId === '0' || selectedCategoryId === '')
-      return listSerie;
+  const filteredList = useMemo<SeriesWithInfo[]>(() => {
+    if (!listSerie.length) {
+      return [];
+    }
+
+    if (selectedCategoryId === '0' || selectedCategoryId === '') {
+      return listSerie as SeriesWithInfo[];
+    }
+
     if (selectedCategoryId === '-1') {
-      return listSerie.filter(s =>
-        (listSerieFav || []).includes(String(s.stream_id)),
-      );
+      return listSerie.filter(serie =>
+        (listSerieFav || []).includes(String(serie.series_id)),
+      ) as SeriesWithInfo[];
     }
+
     if (selectedCategoryId === '-2') {
-      return listSerie.filter(s =>
-        (listSerieRecent || []).includes(String(s.stream_id)),
-      );
+      return listSerie.filter(serie =>
+        (listSerieRecent || []).includes(String(serie.series_id)),
+      ) as SeriesWithInfo[];
     }
-    return listSerie.filter(s => String(s.category_id) === selectedCategoryId);
+
+    return listSerie.filter(
+      serie => String(serie.category_id) === selectedCategoryId,
+    ) as SeriesWithInfo[];
   }, [listSerie, listSerieFav, listSerieRecent, selectedCategoryId]);
 
-
+  // Keep the saved series selection valid when the list/category changes.
   useEffect(() => {
-    setGridFocusIndex(0);
-  }, [filteredList.length, selectedCategoryId]);
+    if (filteredList.length === 0) {
+      setSelectedSerieId(null);
+      return;
+    }
 
+    const selectionExists = filteredList.some(
+      serie => String(serie.series_id) === selectedSerieId,
+    );
+
+    console.log('filteredList[0]', filteredList[0]);
+    if (!selectionExists) {
+      setSelectedSerieId(String(filteredList[0].series_id));
+    }
+  }, [filteredList, selectedSerieId]);
+
+  // Keep the focused sidebar item visible.
   useEffect(() => {
-    const cols = layout.numColumns;
-    if (cols <= 0 || filteredList.length === 0) return;
-    gridRef.current?.scrollToIndex({
-      index: Math.min(gridFocusIndex, filteredList.length - 1),
-      animated: true,
-      viewPosition: 0.25,
+    if (sidebarFocusIndex < 0 || sidebarFocusIndex >= categories.length) {
+      return;
+    }
+
+    sidebarRef.current?.scrollToIndex({
+      index: sidebarFocusIndex,
+      animated: false,
+      viewPosition: 0.5,
     });
-  }, [gridFocusIndex, layout.numColumns, filteredList.length]);
+  }, [sidebarFocusIndex, categories.length]);
 
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Main');
+  // Restore the saved series position when returning from SerieDetail.
+  useFocusEffect(
+    useCallback(() => {
+      navigatingToSerieRef.current = false;
+
+      if (!restorePositionRef.current || !selectedSerieId) {
+        return;
       }
-      return true;
-    });
-    return () => sub.remove();
+
+      restorePositionRef.current = false;
+
+      const index = filteredList.findIndex(
+        serie => String(serie.series_id) === selectedSerieId,
+      );
+
+      if (index < 0) {
+        return;
+      }
+
+      // Wait until the screen/list has regained focus and laid out.
+      requestAnimationFrame(() => {
+        seriesListRef.current?.scrollToIndex({
+          index,
+          animated: false,
+          viewPosition: 0.3,
+        });
+      });
+    }, [filteredList, selectedSerieId]),
+  );
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation.navigate('Main');
+        }
+
+        return true;
+      },
+    );
+
+    return () => subscription.remove();
   }, [navigation]);
 
+  const handleCategorySelect = useCallback(
+    (categoryId: string) => {
+      const index = categories.findIndex(
+        category => category.category_id === categoryId,
+      );
+
+      setSelectedCategory(categoryId);
+      setSelectedSerieId(null);
+
+      if (index >= 0) {
+        setSidebarFocusIndex(index);
+      }
+    },
+    [categories],
+  );
+
+  const handleSeriePress = useCallback(
+    (serie?: SeriesWithInfo) => {
+      // if (!serie || navigatingToSerieRef.current) {
+      //   return;
+      // }
+
+      navigatingToSerieRef.current = true;
+
+      const serieId = String(serie?.series_id);
+      setSelectedSerieId(serieId);
+      restorePositionRef.current = true;
+
+      navigation.navigate('SerieDetail', { serie });
+    },
+    [navigation],
+  );
+
+  // Native TV focus handles directional navigation.
+  // Enter opens the series currently selected by its stream_id.
   useTVEventHandler({
     onBack: () => {
       if (navigation.canGoBack()) {
@@ -110,102 +205,51 @@ const SeriesScreen: React.FC = () => {
         navigation.navigate('Main');
       }
     },
-    // onUp: () => {
-    //   if (focusZone === 'sidebar') {
-    //     setSidebarFocusIndex(i => Math.max(0, i - 1));
-    //   } else {
-    //     const cols = layout.numColumns;
-    //     setGridFocusIndex(i => Math.max(0, i - cols));
-    //   }
-    // },
-    // onDown: () => {
-    //   if (focusZone === 'sidebar') {
-    //     setSidebarFocusIndex(i => Math.min(items.length - 1, i + 1));
-    //   } else {
-    //     const cols = layout.numColumns;
-    //     setGridFocusIndex(i =>
-    //       Math.min(Math.max(0, filteredList.length - 1), i + cols),
-    //     );
-    //   }
-    // },
-    // onLeft: () => {
-    //   if (focusZone === 'grid') {
-    //     setFocusZone('sidebar');
-    //     return;
-    //   }
-    //   if (navigation.canGoBack()) {
-    //     navigation.goBack();
-    //   } else {
-    //     navigation.navigate('Main');
-    //   }
-    // },
-    // onRight: () => {
-    //   if (focusZone === 'sidebar' && filteredList.length > 0) {
-    //     setFocusZone('grid');
-    //     setGridFocusIndex(0);
-    //   } else if (focusZone === 'grid') {
-    //     setGridFocusIndex(i =>
-    //       Math.min(Math.max(0, filteredList.length - 1), i + 1),
-    //     );
-    //   }
-    // },
-    // onSelect: () => {
-    //   if (focusZone === 'grid' && filteredList[gridFocusIndex]) {
-    //     handleSeriePress(filteredList[gridFocusIndex]);
-    //   }
-    // },
+    onSelect: () => {
+      if (navigatingToSerieRef.current) {
+        return;
+      }
+
+      const selectedSerie = filteredList.find(
+        serie => String(serie.series_id) === selectedSerieId,
+      );
+      console.log('selectedSerie', selectedSerie);
+
+      handleSeriePress(selectedSerie);
+    },
   });
 
-  const handleCategorySelect = (categoryId: string) => {
-    const idx = items.findIndex(it => it.category_id === categoryId);
-    if (idx >= 0) setSidebarFocusIndex(idx);
-  };
-
-  const handleSeriePress = useCallback(
-    (serie: Stream) => {
-      console.log("******** serie:",serie)
-      navigation.navigate('SerieDetail', { serie });
-    },
-    [navigation],
+  const renderItem = useCallback(
+    ({ item }: { item: SeriesWithInfo }) => (
+      <Card
+        title={item.name}
+        image={item.cover}
+        style={{ width: layout.cardWidth }}
+        onFocus={() => setSelectedSerieId(String(item.series_id))}
+        onPress={() => handleSeriePress(item)}
+      />
+    ),
+    [layout.cardWidth, handleSeriePress],
   );
 
-  const numColumns = layout.numColumns;
-  const cardWidth = layout.cardWidth;
+  const handleScrollToIndexFailed = useCallback(
+    (info: { index: number; averageItemLength: number }) => {
+      // Fallback for virtualized lists when the requested item isn't measured.
+      seriesListRef.current?.scrollToOffset({
+        offset: Math.max(0, info.averageItemLength * info.index),
+        animated: false,
+      });
 
- 
-const renderItem = useCallback(
-  ({ item, index }: { item: Stream; index: number }) => {
-    const focused =
-      focusZone === 'grid' && gridFocusIndex === index;
-
-    return (
-      <TouchableOpacity
-        // focusable={true}
-        key={index}
-        hasTVPreferredFocus={focused && index === 0}
-        style={[
-          styles.cardContainer,
-          { width: cardWidth },
-          focused && styles.focusedCard,
-        ]}
-        onFocus={() => {
-          setFocusZone('grid');
-          setGridFocusIndex(index);
-        }}
-        onPress={() => handleSeriePress(item)}
-        activeOpacity={0.85}
-      >
-        <Card
-          title={item.name}
-          image={item.cover}
-          focused={focused}
-          style={{ width: cardWidth }}
-        />
-      </TouchableOpacity>
-    );
-  },
-  [focusZone, gridFocusIndex, cardWidth, handleSeriePress],
-);
+      setTimeout(() => {
+        seriesListRef.current?.scrollToIndex({
+          index: info.index,
+          animated: false,
+          viewPosition: 0.3,
+        });
+      }, 100);
+    },
+    [],
+  );
 
   if (!profile) {
     return (
@@ -221,42 +265,39 @@ const renderItem = useCallback(
         <View style={styles.header}>
           <Text style={styles.title}>Series</Text>
           <Text style={styles.subtitle}>
-            {filteredList.length} serie{filteredList.length !== 1 ? 's' : ''}
+            {filteredList.length} serie
+            {filteredList.length !== 1 ? 's' : ''}
           </Text>
         </View>
+
         <View style={styles.body}>
           <CategorySidebar
             title="Categories"
-            categories={items}
+            categories={categories}
             selectedId={selectedCategoryId}
             onSelect={handleCategorySelect}
             focusedIndex={sidebarFocusIndex}
             onFocusChange={setSidebarFocusIndex}
-            focusInSidebar={focusZone === 'sidebar'}
+            listRef={sidebarRef}
+            useNativeFocus
           />
+
           <View style={styles.content}>
             <FlatList
-              ref={gridRef}
+              ref={seriesListRef}
               data={filteredList}
               renderItem={renderItem}
-              keyExtractor={item => String(item.stream_id)}
-              numColumns={numColumns}
+              keyExtractor={item => String(item.series_id)}
+              numColumns={layout.numColumns}
+              key={layout.numColumns}
               contentContainerStyle={styles.list}
               columnWrapperStyle={styles.row}
-              key={numColumns}
-              initialNumToRender={numColumns * 4}
-              maxToRenderPerBatch={numColumns * 3}
-              windowSize={7}
-              removeClippedSubviews={true}
-              onScrollToIndexFailed={({ index }) => {
-                setTimeout(() => {
-                  const row = Math.floor(index / numColumns);
-                  gridRef.current?.scrollToOffset({
-                    offset: row * (cardWidth * 0.6 + spacing.lg),
-                    animated: true,
-                  });
-                }, 100);
-              }}
+              initialNumToRender={Math.max(layout.numColumns * 4, 8)}
+              maxToRenderPerBatch={Math.max(layout.numColumns * 3, 6)}
+              windowSize={9}
+              removeClippedSubviews={false}
+              extraData={selectedSerieId}
+              onScrollToIndexFailed={handleScrollToIndexFailed}
             />
           </View>
         </View>
@@ -308,25 +349,12 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   list: {
-    // paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xxl,
   },
   row: {
     justifyContent: 'flex-start',
     gap: spacing.md,
-    // marginBottom: spacing.md,
   },
-  cardContainer: {
-    marginBottom: spacing.lg,
-  },
-  focusedCard: {
-  transform: [{ scale: 1.03 }],
-  zIndex: 10,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
-},
 });
 
 export default SeriesScreen;

@@ -22,6 +22,7 @@ import { spacing } from '../theme/spacing';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
 import { getMainGridNumColumns } from '../utils/layout';
+import Button from '../components/Button';
 
 type MainScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -74,7 +75,7 @@ const MainScreen: React.FC = () => {
 
   const numColumns = getMainGridNumColumns(width);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [counts, setCounts] = useState<ListCounts>(INITIAL_COUNTS);
   const [loadError, setLoadError] = useState(false);
@@ -166,7 +167,7 @@ const MainScreen: React.FC = () => {
       if (!destination) {
         return;
       }
-
+      console.log('[Main] handleCardPress', destination.route);
       nav.navigate(destination.route);
     },
     [isLoading, loadError, nav],
@@ -285,9 +286,9 @@ const MainScreen: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // useEffect(() => {
+  //   loadData();
+  // }, []);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener(
@@ -372,6 +373,15 @@ const MainScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <LinearGradient colors={colors.gradients.dark} style={styles.background}>
+        <Button
+          title="Refresh"
+          loading={isLoading}
+          variant="outline"
+          style={styles.actionBtn}
+          onPress={loadData}
+          disabled={isLoading}
+        />
+
         <View style={styles.screenContent}>
           <View
             style={[
@@ -444,6 +454,8 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
+  actionBtn: { minWidth: 140 },
+
   screenContent: {
     flex: 1,
     justifyContent: 'center',

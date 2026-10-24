@@ -111,6 +111,8 @@ export interface SerieInfo {
   series_id?: string;
 }
 
+export type SeriesWithInfo = Stream & SerieInfo;
+
 export interface Season {
   air_date: string;
   cover: string;

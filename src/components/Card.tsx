@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -15,6 +15,8 @@ interface CardProps {
   title?: string;
   image?: string;
   onPress?: () => void;
+  onFocus?: () => void;
+
   focused?: boolean;
   style?: StyleProp<ViewStyle>;
   subtitle?: string;
@@ -24,22 +26,34 @@ interface CardProps {
 const Card: React.FC<CardProps> = ({
   title,
   image,
-  onPress,
+  onPress: handlePress,
+  onFocus,
   focused = false,
   style,
   subtitle,
   badge,
 }) => {
+  const [nativeFocused, setNativeFocused] = useState(false);
+
+  const isFocused = focused || nativeFocused;
   const isLive = badge?.toUpperCase() === 'LIVE';
 
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onBlur={() => setNativeFocused(false)}
+      onPress={() => {
+        console.log('[CARD] onPress:', title);
+        handlePress?.();
+      }}
+      onFocus={() => {
+        setNativeFocused(true);
+        onFocus?.();
+      }}
       activeOpacity={0.82}
-      style={[styles.container, style, focused && styles.focused]}
+      style={[styles.container, style, isFocused && styles.focused]}
       accessibilityRole="button"
       accessibilityLabel={[title, subtitle, badge].filter(Boolean).join(', ')}
-      accessibilityState={{ selected: focused }}>
+      accessibilityState={{ selected: isFocused }}>
       <View style={styles.posterWrapper}>
         {image ? (
           <FastImage

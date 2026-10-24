@@ -28,9 +28,15 @@ const SerieDetailScreen: React.FC = () => {
     useNavigation<
       NativeStackNavigationProp<RootStackParamList, 'SerieDetail'>
     >();
+
   const route = useRoute();
   const { width } = useWindowDimensions();
   const { serie: routeSerie } = route.params as any;
+  console.log(
+    '[SERIE DETAIL] rendered:',
+    routeSerie?.name,
+    routeSerie?.series_id,
+  );
   const { profile, changeSerie, listSerieFav, changeListSerieFav } =
     useGlobalContext();
   const [serie, setSerie] = useState<SerieInfo | null>(null);
@@ -66,13 +72,13 @@ const SerieDetailScreen: React.FC = () => {
     loadSerieDetails();
   }, [profile, routeSerie]);
 
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      navigation.goBack();
-      return true;
-    });
-    return () => sub.remove();
-  }, [navigation]);
+  // useEffect(() => {
+  //   const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+  //     navigation.goBack();
+  //     return true;
+  //   });
+  //   return () => sub.remove();
+  // }, [navigation]);
 
   const loadSerieDetails = async () => {
     if (!profile || !routeSerie) return;

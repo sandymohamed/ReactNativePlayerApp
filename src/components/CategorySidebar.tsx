@@ -1,4 +1,10 @@
-import React, {useRef, useEffect, useCallback} from 'react';
+
+import React, {
+  useRef,
+  useEffect,
+  useCallback,
+  useState,
+} from 'react';
 import {
   View,
   StyleSheet,
@@ -6,12 +12,85 @@ import {
   TouchableOpacity,
   type ListRenderItemInfo,
   FlatList,
+  Platform,
 } from 'react-native';
-import {colors} from '../theme/colors';
-import {spacing, borderRadius} from '../theme/spacing';
-import {typography} from '../theme/typography';
 
-export type CategoryItem = {category_id: string; category_name: string};
+import { colors } from '../theme/colors';
+import { spacing, borderRadius } from '../theme/spacing';
+import { typography } from '../theme/typography';
+
+export type CategoryItem = {
+  category_id: string;
+  category_name: string;
+};
+
+interface CategoryRowProps {
+  item: CategoryItem;
+  selected: boolean;
+  focusedIndex: number;
+  index: number;
+  useNativeFocus: boolean;
+  onSelect: (categoryId: string) => void;
+  onFocusChange?: (index: number) => void;
+}
+
+const ROW_HEIGHT = 52;
+
+const CategoryRow: React.FC<CategoryRowProps> = ({
+  item,
+  selected,
+  focusedIndex,
+  index,
+  useNativeFocus,
+  onSelect,
+  onFocusChange,
+}) => {
+  const [nativeFocused, setNativeFocused] = useState(false);
+
+  const isFocused = useNativeFocus
+    ? nativeFocused
+    : focusedIndex === index;
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.item,
+        selected && styles.itemSelected,
+        isFocused && styles.itemFocused,
+      ]}
+      onFocus={() => {
+        setNativeFocused(true);
+        onFocusChange?.(index);
+      }}
+      onBlur={() => setNativeFocused(false)}
+      onPress={
+        Platform.isTV
+          ? undefined
+          : () => {
+              onSelect(item.category_id);
+              onFocusChange?.(index);
+            }
+      }
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={item.category_name}
+      accessibilityState={{ selected }}
+    >
+      {isFocused && <View style={styles.itemAccent} />}
+
+      <Text
+        style={[
+          styles.itemText,
+          selected && styles.itemTextSelected,
+          isFocused && styles.itemTextFocused,
+        ]}
+        numberOfLines={1}
+      >
+        {item.category_name}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 interface CategorySidebarProps {
   title: string;
@@ -20,12 +99,10 @@ interface CategorySidebarProps {
   onSelect: (categoryId: string) => void;
   focusedIndex: number;
   onFocusChange?: (index: number) => void;
-  /** When true, D-pad up/down move focus in sidebar only. */
   focusInSidebar?: boolean;
   listRef?: React.RefObject<FlatList<CategoryItem> | null>;
+  useNativeFocus?: boolean;
 }
-
-const ROW_HEIGHT = 52;
 
 const CategorySidebar: React.FC<CategorySidebarProps> = ({
   title,
@@ -36,80 +113,84 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
   onFocusChange,
   focusInSidebar = true,
   listRef: externalListRef,
+  useNativeFocus = false,
 }) => {
-  const internalListRef = useRef<FlatList>(null);
+  const internalListRef = useRef<FlatList<CategoryItem>>(null);
   const listRef = externalListRef ?? internalListRef;
 
-  const items: CategoryItem[] = categories;
+  const safeFocusIndex =
+    categories.length === 0
+      ? 0
+      : Math.min(Math.max(0, focusedIndex), categories.length - 1);
 
   useEffect(() => {
-    if (items.length === 0) return;
-    if (focusedIndex >= 0 && focusedIndex < items.length) {
-      listRef.current?.scrollToIndex({
-        index: focusedIndex,
-        animated: true,
-        viewPosition: 0.5,
-      });
+    if (
+      categories.length === 0 ||
+      safeFocusIndex < 0 ||
+      safeFocusIndex >= categories.length
+    ) {
+      return;
     }
-  }, [focusedIndex, items.length]);
 
-  const safeFocusIndex = items.length === 0 ? 0 : Math.min(Math.max(0, focusedIndex), items.length - 1);
+    listRef.current?.scrollToIndex({
+      index: safeFocusIndex,
+      animated: false,
+      viewPosition: 0.5,
+    });
+  }, [safeFocusIndex, categories.length, listRef]);
 
   const renderItem = useCallback(
-    ({item, index}: ListRenderItemInfo<CategoryItem>) => {
-      const isSelected = selectedId === item.category_id;
-      const isFocused = focusInSidebar && safeFocusIndex === index;
-      return (
-        <TouchableOpacity
-          style={[
-            styles.item,
-            isSelected && styles.itemSelected,
-            isFocused && styles.itemFocused,
-          ]}
-          onPress={() => {
-            onSelect(item.category_id);
-            onFocusChange?.(index);
-          }}
-          activeOpacity={0.8}>
-          {isFocused && <View style={styles.itemAccent} />}
-          <Text
-            style={[
-              styles.itemText,
-              isSelected && styles.itemTextSelected,
-              isFocused && styles.itemTextFocused,
-            ]}
-            numberOfLines={1}>
-            {item.category_name}
-          </Text>
-        </TouchableOpacity>
-      );
-    },
-    [selectedId, focusInSidebar, safeFocusIndex, onSelect, onFocusChange],
+    ({ item, index }: ListRenderItemInfo<CategoryItem>) => (
+      <CategoryRow
+        item={item}
+        index={index}
+        selected={selectedId === item.category_id}
+        focusedIndex={safeFocusIndex}
+        useNativeFocus={useNativeFocus}
+        onSelect={onSelect}
+        onFocusChange={onFocusChange}
+      />
+    ),
+    [
+      selectedId,
+      safeFocusIndex,
+      useNativeFocus,
+      onSelect,
+      onFocusChange,
+    ],
   );
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
+
       <FlatList
         ref={listRef}
-        data={items}
+        data={categories}
         renderItem={renderItem}
         keyExtractor={item => String(item.category_id)}
-        extraData={{selectedId, focusedIndex: safeFocusIndex}}
+        extraData={{
+          selectedId,
+          focusedIndex: safeFocusIndex,
+          focusInSidebar,
+        }}
         contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={true}
-        getItemLayout={(_: any, index: number) => ({
+        showsVerticalScrollIndicator
+        getItemLayout={(_, index) => ({
           length: ROW_HEIGHT,
           offset: ROW_HEIGHT * index,
           index,
         })}
-        onScrollToIndexFailed={({index}) => {
-          setTimeout(() => {
-            (listRef as any).current?.scrollToOffset({
-              offset: index * ROW_HEIGHT,
-              animated: true,
-            });
-          }, 100);
+        onScrollToIndexFailed={({ index }) => {
+          const safeIndex = Math.min(
+            Math.max(0, index),
+            Math.max(0, categories.length - 1),
+          );
+
+          listRef.current?.scrollToOffset({
+            offset: safeIndex * ROW_HEIGHT,
+            animated: false,
+          });
         }}
       />
     </View>
