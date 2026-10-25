@@ -1,4 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  useNavigation,
+  useRoute,
+  useIsFocused,
+} from '@react-navigation/native';
 import {
   View,
   StyleSheet,
@@ -7,7 +12,6 @@ import {
   useWindowDimensions,
   BackHandler,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -18,7 +22,7 @@ import { spacing, borderRadius } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import Button from '../components/Button';
 import FastImage from 'react-native-fast-image';
-import { TouchableOpacity } from 'react-native-gesture-handler';
+import { useTVEventHandler } from '../hooks/useTVEventHandler';
 
 const MovieDetailScreen: React.FC = () => {
   const navigation =
@@ -26,10 +30,12 @@ const MovieDetailScreen: React.FC = () => {
       NativeStackNavigationProp<RootStackParamList, 'MovieDetail'>
     >();
   const route = useRoute();
+  const isScreenFocused = useIsFocused();
   const { width, height } = useWindowDimensions();
   const { movie } = route.params as any;
   const { profile, listVodFav, changeListVodFav } = useGlobalContext();
   const [isFav, setIsFav] = useState<boolean>(false);
+  const [focusedButton, setFocusedButton] = useState<'fav' | 'play'>('fav');
 
   const handlePressFav = () => {
     var streamId = String(movie.stream_id);
@@ -49,14 +55,44 @@ const MovieDetailScreen: React.FC = () => {
     setIsFav(isFav => !isFav);
   };
 
+  // useEffect(() => {
+  //   console.log('MovieDetailScreen: movie =', movie);
+  //   /**
+  //    * replace this with   useTVEventHandler({
+  //        onBack: () => {
+  //    */
+  //   const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+  //     console.log('baaaaaaaaaaack');
+  //     navigation.goBack();
+  //     return true;
+  //   });
+  //   return () => sub.remove();
+  // }, [navigation]);
+
   useEffect(() => {
-    console.log('MovieDetailScreen: movie =', movie);
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+    setIsFav(listVodFav.includes(String(movie?.stream_id)));
+  }, [listVodFav, movie?.stream_id]);
+
+  useTVEventHandler({
+    onBack: () => {
+      if (!isScreenFocused) return;
+
+      console.log('[MovieDetail] Back');
       navigation.goBack();
-      return true;
-    });
-    return () => sub.remove();
-  }, [navigation]);
+    },
+
+    onSelect: () => {
+      if (!isScreenFocused) return;
+
+      console.log('[MovieDetail] Select:', focusedButton);
+
+      if (focusedButton === 'fav') {
+        handlePressFav();
+      } else if (focusedButton === 'play') {
+        handlePlay();
+      }
+    },
+  });
 
   const handlePlay = () => {
     if (!profile || !movie) return;
@@ -95,25 +131,31 @@ const MovieDetailScreen: React.FC = () => {
             <Text style={styles.metaText}>Rating: {movieInfo.rating}</Text>
           )}
         </View>
-        <TouchableOpacity onPress={handlePressFav}>
-          <View style={styles.favoriteIconContainer}>
-            <Text style={styles.favoriteIcon}>{isFav ? '❤' : '🤍'}</Text>
-          </View>
-        </TouchableOpacity>
+        <Button
+          title={isFav ? '❤ ' : '🤍'}
+          onPress={handlePressFav}
+          onFocus={() => setFocusedButton('fav')}
+          textStyle={styles.favoriteIcon}
+        />
       </View>
 
-      <Button title="Play" onPress={handlePlay} style={styles.playButton} />
+      <Button
+        title="Play"
+        onFocus={() => setFocusedButton('play')}
+        onPress={handlePlay}
+        style={styles.playButton}
+      />
     </View>
   );
 
   return (
-    <ScrollView style={[styles.container ]}>
+    <ScrollView style={[styles.container]}>
       <LinearGradient
         colors={colors.gradients.dark}
-        style={[styles.background ]}>
+        style={[styles.background]}>
         <FastImage
           source={{ uri: cover || '' }}
-          style={[styles.cover, {  height, opacity: 0.7 }]}
+          style={[styles.cover, { height, opacity: 0.7 }]}
           resizeMode={FastImage.resizeMode.cover}>
           <LinearGradient
             colors={colors.gradients.dark}
@@ -213,8 +255,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   favoriteIcon: {
-    fontSize: 29,
-    color: colors.primaryDark,
+    fontSize: 22,
   },
   playButton: {
     marginTop: spacing.lg,

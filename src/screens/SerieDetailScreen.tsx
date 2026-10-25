@@ -6,7 +6,6 @@ import {
   ScrollView,
   FlatList,
   useWindowDimensions,
-  BackHandler,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,7 +20,8 @@ import { typography } from '../theme/typography';
 import Card from '../components/Card';
 import { SerieInfo, Season } from '../models/model';
 import FastImage from 'react-native-fast-image';
-import { TouchableOpacity } from 'react-native-gesture-handler';
+import { useTVEventHandler } from '../hooks/useTVEventHandler';
+import Button from '../components/Button';
 
 const SerieDetailScreen: React.FC = () => {
   const navigation =
@@ -45,6 +45,11 @@ const SerieDetailScreen: React.FC = () => {
   const seasonCardWidth = wide ? 260 : 200;
 
   const [isFav, setIsFav] = useState<boolean>(false);
+  const [focusedButton, setFocusedButton] = useState<'fav' | 'play'>('fav');
+  const [focusedSeason, setFocusedSeason] = useState<null | {
+    season_number: number;
+    id: string;
+  }>(null);
 
   const handlePressFav = () => {
     var streamId = String(routeSerie.series_id);
@@ -71,6 +76,28 @@ const SerieDetailScreen: React.FC = () => {
   useEffect(() => {
     loadSerieDetails();
   }, [profile, routeSerie]);
+
+  const handleSeasonPress = (season: { season_number: number; id: string }) => {
+    navigation.navigate('Season', {
+      serie: serie || routeSerie,
+      season,
+      seriesId: routeSerie.series_id || routeSerie.stream_id,
+    });
+  };
+
+  useTVEventHandler({
+    onBack: () => {
+      navigation.goBack();
+    },
+
+    onSelect: () => {
+      if (focusedButton === 'fav') {
+        handlePressFav();
+      } else if (focusedButton === 'play' && focusedSeason) {
+        handleSeasonPress(focusedSeason);
+      }
+    },
+  });
 
   // useEffect(() => {
   //   const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -106,14 +133,6 @@ const SerieDetailScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSeasonPress = (season: { season_number: number; id: string }) => {
-    navigation.navigate('Season', {
-      serie: serie || routeSerie,
-      season,
-      seriesId: routeSerie.series_id || routeSerie.stream_id,
-    });
   };
 
   if (loading || !serie) {
@@ -157,11 +176,18 @@ const SerieDetailScreen: React.FC = () => {
                   </Text>
                 )}
               </View>
-              <TouchableOpacity onPress={handlePressFav}>
+              {/* <TouchableOpacity onPress={handlePressFav}>
                 <View style={styles.favoriteIconContainer}>
                   <Text style={styles.favoriteIcon}>{isFav ? '❤' : '🤍'}</Text>
                 </View>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
+
+              <Button
+                title={isFav ? '❤ ' : '🤍'}
+                onPress={handlePressFav}
+                onFocus={() => setFocusedButton('fav')}
+                textStyle={styles.favoriteIcon}
+              />
             </View>
             {(() => {
               const seasonsList: Array<{
@@ -202,6 +228,13 @@ const SerieDetailScreen: React.FC = () => {
                         title={`Season ${item.seasonNum}`}
                         subtitle={`${item.episodeCount} episodes`}
                         image={item.cover}
+                        onFocus={() => {
+                          setFocusedButton('play');
+                          setFocusedSeason({
+                            season_number: parseInt(item.seasonNum),
+                            id: item.seasonNum,
+                          });
+                        }}
                         onPress={() =>
                           handleSeasonPress({
                             season_number: parseInt(item.seasonNum),
@@ -290,7 +323,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   favoriteIcon: {
-    fontSize: 29,
+    fontSize: 25,
     color: colors.primaryDark,
   },
   seasonsContainer: {

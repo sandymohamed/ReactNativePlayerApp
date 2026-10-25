@@ -5,12 +5,23 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
-import { View, StyleSheet, Text, FlatList, BackHandler } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import {
+  View,
+  StyleSheet,
+  Text,
+  FlatList,
+  BackHandler,
+  Platform,
+  TVFocusGuideView,
+} from 'react-native';
+import {
+  useNavigation,
+  useFocusEffect,
+  useIsFocused,
+} from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 
-import { RootStackParamList } from '../navigation/AppNavigator';
 import { useGlobalContext } from '../context/GlobalContext';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -20,12 +31,18 @@ import CategorySidebar, {
   type CategoryItem,
 } from '../components/CategorySidebar';
 import { useLandscapeLayout } from '../utils/layout';
-import {  SeriesWithInfo } from '../models/model';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { SeriesWithInfo } from '../models/model';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
 
+type SeriesScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Series'
+>;
+
 const SeriesScreen: React.FC = () => {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList, 'Series'>>();
+  const navigation = useNavigation<SeriesScreenNavigationProp>();
+  const isScreenFocused = useIsFocused();
 
   const { profile, listSerie, listSerieFav, listSerieRecent, catSerie } =
     useGlobalContext();
@@ -34,15 +51,10 @@ const SeriesScreen: React.FC = () => {
 
   const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
-  // Remember the focused series by ID, not by array position.
   const [selectedSerieId, setSelectedSerieId] = useState<string | null>(null);
-
-  const sidebarRef = useRef<FlatList<CategoryItem>>(null);
-  const seriesListRef = useRef<FlatList<SeriesWithInfo>>(null);
+  const [focusZone, setFocusZone] = useState<'sidebar' | 'grid'>('grid');
 
   const navigatingToSerieRef = useRef(false);
-  const restorePositionRef = useRef(false);
 
   const categories: CategoryItem[] = useMemo(() => {
     const raw = (catSerie || []) as {
@@ -85,70 +97,54 @@ const SeriesScreen: React.FC = () => {
     ) as SeriesWithInfo[];
   }, [listSerie, listSerieFav, listSerieRecent, selectedCategoryId]);
 
-  // Keep the saved series selection valid when the list/category changes.
+  useEffect(() => {
+    if (categories.length === 0) {
+      setSidebarFocusIndex(0);
+      return;
+    }
+
+    setSidebarFocusIndex(index =>
+      Math.min(Math.max(0, index), categories.length - 1),
+    );
+  }, [categories.length]);
+
+  // Keep the selected series valid after changing categories.
   useEffect(() => {
     if (filteredList.length === 0) {
       setSelectedSerieId(null);
       return;
     }
 
-    const selectionExists = filteredList.some(
+    const selectionStillExists = filteredList.some(
       serie => String(serie.series_id) === selectedSerieId,
     );
 
-    console.log('filteredList[0]', filteredList[0]);
-    if (!selectionExists) {
+    if (!selectionStillExists) {
       setSelectedSerieId(String(filteredList[0].series_id));
     }
   }, [filteredList, selectedSerieId]);
 
-  // Keep the focused sidebar item visible.
-  useEffect(() => {
-    if (sidebarFocusIndex < 0 || sidebarFocusIndex >= categories.length) {
-      return;
-    }
-
-    sidebarRef.current?.scrollToIndex({
-      index: sidebarFocusIndex,
-      animated: false,
-      viewPosition: 0.5,
-    });
-  }, [sidebarFocusIndex, categories.length]);
-
-  // Restore the saved series position when returning from SerieDetail.
+  // Reset the navigation guard when returning to Series.
   useFocusEffect(
     useCallback(() => {
       navigatingToSerieRef.current = false;
-
-      if (!restorePositionRef.current || !selectedSerieId) {
-        return;
-      }
-
-      restorePositionRef.current = false;
-
-      const index = filteredList.findIndex(
-        serie => String(serie.series_id) === selectedSerieId,
-      );
-
-      if (index < 0) {
-        return;
-      }
-
-      // Wait until the screen/list has regained focus and laid out.
-      requestAnimationFrame(() => {
-        seriesListRef.current?.scrollToIndex({
-          index,
-          animated: false,
-          viewPosition: 0.3,
-        });
-      });
-    }, [filteredList, selectedSerieId]),
+      return undefined;
+    }, []),
   );
 
+  // Handle hardware Back only while this screen is active.
   useEffect(() => {
+    if (!isScreenFocused) {
+      return;
+    }
+
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
+        if (!isScreenFocused) {
+          return false;
+        }
+
         if (navigation.canGoBack()) {
           navigation.goBack();
         } else {
@@ -160,95 +156,117 @@ const SeriesScreen: React.FC = () => {
     );
 
     return () => subscription.remove();
-  }, [navigation]);
+  }, [isScreenFocused, navigation]);
 
-  const handleCategorySelect = useCallback(
-    (categoryId: string) => {
-      const index = categories.findIndex(
-        category => category.category_id === categoryId,
-      );
+  const handleCategorySelect = useCallback((categoryId: string) => {
+    setSelectedCategory(categoryId);
+    setSelectedSerieId(null);
 
-      setSelectedCategory(categoryId);
-      setSelectedSerieId(null);
-
-      if (index >= 0) {
-        setSidebarFocusIndex(index);
-      }
-    },
-    [categories],
-  );
+    // Keep the logical zone aligned with native focus.
+    // The first series card's onFocus will switch the zone to "grid".
+    setFocusZone('sidebar');
+  }, []);
 
   const handleSeriePress = useCallback(
     (serie?: SeriesWithInfo) => {
-      // if (!serie || navigatingToSerieRef.current) {
-      //   return;
-      // }
+      if (!serie || navigatingToSerieRef.current) {
+        return;
+      }
+
+      const serieId = String(serie.series_id);
+      const serieStillExists = filteredList.some(
+        item => String(item.series_id) === serieId,
+      );
+
+      if (!serieStillExists) {
+        console.warn('[SeriesScreen] Series is not in the current list', {
+          serieId,
+        });
+        return;
+      }
 
       navigatingToSerieRef.current = true;
-
-      const serieId = String(serie?.series_id);
       setSelectedSerieId(serieId);
-      restorePositionRef.current = true;
 
       navigation.navigate('SerieDetail', { serie });
     },
-    [navigation],
+    [filteredList, navigation],
   );
 
-  // Native TV focus handles directional navigation.
-  // Enter opens the series currently selected by its stream_id.
   useTVEventHandler({
     onBack: () => {
+      if (!isScreenFocused) {
+        return;
+      }
+
       if (navigation.canGoBack()) {
         navigation.goBack();
       } else {
         navigation.navigate('Main');
       }
     },
+
     onSelect: () => {
-      if (navigatingToSerieRef.current) {
+      if (!isScreenFocused || navigatingToSerieRef.current) {
         return;
       }
 
-      const selectedSerie = filteredList.find(
-        serie => String(serie.series_id) === selectedSerieId,
-      );
-      console.log('selectedSerie', selectedSerie);
+      if (focusZone === 'sidebar') {
+        const category = categories[sidebarFocusIndex];
 
-      handleSeriePress(selectedSerie);
+        if (category) {
+          handleCategorySelect(category.category_id);
+        } else {
+          console.warn(
+            '[SeriesScreen] No category at the focused index',
+            sidebarFocusIndex,
+          );
+        }
+
+        return;
+      }
+
+      if (!selectedSerieId) {
+        return;
+      }
+
+      const serie = filteredList.find(
+        item => String(item.series_id) === selectedSerieId,
+      );
+
+      if (serie) {
+        handleSeriePress(serie);
+      }
     },
   });
 
+  const numColumns = layout.numColumns;
+  const cardWidth = layout.cardWidth;
+
   const renderItem = useCallback(
-    ({ item }: { item: SeriesWithInfo }) => (
-      <Card
-        title={item.name}
-        image={item.cover}
-        style={{ width: layout.cardWidth }}
-        onFocus={() => setSelectedSerieId(String(item.series_id))}
-        onPress={() => handleSeriePress(item)}
-      />
-    ),
-    [layout.cardWidth, handleSeriePress],
-  );
+    ({ item }: { item: SeriesWithInfo }) => {
+      const serieId = String(item.series_id);
+      const isSelected = selectedSerieId === serieId;
 
-  const handleScrollToIndexFailed = useCallback(
-    (info: { index: number; averageItemLength: number }) => {
-      // Fallback for virtualized lists when the requested item isn't measured.
-      seriesListRef.current?.scrollToOffset({
-        offset: Math.max(0, info.averageItemLength * info.index),
-        animated: false,
-      });
-
-      setTimeout(() => {
-        seriesListRef.current?.scrollToIndex({
-          index: info.index,
-          animated: false,
-          viewPosition: 0.3,
-        });
-      }, 100);
+      return (
+        <Card
+          title={item.name}
+          image={item.cover}
+          style={{ width: cardWidth }}
+          focused={focusZone === 'grid' && isSelected}
+          onFocus={() => {
+            setSelectedSerieId(serieId);
+            setFocusZone('grid');
+          }}
+          // On TV, TVEventHandler is the only Select handler.
+          // On touch devices, Card handles the press.
+          onPress={
+            Platform.isTV ? undefined : () => handleSeriePress(item)
+          }
+        />
+      );
     },
-    [],
+    [focusZone, selectedSerieId, cardWidth, handleSeriePress],
   );
 
   if (!profile) {
@@ -277,28 +295,31 @@ const SeriesScreen: React.FC = () => {
             selectedId={selectedCategoryId}
             onSelect={handleCategorySelect}
             focusedIndex={sidebarFocusIndex}
-            onFocusChange={setSidebarFocusIndex}
-            listRef={sidebarRef}
-            useNativeFocus
+            onFocusChange={index => {
+              setSidebarFocusIndex(index);
+              setFocusZone('sidebar');
+            }}
+            focusInSidebar={focusZone === 'sidebar'}
           />
 
           <View style={styles.content}>
-            <FlatList
-              ref={seriesListRef}
-              data={filteredList}
-              renderItem={renderItem}
-              keyExtractor={item => String(item.series_id)}
-              numColumns={layout.numColumns}
-              key={layout.numColumns}
-              contentContainerStyle={styles.list}
-              columnWrapperStyle={styles.row}
-              initialNumToRender={Math.max(layout.numColumns * 4, 8)}
-              maxToRenderPerBatch={Math.max(layout.numColumns * 3, 6)}
-              windowSize={9}
-              removeClippedSubviews={false}
-              extraData={selectedSerieId}
-              onScrollToIndexFailed={handleScrollToIndexFailed}
-            />
+            <TVFocusGuideView autoFocus style={styles.focusGuide}>
+              <FlatList
+                data={filteredList}
+                renderItem={renderItem}
+                keyExtractor={item => String(item.series_id)}
+                numColumns={numColumns}
+                contentContainerStyle={styles.list}
+                columnWrapperStyle={
+                  numColumns > 1 ? styles.row : undefined
+                }
+                key={numColumns}
+                initialNumToRender={numColumns * 4}
+                maxToRenderPerBatch={numColumns * 3}
+                windowSize={7}
+                removeClippedSubviews={false}
+              />
+            </TVFocusGuideView>
           </View>
         </View>
       </LinearGradient>
@@ -347,6 +368,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
+  },
+  focusGuide: {
+    flex: 1,
   },
   list: {
     paddingBottom: spacing.xxl,

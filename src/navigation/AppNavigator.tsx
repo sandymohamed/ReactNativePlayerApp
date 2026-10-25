@@ -58,6 +58,7 @@ const HomeScreenWithBackBlock = () => {
         () => true,
       );
 
+      console.log( 'hardwareBackPress')
       return () => subscription.remove();
     }, []),
   );

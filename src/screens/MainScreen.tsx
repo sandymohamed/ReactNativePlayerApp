@@ -9,7 +9,7 @@ import {
   BackHandler,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 
@@ -72,7 +72,8 @@ const INITIAL_COUNTS: ListCounts = {
 const MainScreen: React.FC = () => {
   const navigation = useNavigation<MainScreenNavigationProp>();
   const { width, height } = useWindowDimensions();
-
+  const isScreenFocused = useIsFocused();
+  
   const numColumns = getMainGridNumColumns(width);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -98,6 +99,7 @@ const MainScreen: React.FC = () => {
 
   const nav = navigation as any;
 
+  console.log("isScreenFocused",isScreenFocused)
   const destinations: Destination[] = [
     {
       id: 'live',
@@ -309,6 +311,8 @@ const MainScreen: React.FC = () => {
 
   useTVEventHandler({
     onBack: () => {
+        if (!isScreenFocused) return;
+
       if (navigation.canGoBack()) {
         navigation.goBack();
       } else {
@@ -316,27 +320,12 @@ const MainScreen: React.FC = () => {
       }
     },
 
-    onSelect: () => handleCardPress(focusedIndex),
+    onSelect: () => {
+        if (!isScreenFocused) return;
 
-    // onUp: () => {
-    //   setFocusedIndex(previous => Math.max(0, previous - numColumns));
-    // },
-
-    // onDown: () => {
-    //   setFocusedIndex(previous =>
-    //     Math.min(destinations.length - 1, previous + numColumns),
-    //   );
-    // },
-
-    // onLeft: () => {
-    //   setFocusedIndex(previous => Math.max(0, previous - 1));
-    // },
-
-    // onRight: () => {
-    //   setFocusedIndex(previous =>
-    //     Math.min(destinations.length - 1, previous + 1),
-    //   );
-    // },
+      console.log('MainScrees onPress focusedIndex:', focusedIndex);
+      handleCardPress(focusedIndex);
+    },
   });
 
   const renderQuickTile = (destination: Destination, index: number) => {

@@ -1,5 +1,4 @@
-
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -10,9 +9,9 @@ import {
   StyleProp,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import {colors} from '../theme/colors';
-import {spacing, borderRadius} from '../theme/spacing';
-import {typography} from '../theme/typography';
+import { colors } from '../theme/colors';
+import { spacing, borderRadius } from '../theme/spacing';
+import { typography } from '../theme/typography';
 
 interface ButtonProps {
   title: string;
@@ -57,8 +56,7 @@ const Button: React.FC<ButtonProps> = ({
 
   const isPrimary = variant === 'primary';
 
-  const indicatorColor =
-    variant === 'outline' ? colors.primary : colors.text;
+  const indicatorColor = variant === 'outline' ? colors.primary : colors.text;
 
   return (
     <TouchableOpacity
@@ -79,8 +77,8 @@ const Button: React.FC<ButtonProps> = ({
       {isPrimary && (
         <LinearGradient
           colors={colors.gradients.primary}
-          start={{x: 0, y: 0}}
-          end={{x: 1, y: 0}}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
           pointerEvents="none"
           style={styles.gradientBackground}
         />
@@ -117,20 +115,24 @@ const styles = StyleSheet.create({
   gradientBackground: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: borderRadius.md,
+    zIndex: 0,
+  },
+  text: {
+    ...typography.button,
+    position: 'relative',
+    zIndex: 1,
+    elevation: 1,
   },
   focused: {
     borderWidth: 3,
     borderColor: colors.text,
     elevation: 8,
-    transform: [{scale: 1.04}],
+    transform: [{ scale: 1.04 }],
   },
   disabled: {
     opacity: 0.5,
   },
-  text: {
-    ...typography.button,
-    zIndex: 1,
-  },
+
   primaryText: {
     ...typography.button,
     color: colors.text,
