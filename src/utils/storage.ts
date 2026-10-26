@@ -5,6 +5,15 @@ import type { Playlist, Stream } from '../models/model';
 const MAIN_CACHE_DIR = `${RNFS.DocumentDirectoryPath}/iptv-cache`;
 const PROFILE_KEY = '@iptv/selected_profile_v1';
 
+
+export const SETTINGS_KEYS = {
+  LANGUAGE: 'language',
+  STREAM_FORMAT: 'streamFormat',
+  TIME_FORMAT: 'timeformat',
+  LIST_TYPE: 'listType',
+  PARENTAL_PASSWORD: 'password',
+} as const;
+
 export interface MainDataCache {
   catLive: any[];
   listLive: Stream[];
@@ -36,6 +45,63 @@ const CACHE_FILES = {
   listSerieRecent: 'series-recent.json',
   updatedAt: 'metadata.json',
 } as const;
+
+export async function getSetting(key: string): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(key);
+  } catch (e) {
+    console.error('getSetting', key, e);
+    return null;
+  }
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(key, value);
+  } catch (e) {
+    console.error('setSetting', key, e);
+  }
+}
+
+export const storeVideoPositions = async (videoPositions: any) => {
+  try {
+    const jsonVideoPositions = JSON.stringify(videoPositions);
+    await AsyncStorage.setItem('vodPositions', jsonVideoPositions);
+    console.log("Video positions stored successfully:", await getVideoPositions());
+  } catch (error) {
+    console.error('Error storing video positions:', error);
+  }
+};
+
+export const getVideoPositions = async (): Promise<any> => {
+  try {
+    const jsonVideoPositions = await AsyncStorage.getItem('vodPositions');
+    return jsonVideoPositions ? JSON.parse(jsonVideoPositions) : {};
+  } catch (error) {
+    console.error('Error getting video positions:', error);
+    return {};
+  }
+};
+
+export const storeSeriePositions = async (videoPositions: any) => {
+  try {
+    const jsonVideoPositions = JSON.stringify(videoPositions);
+    await AsyncStorage.setItem('seriePositions', jsonVideoPositions);
+    console.log("Serie positions stored successfully:", await getSeriePositions());
+  } catch (error) {
+    console.error('Error storing serie positions:', error);
+  }
+};
+
+export const getSeriePositions = async (): Promise<any> => {
+  try {
+    const jsonVideoPositions = await AsyncStorage.getItem('seriePositions');
+    return jsonVideoPositions ? JSON.parse(jsonVideoPositions) : {};
+  } catch (error) {
+    console.error('Error getting serie positions:', error);
+    return {};
+  }
+};
 
 async function ensureCacheDirectory(): Promise<void> {
   await RNFS.mkdir(MAIN_CACHE_DIR);
@@ -179,4 +245,66 @@ export async function clearMainData(): Promise<void> {
   } catch (error) {
     console.error('clearMainData:', error);
   }
+}
+
+
+
+
+
+const DEVICE_IDENTITY_KEY = '@iptv/device_identity_v1';
+
+export type DeviceIdentity = {
+  mac: string;
+  version: string;
+  type: number;
+};
+
+export async function getDeviceIdentity(): Promise<DeviceIdentity | null> {
+  try {
+    const value = await AsyncStorage.getItem(DEVICE_IDENTITY_KEY);
+
+    if (!value) {
+      return null;
+    }
+
+    return JSON.parse(value) as DeviceIdentity;
+  } catch (error) {
+    console.error('Failed to read device identity:', error);
+    return null;
+  }
+}
+
+export async function saveDeviceIdentityOnce(
+  identity: DeviceIdentity,
+): Promise<DeviceIdentity> {
+  const existing = await getDeviceIdentity();
+
+  if (existing) {
+    return existing;
+  }
+
+  const mac = identity.mac.trim().toLowerCase();
+
+  if (
+    !/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(mac) ||
+    mac === '02:00:00:00:00:00' ||
+    mac === '00:00:00:00:00:00' ||
+    mac === 'ff:ff:ff:ff:ff:ff'
+  ) {
+    throw new Error(
+      'The device MAC address is unavailable or invalid.',
+    );
+  }
+
+  const savedIdentity: DeviceIdentity = {
+    ...identity,
+    mac,
+  };
+
+  await AsyncStorage.setItem(
+    DEVICE_IDENTITY_KEY,
+    JSON.stringify(savedIdentity),
+  );
+
+  return savedIdentity;
 }

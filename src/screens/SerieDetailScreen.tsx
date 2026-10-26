@@ -92,7 +92,8 @@ const SerieDetailScreen: React.FC = () => {
 
     onSelect: () => {
       if (focusedButton === 'fav') {
-        handlePressFav();
+        // handlePressFav();
+        console.log("faaaaaav")
       } else if (focusedButton === 'play' && focusedSeason) {
         handleSeasonPress(focusedSeason);
       }
@@ -323,8 +324,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   favoriteIcon: {
-    fontSize: 25,
-    color: colors.primaryDark,
+    fontSize: 22,
+    // color: colors.primaryDark,
   },
   seasonsContainer: {
     marginTop: spacing.xl,

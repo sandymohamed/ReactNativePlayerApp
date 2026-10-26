@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+
 import {
   View,
   StyleSheet,
@@ -9,9 +10,13 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import DeviceInfo from 'react-native-device-info';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
+
 import { useGlobalContext } from '../context/GlobalContext';
 import { LoginModel, Playlist } from '../models/model';
 import { colors } from '../theme/colors';
@@ -27,160 +32,480 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<
   'Home'
 >;
 
-type DeviceInfoShow = '-2' | '-1' | '0' | '1';
+type DeviceInfoShow = '-2' | '-1' | '0' | '1' | 'error';
 
-// let PROFILE_SIZE:number= 120;
+type IdentifierType = 'mac' | 'uniqueId';
+
+type StoredDeviceIdentity = {
+  identifier: string;
+  identifierType: IdentifierType;
+  version: string;
+  type: number;
+};
+
+type CachedLogin = {
+  data: LoginModel;
+  cachedAt: number;
+};
+
 const PROFILE_GAP = spacing.lg;
 
+const TEST_MODE = true;
+
+// Keep "mac" unless the distributor confirms uniqueId support.
+const DEVICE_IDENTIFIER_MODE: IdentifierType = 'mac';
+
 const DEF_MAC = 'b8:b4:09:45:24:f6';
-// const DEF_MAC = "a0:d7:f3:f6:52:03";
 const DEF_VERSION = "'1.0.2'";
 const DEF_TYPE = 3;
 
+const LOGIN_URL = 'https://api.uiplayer.com/api/apps/devices/login';
+
+const DEVICE_IDENTITY_KEY = '@iptv/device_identity_v1';
+const LOGIN_CACHE_PREFIX = '@iptv/device_login_v1:';
+
 const HomeScreen: React.FC = () => {
+  console.log('HomeScreen');
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { width, height } = useWindowDimensions();
+
   const PROFILE_SIZE = height / 2 - 100;
+
   const { deviceInfo, changeDeviceInfo, changeProfile } = useGlobalContext();
 
   const [deviceInfoShow, setDeviceInfoShow] = useState<DeviceInfoShow>('-2');
+
   const [deviceInfoShowForce, setDeviceInfoShowForce] = useState(false);
+
   const [isTrial, setIsTrial] = useState(false);
   const [expiredAt, setExpiredAt] = useState('');
   const [profileList, setProfileList] = useState<Playlist[]>([]);
   const [selectedProfileIndex, setSelectedProfileIndex] = useState<
     number | null
   >(0);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
   const profileListRef = useRef<FlatList>(null);
 
   const wide = width >= 800;
 
-  const getPassword = useCallback((chaine: string): string => {
-    let out = '';
-    const cleaned = chaine.replace(/:/gi, '');
+  // @ts-expect-error
+  const identifierLabel: string =
+    DEVICE_IDENTIFIER_MODE === 'uniqueId' && !TEST_MODE
+      ? 'Device ID'
+      : 'MAC Address';
+
+  const getPassword = useCallback((value: string): string => {
+    let output = '';
+    const cleaned = value.replace(/:/gi, '');
+
     for (let i = 0; i < cleaned.length; i++) {
-      out += cleaned.charCodeAt(i).toString();
+      output += cleaned.charCodeAt(i).toString();
     }
-    return out.substring(0, 6);
+
+    return output.substring(0, 6);
   }, []);
 
-  const callService = useCallback(
-    async (macAddress: string, version: string, type: number) => {
-      setLoading(true);
+  const parseExpiry = useCallback((value?: string | null): number => {
+    if (!value) {
+      return 0;
+    }
+
+    // Supports timestamps such as "2050-09-13 03:09:00".
+    // No timezone is added because the API's timezone contract
+    // has not been established.
+    const normalized = value.includes(' ') ? value.replace(' ', 'T') : value;
+
+    const timestamp = new Date(normalized).getTime();
+
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  }, []);
+
+  const getLoginCacheKey = useCallback(
+    (identifierType: IdentifierType, identifier: string) =>
+      `${LOGIN_CACHE_PREFIX}${identifierType}:${identifier}`,
+    [],
+  );
+
+  const getDeviceCredentials =
+    useCallback(async (): Promise<StoredDeviceIdentity> => {
+      if (TEST_MODE) {
+        return {
+          identifier: DEF_MAC,
+          identifierType: 'mac',
+          version: DEF_VERSION,
+          type: DEF_TYPE,
+        };
+      }
+
+      const storedRaw = await AsyncStorage.getItem(DEVICE_IDENTITY_KEY);
+
+      if (storedRaw) {
+        const stored = JSON.parse(storedRaw) as StoredDeviceIdentity;
+
+        if (
+          !stored.identifier ||
+          !stored.version ||
+          (stored.identifierType !== 'mac' &&
+            stored.identifierType !== 'uniqueId')
+        ) {
+          throw new Error(
+            'Saved device identity is invalid. Please contact support.',
+          );
+        }
+
+        // Do not silently change the device identity mode.
+        if (stored.identifierType !== DEVICE_IDENTIFIER_MODE) {
+          throw new Error(
+            'The configured device identifier differs from the saved identifier. Device identity was not changed.',
+          );
+        }
+
+        return stored;
+      }
+
+      let identifier: string;
+
+      if (DEVICE_IDENTIFIER_MODE === 'mac') {
+        identifier = await DeviceInfo.getMacAddress();
+
+        const normalizedMac = identifier.trim().toLowerCase();
+
+        if (
+          !/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(normalizedMac) ||
+          normalizedMac === '02:00:00:00:00:00' ||
+          normalizedMac === '00:00:00:00:00:00' ||
+          normalizedMac === 'ff:ff:ff:ff:ff:ff'
+        ) {
+          throw new Error(
+            'Android did not provide a usable MAC address. Login was not sent to avoid registering the wrong device.',
+          );
+        }
+
+        identifier = normalizedMac;
+      } else {
+        identifier = (await DeviceInfo.getUniqueId()).trim();
+
+        if (!identifier) {
+          throw new Error('Android did not provide a usable device ID.');
+        }
+      }
+
+      const identity: StoredDeviceIdentity = {
+        identifier,
+        identifierType: DEVICE_IDENTIFIER_MODE,
+        version: `'${DeviceInfo.getVersion()}'`,
+        type: DEF_TYPE,
+      };
+
+      // Save once; never silently replace a previously saved identity.
+      await AsyncStorage.setItem(DEVICE_IDENTITY_KEY, JSON.stringify(identity));
+
+      return identity;
+    }, []);
+
+  const applyLoginData = useCallback(
+    (data: LoginModel) => {
+      console.log('from applyLoginData');
       setError('');
+      setIsTrial(!!data.is_terial);
+
+      const expiryTimestamp = parseExpiry(data.ExipiredAt);
+      const daysRemaining = expiryTimestamp
+        ? Math.floor((expiryTimestamp - Date.now()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      setExpiredAt(daysRemaining > 0 ? `Expired in ${daysRemaining} days` : '');
+
+      if (data.status === -1) {
+        console.log('from applyLoginData data.status === -1');
+        setDeviceInfoShow('-1');
+        setProfileList([]);
+        setDeviceInfoShowForce(false);
+        return;
+      }
+
+      if (data.status === 0) {
+        console.log('from applyLoginData data.status === 0');
+        setDeviceInfoShow('0');
+        setProfileList([]);
+        setDeviceInfoShowForce(false);
+        return;
+      }
+
+      setDeviceInfoShow('1');
+
+      if (data.playlist && data.playlist.length > 0) {
+        console.log(
+          'from applyLoginData data.playlist && data.playlist.length > 0',
+        );
+        setProfileList(data.playlist);
+        setDeviceInfoShowForce(false);
+      } else {
+        console.log(
+          'from applyLoginData NOT data.playlist && data.playlist.length > 0',
+        );
+        setProfileList([]);
+        setDeviceInfoShowForce(true);
+      }
+    },
+    [parseExpiry],
+  );
+
+  const readValidLoginCache = useCallback(
+    async (
+      identifierType: IdentifierType,
+      identifier: string,
+    ): Promise<LoginModel | null> => {
+      console.log('readValidLoginCache');
+      const cacheKey = getLoginCacheKey(identifierType, identifier);
+
       try {
-        const res = await fetch(
-          'https://api.uiplayer.com/api/apps/devices/login',
-          // 'http://192.168.1.16:5000/api/apps/devices/login',
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              mac: macAddress,
-              password: getPassword(macAddress),
-              type: String(type),
-              version,
-            }),
+        const raw = await AsyncStorage.getItem(cacheKey);
+        console.log('readValidLoginCache raw:', raw);
+
+        if (!raw) {
+          console.log('readValidLoginCache NOT raw:');
+          return null;
+        }
+
+        const cached = JSON.parse(raw) as CachedLogin;
+        const data = cached?.data;
+
+        console.log('readValidLoginCache cached:', cached, 'data:', data);
+        if (!data || typeof data.status !== 'number') {
+          await AsyncStorage.removeItem(cacheKey);
+          return null;
+        }
+
+        const expiryTimestamp = parseExpiry(data.ExipiredAt);
+
+        // Expired, malformed, or non-expiring login responses
+        // must not be used to bypass a fresh login.
+        if (
+          data.status === -1 ||
+          !expiryTimestamp ||
+          expiryTimestamp <= Date.now()
+        ) {
+          await AsyncStorage.removeItem(cacheKey);
+          return null;
+        }
+
+        return data;
+      } catch (cacheError) {
+        console.warn('Could not read login cache:', cacheError);
+        return null;
+      }
+    },
+    [getLoginCacheKey, parseExpiry],
+  );
+
+  const saveLoginCache = useCallback(
+    async (
+      identifierType: IdentifierType,
+      identifier: string,
+      data: LoginModel,
+    ) => {
+      const expiryTimestamp = parseExpiry(data.ExipiredAt);
+
+      // Never cache an expired response or a response without
+      // a valid future expiry.
+      if (
+        data.status === -1 ||
+        !expiryTimestamp ||
+        expiryTimestamp <= Date.now()
+      ) {
+        return;
+      }
+
+      const cacheKey = getLoginCacheKey(identifierType, identifier);
+
+      const cache: CachedLogin = {
+        data,
+        cachedAt: Date.now(),
+      };
+
+      await AsyncStorage.setItem(cacheKey, JSON.stringify(cache));
+    },
+    [getLoginCacheKey, parseExpiry],
+  );
+
+  const callService = useCallback(
+    async (
+      identifier: string,
+      version: string,
+      type: number,
+      identifierType: IdentifierType,
+      forceRefresh = false,
+    ) => {
+      console.log('from callService');
+      setError('');
+
+      if (!forceRefresh) {
+        console.log('!forceRefresh');
+        const cachedData = await readValidLoginCache(
+          identifierType,
+          identifier,
+        );
+
+        if (cachedData) {
+          console.log('cachedData', cachedData);
+          applyLoginData(cachedData);
+          return;
+        }
+      }
+
+      setLoading(true);
+      setDeviceInfoShow('-2');
+
+      try {
+        const response = await fetch(LOGIN_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
+          body: JSON.stringify({
+            // The current API expects `mac`.
+            // uniqueId mode is usable only if the backend/distributor
+            // explicitly supports that identifier in this field.
+            mac: identifier,
+            password: getPassword(identifier),
+            type: String(type),
+            version,
+          }),
+        });
+
+        console.log('ressss', response);
+        if (!response.ok) {
+          throw new Error(`Login request failed with HTTP ${response.status}.`);
+        }
+
+        const data: LoginModel = await response.json();
+        console.log('data:', data);
+        if (typeof data.status !== 'number') {
+          throw new Error('The login API returned an unexpected response.');
+        }
+
+        console.log(
+          'Login response received for device identifier type:',
+          identifierType,
         );
-        const data: LoginModel = await res.json();
-        console.log('callService response data:', data, 'for MAC:', macAddress);
+
         if (data.status === -1) {
-          setDeviceInfoShow('-1');
-          setIsTrial(!!data.is_terial);
-          setExpiredAt('');
-          setProfileList([]);
-          return;
-        }
-        if (data.status === 0) {
-          setDeviceInfoShow('0');
-          setIsTrial(!!data.is_terial);
-          const future = data.ExipiredAt
-            ? new Date(data.ExipiredAt).getTime()
-            : 0;
-          const now = Date.now();
-          const days = future
-            ? Math.floor((future - now) / (1000 * 60 * 60 * 24))
-            : 0;
-          setExpiredAt(days > 0 ? `Expired in ${days} days` : '');
-          setProfileList([]);
+          const cacheKey = getLoginCacheKey(identifierType, identifier);
+
+          await AsyncStorage.removeItem(cacheKey);
+          applyLoginData(data);
           return;
         }
 
-        setDeviceInfoShow('1');
-        setIsTrial(!!data.is_terial);
-        const future = data.ExipiredAt
-          ? new Date(data.ExipiredAt).getTime()
-          : 0;
-        const now = Date.now();
-        const days = future
-          ? Math.floor((future - now) / (1000 * 60 * 60 * 24))
-          : 0;
-        setExpiredAt(days > 0 ? `Expired in ${days} days` : '');
+        await saveLoginCache(identifierType, identifier, data);
 
-        if (data.playlist && data.playlist.length > 0) {
-          setProfileList(data.playlist);
-          // setSelectedProfileIndex(0);
-          setDeviceInfoShowForce(false);
-        } else {
-          setProfileList([]);
-          setDeviceInfoShowForce(true);
-        }
-      } catch (err: any) {
-        console.error(
-          'Error in callService:',
-          err,
-          'for MAC:',
-          macAddress,
-          'version:',
-          version,
-          'type:',
-          type,
-          'url:',
-          // 'http://192.168.1.16:5000/api/apps/devices/login',
-          'https://api.uiplayer.com/api/apps/devices/login',
+        applyLoginData(data);
+      } catch (err: unknown) {
+        console.error('Error in callService:', err);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to connect to the login service.',
         );
-        setError(err?.message || 'Failed to connect');
-        setDeviceInfoShow('1');
+
+        setDeviceInfoShow('error');
         setProfileList([]);
       } finally {
         setLoading(false);
       }
     },
-    [getPassword],
+    [
+      applyLoginData,
+      getLoginCacheKey,
+      getPassword,
+      readValidLoginCache,
+      saveLoginCache,
+    ],
   );
 
-  const initializeDevice = useCallback(() => {
-    // const defaultMac = 'b8:b4:09:45:24:f6';
-    const defaultMac = DEF_MAC;
-    const defaultVersion = DEF_VERSION;
-    const defaultType = DEF_TYPE;
-    changeDeviceInfo({
-      mac: defaultMac,
-      version: defaultVersion,
-      type: defaultType,
-    });
-    callService(defaultMac, defaultVersion, defaultType);
-  }, [changeDeviceInfo, callService]);
+  const initializeDevice = useCallback(async () => {
+    try {
+      console.log('from initializeDevice');
+      setLoading(true);
+      setError('');
+      setDeviceInfoShow('-2');
+
+      const identity = await getDeviceCredentials();
+
+      changeDeviceInfo({
+        mac: identity.identifier,
+        version: identity.version,
+        type: identity.type,
+      });
+
+      await callService(
+        identity.identifier,
+        identity.version,
+        identity.type,
+        identity.identifierType,
+      );
+    } catch (err: unknown) {
+      console.error('initializeDevice failed:', err);
+
+      setError(
+        err instanceof Error ? err.message : 'Unable to identify this device.',
+      );
+
+      setDeviceInfoShow('error');
+      setProfileList([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [callService, changeDeviceInfo, getDeviceCredentials]);
 
   useEffect(() => {
-    initializeDevice();
+    console.log('from HOmeScreen');
+    void initializeDevice();
   }, []);
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     setProfileList([]);
     setDeviceInfoShowForce(false);
     setError('');
-    const info = deviceInfo?.mac
-      ? deviceInfo
-      : { mac: DEF_MAC, version: DEF_VERSION, type: DEF_TYPE };
-    callService(info.mac, info.version || '1.0.2', info.type ?? 3);
-  }, [deviceInfo, callService]);
+    setDeviceInfoShow('-2');
+
+    try {
+      const identity = await getDeviceCredentials();
+
+      changeDeviceInfo({
+        mac: identity.identifier,
+        version: identity.version,
+        type: identity.type,
+      });
+
+      // Force a fresh request; do not use the login-response cache.
+      await callService(
+        identity.identifier,
+        identity.version,
+        identity.type,
+        identity.identifierType,
+        true,
+      );
+    } catch (err: unknown) {
+      console.error('Refresh failed:', err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to refresh device information.',
+      );
+
+      setDeviceInfoShow('error');
+    }
+  }, [callService, changeDeviceInfo, getDeviceCredentials]);
 
   const handleDeviceInfoToggle = useCallback(() => {
-    setDeviceInfoShowForce(v => !v);
+    setDeviceInfoShowForce(value => !value);
   }, []);
 
   const handleProfileSelect = useCallback(
@@ -195,6 +520,7 @@ const HomeScreen: React.FC = () => {
     deviceInfoShow === '-1' ||
     deviceInfoShow === '0' ||
     (deviceInfoShow === '1' && deviceInfoShowForce);
+
   const showProfilePicker =
     deviceInfoShow === '1' && !deviceInfoShowForce && profileList.length > 0;
 
@@ -209,18 +535,17 @@ const HomeScreen: React.FC = () => {
   });
 
   useEffect(() => {
-    if (selectedProfileIndex) {
-      if (
-        showProfilePicker &&
-        profileList.length > 0 &&
-        selectedProfileIndex >= 0
-      ) {
-        profileListRef.current?.scrollToIndex({
-          index: selectedProfileIndex,
-          animated: true,
-          viewPosition: 0.5,
-        });
-      }
+    if (
+      selectedProfileIndex !== null &&
+      showProfilePicker &&
+      profileList.length > 0 &&
+      selectedProfileIndex >= 0
+    ) {
+      profileListRef.current?.scrollToIndex({
+        index: selectedProfileIndex,
+        animated: true,
+        viewPosition: 0.5,
+      });
     }
   }, [selectedProfileIndex, showProfilePicker, profileList.length]);
 
@@ -232,25 +557,32 @@ const HomeScreen: React.FC = () => {
     index: number;
   }) => {
     const focused = showProfilePicker && selectedProfileIndex === index;
+
+    const logoSize =
+      PROFILE_SIZE > 120 ? PROFILE_SIZE - 100 : PROFILE_SIZE - 40;
+
+    const profileNameStyle =
+      PROFILE_SIZE > 120
+        ? { ...typography.h1, marginTop: spacing.lg }
+        : { ...typography.bodyLarge, marginTop: spacing.sm };
+
     return (
       <TouchableOpacity
-        // focusable
         hasTVPreferredFocus={index === 0}
-        onFocus={() => {
-          setSelectedProfileIndex(index);
-        }}
+        onFocus={() => setSelectedProfileIndex(index)}
         onBlur={() => {
           setSelectedProfileIndex(current =>
             current === index ? null : current,
           );
         }}
-        onPress={() => {
-          handleProfileSelect(item);
-        }}
+        onPress={() => handleProfileSelect(item)}
         activeOpacity={0.9}
         style={[
           styles.profileItem,
-          { width: PROFILE_SIZE, height: PROFILE_SIZE },
+          {
+            width: PROFILE_SIZE,
+            height: PROFILE_SIZE,
+          },
           focused && styles.profileItemFocused,
         ]}>
         {focused ? (
@@ -276,21 +608,11 @@ const HomeScreen: React.FC = () => {
                     borderRadius: (PROFILE_SIZE - 8) / 2,
                   },
                 ]}>
-                <Logo
-                  size={
-                    PROFILE_SIZE > 120 ? PROFILE_SIZE - 100 : PROFILE_SIZE - 40
-                  }
-                />
+                <Logo size={logoSize} />
               </View>
             </LinearGradient>
-            <Text
-              style={[
-                styles.selectedProfileName,
 
-                PROFILE_SIZE > 120
-                  ? { ...typography.h1, marginTop: spacing.lg }
-                  : { ...typography.bodyLarge, marginTop: spacing.sm },
-              ]}>
+            <Text style={[styles.selectedProfileName, profileNameStyle]}>
               {item.profile_name}
             </Text>
           </>
@@ -305,20 +627,10 @@ const HomeScreen: React.FC = () => {
                   borderRadius: PROFILE_SIZE / 2,
                 },
               ]}>
-              <Logo
-                size={
-                  PROFILE_SIZE > 120 ? PROFILE_SIZE - 100 : PROFILE_SIZE - 40
-                }
-              />
+              <Logo size={logoSize} />
             </View>
-            <Text
-              style={[
-                styles.selectedProfileName,
 
-                PROFILE_SIZE > 120
-                  ? { ...typography.h1, marginTop: spacing.lg }
-                  : { ...typography.bodyLarge, marginTop: spacing.sm },
-              ]}>
+            <Text style={[styles.selectedProfileName, profileNameStyle]}>
               {item.profile_name}
             </Text>
           </>
@@ -348,9 +660,13 @@ const HomeScreen: React.FC = () => {
               <View
                 style={[
                   styles.profileSection,
-                  { width, height: height / 1.8 },
+                  {
+                    width,
+                    height: height / 1.8,
+                  },
                 ]}>
                 <Text style={styles.whoConnected}>Who Connected</Text>
+
                 <FlatList
                   ref={profileListRef}
                   data={profileList}
@@ -360,29 +676,18 @@ const HomeScreen: React.FC = () => {
                   keyExtractor={item => String(item.id)}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.profileList}
-                  getItemLayout={(_, i) => ({
+                  getItemLayout={(_, index) => ({
                     length: PROFILE_SIZE + PROFILE_GAP,
-                    offset: (PROFILE_SIZE + PROFILE_GAP) * i,
-                    index: i,
+                    offset: (PROFILE_SIZE + PROFILE_GAP) * index,
+                    index,
                   })}
                   onScrollToIndexFailed={({ index }) => {
-                    setTimeout(() => {
-                      profileListRef.current?.scrollToOffset({
-                        offset: Math.max(
-                          0,
-                          index * (PROFILE_SIZE + PROFILE_GAP),
-                        ),
-                        animated: true,
-                      });
-                    }, 100);
+                    profileListRef.current?.scrollToOffset({
+                      offset: Math.max(0, index * (PROFILE_SIZE + PROFILE_GAP)),
+                      animated: true,
+                    });
                   }}
                 />
-                {/* {profileList.length > 0 &&
-                  profileList[selectedProfileIndex] && (
-                    <Text style={styles.selectedProfileName}>
-                      {profileList[selectedProfileIndex].profile_name}
-                    </Text>
-                  )} */}
               </View>
             )}
 
@@ -410,64 +715,83 @@ const HomeScreen: React.FC = () => {
                       </Text>
                     </View>
                   </View>
+
                   <View style={styles.deviceMessageBlock}>
                     {deviceInfoShow === '-1' && !isTrial && (
                       <Text style={styles.deviceMessage}>
-                        Your TV MAC is expired{'\n'}Use the following TV MAC
-                        address and password to upload your playlist at{' '}
+                        Your TV subscription is expired.
+                        {'\n'}
+                        Use the following device identifier and password to
+                        upload your playlist at{' '}
                         <Text style={styles.link}>uiplayer.com</Text>
                       </Text>
                     )}
+
                     {deviceInfoShow === '-1' && isTrial && (
                       <Text style={styles.deviceMessage}>
-                        Limited Time Trial Has Expired{'\n'}Use the following TV
-                        MAC address and password to upload your playlist at{' '}
+                        Limited Time Trial Has Expired
+                        {'\n'}
+                        Use the following device identifier and password to
+                        upload your playlist at{' '}
                         <Text style={styles.link}>uiplayer.com</Text>
                       </Text>
                     )}
+
                     {deviceInfoShow === '0' && (
                       <Text style={styles.deviceMessage}>
-                        Trial 7 days{'\n'}
+                        Trial 7 days
+                        {'\n'}
                         {expiredAt ? (
                           <Text style={styles.expiredAt}>{expiredAt}</Text>
                         ) : null}
-                        {expiredAt ? '\n' : ''}Use the following TV MAC address
-                        and password to upload your playlist at{' '}
+                        {expiredAt ? '\n' : ''}
+                        Use the following device identifier and password to
+                        upload your playlist at{' '}
                         <Text style={styles.link}>uiplayer.com</Text>
                       </Text>
                     )}
+
                     {deviceInfoShow === '1' && profileList.length > 0 && (
                       <Text style={styles.deviceMessage}>
-                        Your TV MAC is activated{'\n'}
+                        Your device is activated
+                        {'\n'}
                         {expiredAt ? (
                           <Text style={styles.expiredAt}>{expiredAt}</Text>
                         ) : null}
-                        {expiredAt ? '\n' : ''}Use the following TV MAC address
-                        and password to upload your playlist at{' '}
+                        {expiredAt ? '\n' : ''}
+                        Use the following device identifier and password to
+                        upload your playlist at{' '}
                         <Text style={styles.link}>uiplayer.com</Text>
                       </Text>
                     )}
+
                     {deviceInfoShow === '1' && profileList.length === 0 && (
                       <Text style={styles.deviceMessage}>
-                        Your TV MAC is activated{'\n'}
+                        Your device is activated
+                        {'\n'}
                         {expiredAt ? (
                           <Text style={styles.expiredAt}>{expiredAt}</Text>
                         ) : null}
-                        {expiredAt ? '\n' : ''}There is no playlist uploaded for
-                        your TV.{'\n\n'}Use the following TV MAC address and
-                        password to upload your playlist at{' '}
+                        {expiredAt ? '\n' : ''}
+                        There is no playlist uploaded for your device.
+                        {'\n\n'}
+                        Use the following device identifier and password to
+                        upload your playlist at{' '}
                         <Text style={styles.link}>uiplayer.com</Text>
                       </Text>
                     )}
                   </View>
+
                   <View style={styles.divider} />
+
                   <View style={styles.macRow}>
                     <View style={styles.macItem}>
-                      <Text style={styles.macLabel}>MAC Address</Text>
+                      <Text style={styles.macLabel}>{identifierLabel}</Text>
                       <Text style={styles.macValue}>
                         {deviceInfo?.mac || '—'}
                       </Text>
                     </View>
+
                     <View style={styles.macItem}>
                       <Text style={styles.macLabel}>Password</Text>
                       <Text style={styles.macValue}>
@@ -487,6 +811,7 @@ const HomeScreen: React.FC = () => {
                 variant="outline"
                 style={styles.actionBtn}
               />
+
               {showProfilePicker && (
                 <Button
                   title="Device Info"
@@ -499,7 +824,7 @@ const HomeScreen: React.FC = () => {
 
             {showDeviceInfoCard && (
               <View style={styles.moreInfo}>
-                <Text style={styles.moreInfoLabel}>More Info At </Text>
+                <Text style={styles.moreInfoLabel}>More Info At</Text>
                 <Text style={styles.moreInfoLink}>uiplayer.com</Text>
               </View>
             )}
@@ -519,45 +844,64 @@ const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   gradient: { flex: 1 },
+
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,
   },
-  scrollContentWide: { paddingVertical: spacing.xxl },
-  center: { width: '100%', maxWidth: 600, alignItems: 'center' },
-  centerWide: { maxWidth: 720 },
+
+  scrollContentWide: {
+    paddingVertical: spacing.xxl,
+  },
+
+  center: {
+    width: '100%',
+    maxWidth: 600,
+    alignItems: 'center',
+  },
+
+  centerWide: {
+    maxWidth: 720,
+  },
+
   loadingBlock: {
     minHeight: 120,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   loadingText: {
     ...typography.body,
     color: colors.textSecondary,
     marginTop: spacing.md,
   },
+
   profileSection: {
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+
   whoConnected: {
     ...typography.h1,
     color: colors.text,
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
+
   profileList: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.lg,
   },
+
   profileItem: {
     marginTop: PROFILE_GAP,
     marginRight: PROFILE_GAP,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   profileItemFocused: {
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
@@ -565,11 +909,13 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+
   profileRing: {
     padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   profileCircle: {
     backgroundColor: colors.backgroundCard,
     alignItems: 'center',
@@ -577,21 +923,25 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.border,
   },
+
   profileCircleInner: {
     backgroundColor: colors.backgroundTertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   selectedProfileName: {
     color: colors.text,
     textAlign: 'center',
     fontWeight: '600',
   },
+
   deviceInfoSection: {
     width: '100%',
     marginBottom: spacing.xl,
     alignItems: 'center',
   },
+
   deviceCard: {
     width: '100%',
     maxWidth: 520,
@@ -599,56 +949,94 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
   },
+
   deviceCardActive: {
     backgroundColor: colors.backgroundSecondary,
     borderWidth: 1,
     borderColor: colors.success,
   },
+
   deviceCardInactive: {
     backgroundColor: colors.backgroundSecondary,
     borderWidth: 1,
     borderColor: colors.error,
   },
-  badgeWrapper: { position: 'absolute', top: -spacing.lg, right: -spacing.lg },
+
+  badgeWrapper: {
+    position: 'absolute',
+    top: -spacing.lg,
+    right: -spacing.lg,
+  },
+
   badge: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
   },
-  badgeActive: { backgroundColor: colors.success },
-  badgeInactive: { backgroundColor: colors.error },
+
+  badgeActive: {
+    backgroundColor: colors.success,
+  },
+
+  badgeInactive: {
+    backgroundColor: colors.error,
+  },
+
   badgeText: {
     ...typography.button,
     color: colors.text,
   },
-  deviceMessageBlock: { marginBottom: spacing.lg },
+
+  deviceMessageBlock: {
+    marginBottom: spacing.lg,
+  },
+
   deviceMessage: {
     ...typography.body,
     color: colors.text,
     textAlign: 'center',
     lineHeight: 24,
   },
-  expiredAt: { color: colors.textTertiary, fontWeight: '600' },
-  link: { color: colors.info, fontWeight: '700' },
+
+  expiredAt: {
+    color: colors.textTertiary,
+    fontWeight: '600',
+  },
+
+  link: {
+    color: colors.info,
+    fontWeight: '700',
+  },
+
   divider: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.2)',
     width: '100%',
     marginBottom: spacing.lg,
   },
+
   macRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: spacing.xl,
   },
-  macItem: { alignItems: 'center' },
+
+  macItem: {
+    alignItems: 'center',
+  },
+
   macLabel: {
     ...typography.bodySmall,
     color: colors.textTertiary,
     marginBottom: spacing.xs,
   },
-  macValue: { ...typography.h4, color: colors.text },
+
+  macValue: {
+    ...typography.h4,
+    color: colors.text,
+  },
+
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -656,20 +1044,33 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.lg,
   },
-  actionsWide: { flexDirection: 'row' },
-  actionBtn: { minWidth: 140 },
+
+  actionsWide: {
+    flexDirection: 'row',
+  },
+
+  actionBtn: {
+    minWidth: 140,
+  },
+
   moreInfo: {
     flexDirection: 'row',
     marginTop: spacing.lg,
     alignItems: 'center',
   },
-  moreInfoLabel: { ...typography.body, color: colors.textTertiary },
+
+  moreInfoLabel: {
+    ...typography.body,
+    color: colors.textTertiary,
+  },
+
   moreInfoLink: {
     ...typography.body,
     color: colors.text,
     fontWeight: '700',
     marginLeft: spacing.sm,
   },
+
   errorBlock: {
     backgroundColor: colors.error + '20',
     padding: spacing.md,
@@ -677,6 +1078,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     alignSelf: 'stretch',
   },
+
   errorText: {
     ...typography.bodySmall,
     color: colors.error,

@@ -68,6 +68,9 @@ const FavoriteScreen: React.FC = () => {
   const [seriePositions, setSeriePositions] = useState<SeriesPositions>({});
   const [vodPositions, setVodPositions] = useState<VideoPositions>({});
 
+  const [focusedTab, setFocusedTab] = useState<FavoriteTab | null>(null);
+  const [focusedItemKey, setFocusedItemKey] = useState<string | null>(null);
+
   const numColumns = layout.numColumns;
   const cardWidth = layout.cardWidth;
 
@@ -130,7 +133,6 @@ const FavoriteScreen: React.FC = () => {
     );
   };
 
-
   useEffect(() => {
     setListLives(resolveFavorites(listLive ?? [], listLiveFav ?? [], 'live'));
 
@@ -139,16 +141,7 @@ const FavoriteScreen: React.FC = () => {
     setListSeries(
       resolveFavorites(listSerie ?? [], listSerieFav ?? [], 'series'),
     );
-
-  }, [
-    listLive,
-    listLiveFav,
-    listVod,
-    listVodFav,
-    listSerie,
-    listSerieFav,
-    
-  ]);
+  }, [listLive, listLiveFav, listVod, listVodFav, listSerie, listSerieFav]);
 
   const currentItems = useMemo(() => {
     switch (activeTab) {
@@ -294,21 +287,33 @@ const FavoriteScreen: React.FC = () => {
       const hasSavedEpisode = Boolean(savedEpisode?.episodeId);
       const savedPosition = Number(savedEpisode?.position ?? 0);
 
+      const itemKey = `${activeTab}-${getId(item, activeTab) || index}`;
+      const isFocused = focusedItemKey === itemKey;
+      console.log('itemKey', itemKey);
+      console.log('focusedItemKey', focusedItemKey);
+      console.log('isFocused', isFocused);
       return (
         <TouchableOpacity
-          key={`${activeTab}-${getId(item, activeTab) || index}`}
+          key={itemKey}
+          activeOpacity={0.9}
+          onFocus={() => setFocusedItemKey(itemKey)}
+          onBlur={() => setFocusedItemKey(null)}
+          onPress={() => handleNavigateItem(item, routeType)}
           style={[
             styles.cardContainer,
+            isFocused && styles.focusedCard,
             {
               width: cardWidth,
               marginRight: 12,
             },
           ]}
-          activeOpacity={0.82}
-          onPress={() => handleNavigateItem(item, routeType)}
           accessibilityRole="button"
           accessibilityLabel={`Open ${itemData.name || 'item'}`}>
-          <View style={styles.posterWrapper}>
+          <View
+            style={[
+              styles.posterWrapper,
+              isFocused && styles.posterWrapperFocused,
+            ]}>
             {imageUri ? (
               <Image
                 source={{ uri: imageUri }}
@@ -364,7 +369,7 @@ const FavoriteScreen: React.FC = () => {
         </TouchableOpacity>
       );
     },
-    [activeTab, cardWidth, getId, handleNavigateItem, seriePositions],
+    [activeTab, cardWidth, getId, handleNavigateItem, seriePositions,focusedItemKey],
   );
 
   const renderEmptyState = () => (
@@ -403,7 +408,9 @@ const FavoriteScreen: React.FC = () => {
               <View style={styles.headerTextContainer}>
                 <Text style={styles.eyebrow}>YOUR COLLECTION</Text>
                 <Text style={styles.title}>Favorites</Text>
-                <Text style={styles.subtitle}>Your favorite entertainment, all in one place.</Text>
+                <Text style={styles.subtitle}>
+                  Your favorite entertainment, all in one place.
+                </Text>
               </View>
 
               <View style={styles.favoriteIconContainer}>
@@ -419,9 +426,16 @@ const FavoriteScreen: React.FC = () => {
                 return (
                   <TouchableOpacity
                     key={tab.key}
+                    hasTVPreferredFocus={tab.key === 'live'}
+                    onFocus={() => setFocusedTab(tab.key)}
+                    onBlur={() => setFocusedTab(null)}
                     onPress={() => setActiveTab(tab.key)}
                     activeOpacity={0.8}
-                    style={[styles.tab, selected && styles.activeTab]}
+                    style={[
+                      styles.tab,
+                      selected && styles.activeTab,
+                      focusedTab === tab.key && styles.focusedTab,
+                    ]}
                     accessibilityRole="tab"
                     accessibilityState={{ selected }}>
                     <Text
@@ -640,6 +654,30 @@ const styles = StyleSheet.create({
     color: '#9292A5',
     fontSize: 12,
     fontWeight: '600',
+  },
+
+  // Remote focus: Tabs
+  focusedTab: {
+    borderWidth: 2,
+    borderColor: '#5EEAD4',
+    backgroundColor: 'rgba(94, 234, 212, 0.12)',
+  },
+
+  // Remote focus: Cards
+  focusedCard: {
+    borderColor: '#5EEAD4',
+    transform: [{ scale: 1.035 }],
+    zIndex: 2,
+    elevation: 8,
+  },
+
+  posterWrapperFocused: {
+    borderWidth: 3,
+    borderColor: '#5EEAD4',
+    shadowColor: '#5EEAD4',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.65,
+    shadowRadius: 8,
   },
 
   // Poster cards

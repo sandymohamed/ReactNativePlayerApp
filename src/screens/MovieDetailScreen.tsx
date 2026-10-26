@@ -85,9 +85,11 @@ const MovieDetailScreen: React.FC = () => {
       if (!isScreenFocused) return;
 
       console.log('[MovieDetail] Select:', focusedButton);
-
+      
       if (focusedButton === 'fav') {
-        handlePressFav();
+        console.log('[MovieDetail] [fav]:', );
+
+        // handlePressFav();
       } else if (focusedButton === 'play') {
         handlePlay();
       }
