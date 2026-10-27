@@ -49,6 +49,10 @@ const SeriesScreen: React.FC = () => {
 
   const layout = useLandscapeLayout();
 
+  useEffect(() => {
+    console.log('listSerie', listSerie[0]);
+    console.log('listSerie', listSerie[0]?.backdrop_path[0]);
+  }, [listSerie]);
   const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSerieId, setSelectedSerieId] = useState<string | null>(null);
@@ -251,7 +255,7 @@ const SeriesScreen: React.FC = () => {
       return (
         <Card
           title={item.name}
-          image={item.cover}
+          image={item?.cover ?? item?.backdrop_path[0]}
           style={{ width: cardWidth }}
           focused={focusZone === 'grid' && isSelected}
           onFocus={() => {
@@ -260,9 +264,7 @@ const SeriesScreen: React.FC = () => {
           }}
           // On TV, TVEventHandler is the only Select handler.
           // On touch devices, Card handles the press.
-          onPress={
-            Platform.isTV ? undefined : () => handleSeriePress(item)
-          }
+          onPress={Platform.isTV ? undefined : () => handleSeriePress(item)}
         />
       );
     },
@@ -310,9 +312,7 @@ const SeriesScreen: React.FC = () => {
                 keyExtractor={item => String(item.series_id)}
                 numColumns={numColumns}
                 contentContainerStyle={styles.list}
-                columnWrapperStyle={
-                  numColumns > 1 ? styles.row : undefined
-                }
+                columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
                 key={numColumns}
                 initialNumToRender={numColumns * 4}
                 maxToRenderPerBatch={numColumns * 3}

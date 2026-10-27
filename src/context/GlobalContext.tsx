@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useContext,
@@ -83,17 +82,13 @@ interface GlobalContextProps {
   changeParental: (item: boolean) => void;
 }
 
-const GlobalContext = createContext<
-  GlobalContextProps | undefined
->(undefined);
+const GlobalContext = createContext<GlobalContextProps | undefined>(undefined);
 
 export const useGlobalContext = () => {
   const context = useContext(GlobalContext);
 
   if (!context) {
-    throw new Error(
-      'useGlobalContext must be used within a GlobalProvider',
-    );
+    throw new Error('useGlobalContext must be used within a GlobalProvider');
   }
 
   return context;
@@ -103,12 +98,9 @@ interface GlobalProviderProps {
   children: ReactNode;
 }
 
-export const GlobalProvider: FC<GlobalProviderProps> = ({
-  children,
-}) => {
+export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
   const [deviceInfo, setDeviceInfo] = useState<any>({});
-  const [parentalEnable, setParentalEnable] =
-    useState<boolean>(false);
+  const [parentalEnable, setParentalEnable] = useState<boolean>(false);
 
   const [profile, setProfile] = useState<Playlist | null>(null);
   const [profileShow, setProfileShow] = useState<boolean>(false);
@@ -126,8 +118,7 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({
   const [listVod, setlistVod] = useState<Stream[]>([]);
 
   const [catSerie, setcatSerie] = useState<any[]>([]);
-  const [listSerie, setlistSerie] =
-    useState<SeriesWithInfo[]>([]);
+  const [listSerie, setlistSerie] = useState<SeriesWithInfo[]>([]);
 
   const [listSerieFav, setlistSerieFav] = useState<any[]>([]);
   const [listVodFav, setlistVodFav] = useState<any[]>([]);
@@ -172,9 +163,7 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({
           setlistVod(cachedData.listVod);
 
           setcatSerie(cachedData.catSerie);
-          setlistSerie(
-            cachedData.listSerie as SeriesWithInfo[],
-          );
+          setlistSerie(cachedData.listSerie as SeriesWithInfo[]);
 
           setlistLiveFav(cachedData.listLiveFav ?? []);
           setlistVodFav(cachedData.listVodFav ?? []);
@@ -208,8 +197,15 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({
   // --------------------------------------------------
 
   useEffect(() => {
+    console.log(
+      'profile from globalProvider:',
+      profile,
+      'isRestored:',
+      isRestored,
+    );
     if (!isRestored) return;
 
+    console.log('profile from globalProvider:', profile);
     saveSelectedProfile(profile);
   }, [isRestored, profile]);
 
@@ -285,6 +281,7 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({
   };
 
   const changeProfile = (item: Playlist | null) => {
+    console.log('changeProfile item:', item);
     setProfile(item);
   };
 
@@ -406,8 +403,7 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({
         changeListSerieRecent,
 
         changeParental,
-      }}
-    >
+      }}>
       {children}
     </GlobalContext.Provider>
   );

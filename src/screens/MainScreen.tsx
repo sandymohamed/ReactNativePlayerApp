@@ -21,6 +21,7 @@ import type { Stream } from '../models/model';
 import { colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
+import Logo from '../components/Logo';
 
 type MainScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -96,12 +97,12 @@ const MainScreen: React.FC = () => {
     catLive,
     catVod,
     catSerie,
-    listLiveFav,
-    listVodFav,
-    listSerieFav,
-    listLiveRecent,
-    listVodRecent,
-    listSerieRecent,
+    // listLiveFav,
+    // listVodFav,
+    // listSerieFav,
+    // listLiveRecent,
+    // listVodRecent,
+    // listSerieRecent,
     changeCatLive,
     changeListLive,
     changeCatVod,
@@ -204,6 +205,7 @@ const MainScreen: React.FC = () => {
     if (!profile) return '';
 
     const p = profile as any;
+    console.log('profile from mainScreen in getProfileCacheId:', p);
 
     return String(
       p.id ??
@@ -245,6 +247,7 @@ const MainScreen: React.FC = () => {
   const loadData = useCallback(async () => {
     if (!profile) return;
 
+    console.log('profile from MainScreen:', profile);
     const requestId = ++loadRequestRef.current;
     const activeProfileKey = getProfileCacheId();
     const isCurrentRequest = () => requestId === loadRequestRef.current;
@@ -533,16 +536,13 @@ const MainScreen: React.FC = () => {
     return p?.profile_name ?? p?.name ?? p?.username ?? 'Profile';
   })();
 
-  const cardWidth = Math.min(Math.max(width * 0.25, 190), 300);
-
-  const cardHeight = Math.min(Math.max(height * 0.42, 210), 340);
-
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.appTitle}>UI Player</Text>
+          <Logo size={width > 800 ? 100 : 50} />
+
           <Text style={styles.headerSubtitle}>
             Choose what you want to watch
           </Text>
@@ -576,7 +576,6 @@ const MainScreen: React.FC = () => {
           </View>
 
           <TouchableOpacity
-            // focusable
             activeOpacity={0.8}
             disabled={isLoading}
             onPress={handleRefresh}
@@ -614,7 +613,7 @@ const MainScreen: React.FC = () => {
         <View
           style={[
             styles.featuredGrid,
-            { height: Math.min(height * 0.55, 560) },
+            { height: Math.min(height * 0.58, 560) },
           ]}>
           {destinations.slice(0, 3).map((destination, index) => {
             const type =
@@ -707,9 +706,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#0A0A0F',
   },
   header: {
-    minHeight: 80,
+    minHeight: 60,
     paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -728,7 +727,7 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     color: '#B9ADFF',
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 1,
   },
   headerActions: {
     flexDirection: 'row',
@@ -810,7 +809,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    gap: 20,
+    gap: 12,
   },
   featuredGrid: {
     flexDirection: 'row',
@@ -872,12 +871,12 @@ const styles = StyleSheet.create({
   quickTile: {
     flex: 1,
     minWidth: 0,
-    minHeight: 58,
+    minHeight: 45,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 5,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
@@ -958,7 +957,6 @@ const MainScreenCard: React.FC<MainScreenCardProps> = ({
   <TouchableOpacity
     activeOpacity={0.9}
     hasTVPreferredFocus={preferredFocus}
-    // focusable
     disabled={disabled}
     onPress={onPress}
     onFocus={onFocus}

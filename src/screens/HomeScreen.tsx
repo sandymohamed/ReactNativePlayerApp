@@ -55,6 +55,8 @@ const TEST_MODE = true;
 // Keep "mac" unless the distributor confirms uniqueId support.
 const DEVICE_IDENTIFIER_MODE: IdentifierType = 'mac';
 
+// const DEF_MAC = 'b8:b4:09:45:24:f6';
+// const DEF_MAC = '52:53:62:52:36';
 const DEF_MAC = 'b8:b4:09:45:24:f6';
 const DEF_VERSION = "'1.0.2'";
 const DEF_TYPE = 3;
@@ -91,8 +93,8 @@ const HomeScreen: React.FC = () => {
 
   const wide = width >= 800;
 
-  // @ts-expect-error
   const identifierLabel: string =
+    // @ts-expect-error
     DEVICE_IDENTIFIER_MODE === 'uniqueId' && !TEST_MODE
       ? 'Device ID'
       : 'MAC Address';
@@ -241,7 +243,24 @@ const HomeScreen: React.FC = () => {
         console.log(
           'from applyLoginData data.playlist && data.playlist.length > 0',
         );
-        setProfileList(data.playlist);
+
+        // setProfileList(data.playlist);
+        // TODO: Change me to real playlist
+        setProfileList([
+          {
+            id: 1,
+            profile_name: 'demo',
+            xml_epg: '',
+            username: 'demo',
+            password: 'demo',
+            host: 'https://spannable.com/mock/xtream',
+            pin: '',
+            isXS: 1,
+            created_at: '',
+            updated_at: '',
+            allowed_output_formats: ['m3u'],
+          },
+        ]);
         setDeviceInfoShowForce(false);
       } else {
         console.log(
@@ -510,6 +529,7 @@ const HomeScreen: React.FC = () => {
 
   const handleProfileSelect = useCallback(
     (profile: Playlist) => {
+      console.log('handleProfileSelect:', profile);
       changeProfile(profile);
       navigation.replace('Main');
     },
@@ -721,9 +741,9 @@ const HomeScreen: React.FC = () => {
                       <Text style={styles.deviceMessage}>
                         Your TV subscription is expired.
                         {'\n'}
-                        Use the following device identifier and password to
+                        {/* Use the following device identifier and password to
                         upload your playlist at{' '}
-                        <Text style={styles.link}>uiplayer.com</Text>
+                        <Text style={styles.link}>uiplayer.com </Text> */}
                       </Text>
                     )}
 
@@ -731,9 +751,9 @@ const HomeScreen: React.FC = () => {
                       <Text style={styles.deviceMessage}>
                         Limited Time Trial Has Expired
                         {'\n'}
-                        Use the following device identifier and password to
+                        {/* Use the following device identifier and password to
                         upload your playlist at{' '}
-                        <Text style={styles.link}>uiplayer.com</Text>
+                        <Text style={styles.link}>uiplayer.com</Text> */}
                       </Text>
                     )}
 
@@ -745,9 +765,9 @@ const HomeScreen: React.FC = () => {
                           <Text style={styles.expiredAt}>{expiredAt}</Text>
                         ) : null}
                         {expiredAt ? '\n' : ''}
-                        Use the following device identifier and password to
+                        {/* Use the following device identifier and password to
                         upload your playlist at{' '}
-                        <Text style={styles.link}>uiplayer.com</Text>
+                        <Text style={styles.link}>uiplayer.com</Text> */}
                       </Text>
                     )}
 
@@ -759,9 +779,9 @@ const HomeScreen: React.FC = () => {
                           <Text style={styles.expiredAt}>{expiredAt}</Text>
                         ) : null}
                         {expiredAt ? '\n' : ''}
-                        Use the following device identifier and password to
+                        {/* Use the following device identifier and password to
                         upload your playlist at{' '}
-                        <Text style={styles.link}>uiplayer.com</Text>
+                        <Text style={styles.link}>uiplayer.com</Text> */}
                       </Text>
                     )}
 
@@ -775,9 +795,9 @@ const HomeScreen: React.FC = () => {
                         {expiredAt ? '\n' : ''}
                         There is no playlist uploaded for your device.
                         {'\n\n'}
-                        Use the following device identifier and password to
+                        {/* Use the following device identifier and password to
                         upload your playlist at{' '}
-                        <Text style={styles.link}>uiplayer.com</Text>
+                        <Text style={styles.link}>uiplayer.com</Text> */}
                       </Text>
                     )}
                   </View>
@@ -821,13 +841,13 @@ const HomeScreen: React.FC = () => {
                 />
               )}
             </View>
-
+{/* 
             {showDeviceInfoCard && (
               <View style={styles.moreInfo}>
                 <Text style={styles.moreInfoLabel}>More Info At</Text>
                 <Text style={styles.moreInfoLink}>uiplayer.com</Text>
               </View>
-            )}
+            )} */}
 
             {error ? (
               <View style={styles.errorBlock}>

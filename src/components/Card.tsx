@@ -6,10 +6,12 @@ import {
   Text,
   ViewStyle,
   StyleProp,
+  Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { spacing } from '../theme/spacing';
 import FastImage from 'react-native-fast-image';
+import { SvgUri } from 'react-native-svg';
 
 interface CardProps {
   title?: string;
@@ -37,7 +39,7 @@ const Card: React.FC<CardProps> = ({
 
   const isFocused = focused || nativeFocused;
   const isLive = badge?.toUpperCase() === 'LIVE';
-
+  console.log('image', image);
   return (
     <TouchableOpacity
       onBlur={() => setNativeFocused(false)}
@@ -56,14 +58,20 @@ const Card: React.FC<CardProps> = ({
       accessibilityState={{ selected: isFocused }}>
       <View style={styles.posterWrapper}>
         {image ? (
-          <FastImage
-            source={{
-              uri: image,
-              priority: FastImage.priority.normal,
-            }}
-            style={styles.poster}
-            resizeMode={FastImage.resizeMode.cover}
-          />
+          <>
+            {image?.toLowerCase().split('?')[0].endsWith('.svg') ? (
+              <SvgUri uri={image} width="100%" height="100%" />
+            ) : (
+              <FastImage
+                source={{
+                  uri: image,
+                  priority: FastImage.priority.normal,
+                }}
+                style={styles.poster}
+                resizeMode={FastImage.resizeMode.cover}
+              />
+            )}
+          </>
         ) : (
           <View style={styles.placeholder}>
             <Text style={styles.placeholderLetter}>

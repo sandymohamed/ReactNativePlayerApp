@@ -35,7 +35,6 @@ export interface Playlist {
   updated_at: string;
   allowed_output_formats: string[];
 }
-
 export type Categories = Category[];
 
 export interface Category {

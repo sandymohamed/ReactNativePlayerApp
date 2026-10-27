@@ -130,12 +130,14 @@ export function getetprofile(profile: Playlist) {
     prof.password = profile.password;
     prof.host = host;
   }
-  console.log('*********** getetprofile', prof);
 
-  if (PLAYER_HOST_OVERRIDE && PLAYER_HOST_OVERRIDE.trim()) {
-    let override = PLAYER_HOST_OVERRIDE.trim();
-    if (override.endsWith('/')) override = override.slice(0, -1);
-    prof.host = override;
+  console.log('prof.host', prof.host);
+  if (!prof.host) {
+    if (PLAYER_HOST_OVERRIDE && PLAYER_HOST_OVERRIDE.trim()) {
+      let override = PLAYER_HOST_OVERRIDE.trim();
+      if (override.endsWith('/')) override = override.slice(0, -1);
+      prof.host = override;
+    }
   }
   return prof;
 }

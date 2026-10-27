@@ -26,7 +26,6 @@ type SeasonScreenNavigationProp = NativeStackNavigationProp<
 >;
 
 const { width } = Dimensions.get('window');
-console.log('SeasonScreen: window width =', width);
 const colsNum = width >= 1200 ? 5 : 4;
 const CARD_WIDTH = (width - spacing.xl * 3) / colsNum;
 
@@ -43,7 +42,6 @@ const SeasonScreen: React.FC = () => {
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [selectedSeason, setSelectedSeason] = useState<string>('');
 
-  console.log(' seriesId: routeSeriesId,', routeSerie, 'loool:', routeSeason);
   useEffect(() => {
     loadEpisodes();
   }, [routeSerie, routeSeason, contextSerie]);
@@ -107,10 +105,12 @@ const SeasonScreen: React.FC = () => {
   const renderItem = ({ item, index }: { item: Episode; index: number }) => {
     const serie = contextSerie || routeSerie;
     const cover = item.movie_data?.cover || (serie as any)?.info?.cover;
+
     const title =
       item.title ||
       item.movie_data?.name ||
       `Episode ${item.episode_num || index + 1}`;
+
     const subtitle =
       item.season && item.episode_num
         ? `S${item.season} E${item.episode_num}`
@@ -125,6 +125,7 @@ const SeasonScreen: React.FC = () => {
           subtitle={subtitle}
           image={cover}
           onPress={() => handleEpisodePress(item)}
+          onFocus={() => setFocusedIndex(index)}
           focused={focusedIndex === index}
           style={{ width: CARD_WIDTH }}
         />
@@ -170,11 +171,14 @@ const SeasonScreen: React.FC = () => {
             data={episodes}
             renderItem={renderItem}
             keyExtractor={(item, index) =>
-              item.id || item.stream_id || `episode-${index}`
+              String(item.id || item.stream_id || `episode-${index}`)
             }
             numColumns={colsNum}
             contentContainerStyle={styles.list}
             columnWrapperStyle={styles.row}
+            extraData={focusedIndex}
+            initialNumToRender={colsNum * 2}
+            windowSize={5}
           />
         ) : (
           <View style={styles.emptyContainer}>
