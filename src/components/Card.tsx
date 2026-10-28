@@ -6,7 +6,6 @@ import {
   Text,
   ViewStyle,
   StyleProp,
-  Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { spacing } from '../theme/spacing';
@@ -39,7 +38,6 @@ const Card: React.FC<CardProps> = ({
 
   const isFocused = focused || nativeFocused;
   const isLive = badge?.toUpperCase() === 'LIVE';
-  console.log('image', image);
   return (
     <TouchableOpacity
       onBlur={() => setNativeFocused(false)}

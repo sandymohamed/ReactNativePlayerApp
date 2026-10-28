@@ -22,6 +22,7 @@ import { SerieInfo, Season } from '../models/model';
 import FastImage from 'react-native-fast-image';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
 import Button from '../components/Button';
+import { SvgUri } from 'react-native-svg';
 
 const SerieDetailScreen: React.FC = () => {
   const navigation =
@@ -93,7 +94,7 @@ const SerieDetailScreen: React.FC = () => {
     onSelect: () => {
       if (focusedButton === 'fav') {
         // handlePressFav();
-        console.log("faaaaaav")
+        console.log('faaaaaav');
       } else if (focusedButton === 'play' && focusedSeason) {
         handleSeasonPress(focusedSeason);
       }
@@ -146,112 +147,129 @@ const SerieDetailScreen: React.FC = () => {
 
   const serieInfo = serie.info || {};
 
+  const renderContent = () => (
+    <View
+      style={[{ zIndex: 9999 }, styles.content, wide && styles.contentWide]}>
+      <Text style={styles.title}>
+        {serieInfo.name || routeSerie.name || 'Series'}
+      </Text>
+      {serieInfo.plot && <Text style={styles.plot}>{serieInfo.plot}</Text>}
+
+      <View style={styles.row}>
+        <View style={styles.meta}>
+          {serieInfo.genre && (
+            <Text style={styles.metaText}>Genre: {serieInfo.genre}</Text>
+          )}
+          {serieInfo.releaseDate && (
+            <Text style={styles.metaText}>Year: {serieInfo.releaseDate}</Text>
+          )}
+        </View>
+
+        <Button
+          title={isFav ? '❤ ' : '🤍'}
+          onPress={handlePressFav}
+          onFocus={() => setFocusedButton('fav')}
+          textStyle={styles.favoriteIcon}
+        />
+      </View>
+      {(() => {
+        const seasonsList: Array<{
+          seasonNum: string;
+          episodeCount: number;
+          cover?: string;
+        }> = [];
+        if (serie.sea && serie.sea.length > 0) {
+          serie.sea.forEach((seasonNum: string) => {
+            seasonsList.push({
+              seasonNum,
+              episodeCount: serie.episodes?.[seasonNum]?.length || 0,
+              cover: serie.info?.cover,
+            });
+          });
+        } else if (serie.seasons && serie.seasons.length > 0) {
+          serie.seasons.forEach(s => {
+            const seasonNum = String(s.season_number);
+            seasonsList.push({
+              seasonNum,
+              episodeCount:
+                serie.episodes?.[seasonNum]?.length || s.episode_count || 0,
+              cover: s.cover || serie.info?.cover,
+            });
+          });
+        }
+        return seasonsList.length > 0 ? (
+          <View style={styles.seasonsContainer}>
+            <Text style={styles.sectionTitle}>Seasons</Text>
+            <FlatList
+              data={seasonsList}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <Card
+                  title={`Season ${item.seasonNum}`}
+                  subtitle={`${item.episodeCount} episodes`}
+                  image={item.cover}
+                  onFocus={() => {
+                    setFocusedButton('play');
+                    setFocusedSeason({
+                      season_number: parseInt(item.seasonNum),
+                      id: item.seasonNum,
+                    });
+                  }}
+                  onPress={() =>
+                    handleSeasonPress({
+                      season_number: parseInt(item.seasonNum),
+                      id: item.seasonNum,
+                    } as any)
+                  }
+                  style={[styles.seasonCard, { width: seasonCardWidth }]}
+                />
+              )}
+              keyExtractor={item => item.seasonNum}
+            />
+          </View>
+        ) : null;
+      })()}
+    </View>
+  );
+
+  const image: string | undefined = Array.isArray(serieInfo?.backdrop_path)
+    ? serieInfo?.backdrop_path[0]
+    : serieInfo?.backdrop_path;
   return (
     <ScrollView style={styles.container}>
       <LinearGradient colors={colors.gradients.dark} style={styles.background}>
-        <FastImage
-          source={{
-            uri:
-              serieInfo?.backdrop_path || typeof serieInfo?.cover === 'string'
-                ? serieInfo?.cover
-                : undefined,
-          }}
-          style={[styles.cover, { opacity: 0.9 }]}
-          resizeMode={FastImage.resizeMode.cover}>
-          <View style={[styles.content, wide && styles.contentWide]}>
-            <Text style={styles.title}>
-              {serieInfo.name || routeSerie.name || 'Series'}
-            </Text>
-            {serieInfo.plot && (
-              <Text style={styles.plot}>{serieInfo.plot}</Text>
-            )}
-
-            <View style={styles.row}>
-              <View style={styles.meta}>
-                {serieInfo.genre && (
-                  <Text style={styles.metaText}>Genre: {serieInfo.genre}</Text>
-                )}
-                {serieInfo.releaseDate && (
-                  <Text style={styles.metaText}>
-                    Year: {serieInfo.releaseDate}
-                  </Text>
-                )}
-              </View>
-              {/* <TouchableOpacity onPress={handlePressFav}>
-                <View style={styles.favoriteIconContainer}>
-                  <Text style={styles.favoriteIcon}>{isFav ? '❤' : '🤍'}</Text>
-                </View>
-              </TouchableOpacity> */}
-
-              <Button
-                title={isFav ? '❤ ' : '🤍'}
-                onPress={handlePressFav}
-                onFocus={() => setFocusedButton('fav')}
-                textStyle={styles.favoriteIcon}
+        <>
+          {image?.toLowerCase().split('?')[0].endsWith('.svg') ? (
+            <>
+              {renderContent()}
+              <SvgUri
+                uri={image}
+                width="100%"
+                height="100%"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  zIndex: 0,
+                  opacity: 0.5,
+                }}
               />
-            </View>
-            {(() => {
-              const seasonsList: Array<{
-                seasonNum: string;
-                episodeCount: number;
-                cover?: string;
-              }> = [];
-              if (serie.sea && serie.sea.length > 0) {
-                serie.sea.forEach((seasonNum: string) => {
-                  seasonsList.push({
-                    seasonNum,
-                    episodeCount: serie.episodes?.[seasonNum]?.length || 0,
-                    cover: serie.info?.cover,
-                  });
-                });
-              } else if (serie.seasons && serie.seasons.length > 0) {
-                serie.seasons.forEach(s => {
-                  const seasonNum = String(s.season_number);
-                  seasonsList.push({
-                    seasonNum,
-                    episodeCount:
-                      serie.episodes?.[seasonNum]?.length ||
-                      s.episode_count ||
-                      0,
-                    cover: s.cover || serie.info?.cover,
-                  });
-                });
-              }
-              return seasonsList.length > 0 ? (
-                <View style={styles.seasonsContainer}>
-                  <Text style={styles.sectionTitle}>Seasons</Text>
-                  <FlatList
-                    data={seasonsList}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    renderItem={({ item }) => (
-                      <Card
-                        title={`Season ${item.seasonNum}`}
-                        subtitle={`${item.episodeCount} episodes`}
-                        image={item.cover}
-                        onFocus={() => {
-                          setFocusedButton('play');
-                          setFocusedSeason({
-                            season_number: parseInt(item.seasonNum),
-                            id: item.seasonNum,
-                          });
-                        }}
-                        onPress={() =>
-                          handleSeasonPress({
-                            season_number: parseInt(item.seasonNum),
-                            id: item.seasonNum,
-                          } as any)
-                        }
-                        style={[styles.seasonCard, { width: seasonCardWidth }]}
-                      />
-                    )}
-                    keyExtractor={item => item.seasonNum}
-                  />
-                </View>
-              ) : null;
-            })()}
-          </View>
-        </FastImage>
+            </>
+          ) : (
+            <FastImage
+              source={{
+                uri:
+                  image || typeof serieInfo?.cover === 'string'
+                    ? serieInfo?.cover
+                    : undefined,
+              }}
+              style={[styles.cover, { opacity: 0.9 }]}
+              resizeMode={FastImage.resizeMode.cover}>
+              {renderContent()}
+            </FastImage>
+          )}
+        </>
       </LinearGradient>
     </ScrollView>
   );
@@ -276,7 +294,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.xl,
-    backgroundColor: '#715f5f',
+    // backgroundColor: '#715f5f',
   },
   contentWide: {
     paddingHorizontal: spacing.xxl,

@@ -197,15 +197,7 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
   // --------------------------------------------------
 
   useEffect(() => {
-    console.log(
-      'profile from globalProvider:',
-      profile,
-      'isRestored:',
-      isRestored,
-    );
     if (!isRestored) return;
-
-    console.log('profile from globalProvider:', profile);
     saveSelectedProfile(profile);
   }, [isRestored, profile]);
 
@@ -281,7 +273,6 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
   };
 
   const changeProfile = (item: Playlist | null) => {
-    console.log('changeProfile item:', item);
     setProfile(item);
   };
 

@@ -20,6 +20,7 @@ import { Stream } from '../models/model';
 import { useLandscapeLayout } from '../utils/layout';
 import { generateurlplayer } from '../utils/constants';
 import { getVideoPositions, getSeriePositions } from '../utils/storage';
+import { SvgUri } from 'react-native-svg';
 
 type FavoriteTab = 'live' | 'movies' | 'series';
 
@@ -289,9 +290,7 @@ const FavoriteScreen: React.FC = () => {
 
       const itemKey = `${activeTab}-${getId(item, activeTab) || index}`;
       const isFocused = focusedItemKey === itemKey;
-      console.log('itemKey', itemKey);
-      console.log('focusedItemKey', focusedItemKey);
-      console.log('isFocused', isFocused);
+
       return (
         <TouchableOpacity
           key={itemKey}
@@ -315,11 +314,17 @@ const FavoriteScreen: React.FC = () => {
               isFocused && styles.posterWrapperFocused,
             ]}>
             {imageUri ? (
-              <Image
-                source={{ uri: imageUri }}
-                style={styles.poster}
-                resizeMode="cover"
-              />
+              <>
+                {imageUri?.toLowerCase().split('?')[0].endsWith('.svg') ? (
+                  <SvgUri uri={imageUri} width="100%" height="100%" />
+                ) : (
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={styles.poster}
+                    resizeMode="cover"
+                  />
+                )}
+              </>
             ) : (
               <View style={styles.posterPlaceholder}>
                 <Text style={styles.placeholderLetter}>
@@ -369,7 +374,14 @@ const FavoriteScreen: React.FC = () => {
         </TouchableOpacity>
       );
     },
-    [activeTab, cardWidth, getId, handleNavigateItem, seriePositions,focusedItemKey],
+    [
+      activeTab,
+      cardWidth,
+      getId,
+      handleNavigateItem,
+      seriePositions,
+      focusedItemKey,
+    ],
   );
 
   const renderEmptyState = () => (

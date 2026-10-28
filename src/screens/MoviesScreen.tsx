@@ -1,4 +1,3 @@
-
 import React, {
   useState,
   useEffect,
@@ -47,6 +46,9 @@ const MoviesScreen: React.FC = () => {
 
   const { profile, listVod, listVodFav, listVodRecent, catVod } =
     useGlobalContext();
+  useEffect(() => {
+    console.log('listVod', listVod[0]);
+  }, [listVod]);
 
   const layout = useLandscapeLayout();
 
@@ -265,7 +267,7 @@ const MoviesScreen: React.FC = () => {
       return (
         <Card
           title={item.name}
-          image={item.stream_icon}
+          image={item?.cover ?? item?.stream_icon }
           style={{ width: cardWidth }}
           focused={focusZone === 'grid' && isSelected}
           onFocus={() => {
@@ -274,11 +276,7 @@ const MoviesScreen: React.FC = () => {
           }}
           // On TV, TVEventHandler is the only Select handler.
           // On touch devices, Card handles the press.
-          onPress={
-            Platform.isTV
-              ? undefined
-              : () => handleMoviePress(item)
-          }
+          onPress={Platform.isTV ? undefined : () => handleMoviePress(item)}
         />
       );
     },
@@ -319,19 +317,14 @@ const MoviesScreen: React.FC = () => {
           />
 
           <View style={styles.content}>
-            <TVFocusGuideView
-              autoFocus
-              style={styles.focusGuide}
-            >
+            <TVFocusGuideView autoFocus style={styles.focusGuide}>
               <FlatList
                 data={filteredList}
                 renderItem={renderItem}
                 keyExtractor={item => String(item.stream_id)}
                 numColumns={numColumns}
                 contentContainerStyle={styles.list}
-                columnWrapperStyle={
-                  numColumns > 1 ? styles.row : undefined
-                }
+                columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
                 key={numColumns}
                 initialNumToRender={numColumns * 4}
                 maxToRenderPerBatch={numColumns * 3}

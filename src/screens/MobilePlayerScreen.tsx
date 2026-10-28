@@ -640,7 +640,9 @@ const PlayerScreen: React.FC = () => {
 
   const videoSource = isLive
     ? {
-        uri: url,
+      // TODO: update me 
+        // uri: url,
+        uri: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
         type: 'm3u8' as const,
       }
     : {

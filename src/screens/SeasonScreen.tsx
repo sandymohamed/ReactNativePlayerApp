@@ -19,6 +19,7 @@ import Card from '../components/Card';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Episode } from '../models/model';
 // import FastImage from 'react-native-fast-image';
+import { useTVEventHandler } from '../hooks/useTVEventHandler';
 
 type SeasonScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -41,6 +42,7 @@ const SeasonScreen: React.FC = () => {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [selectedSeason, setSelectedSeason] = useState<string>('');
+  const [focusSeason, setFocusSeason] = useState(null);
 
   useEffect(() => {
     loadEpisodes();
@@ -66,6 +68,7 @@ const SeasonScreen: React.FC = () => {
     // Web app uses episode.id (not stream_id) - see SeriePlayer.tsx line 258
     const streamId =
       episode.id || episode.stream_id || episode.movie_data?.stream_id;
+
     if (!streamId) {
       console.error('No id/stream_id found for episode:', episode);
       return;
@@ -102,6 +105,22 @@ const SeasonScreen: React.FC = () => {
     setFocusedIndex(0);
   };
 
+  const [focusedButton, setFocusedButton] = useState('eps');
+
+  useTVEventHandler({
+    onBack: () => {
+      navigation.goBack();
+    },
+
+    onSelect: () => {
+      if (focusedButton === 'season') {
+        handleSeasonChange(selectedSeason);
+      } else if (focusedButton === 'eps') {
+        handleEpisodePress(episodes[focusedIndex]);
+      }
+    },
+  });
+
   const renderItem = ({ item, index }: { item: Episode; index: number }) => {
     const serie = contextSerie || routeSerie;
     const cover = item.movie_data?.cover || (serie as any)?.info?.cover;
@@ -125,7 +144,10 @@ const SeasonScreen: React.FC = () => {
           subtitle={subtitle}
           image={cover}
           onPress={() => handleEpisodePress(item)}
-          onFocus={() => setFocusedIndex(index)}
+          onFocus={() => {
+            setFocusedButton('eps');
+            setFocusedIndex(index);
+          }}
           focused={focusedIndex === index}
           style={{ width: CARD_WIDTH }}
         />
@@ -145,24 +167,38 @@ const SeasonScreen: React.FC = () => {
           </Text>
           {availableSeasons.length > 1 && (
             <View style={styles.seasonSelector}>
-              {availableSeasons.map((seasonNum: string) => (
-                <TouchableOpacity
-                  key={seasonNum}
-                  style={[
-                    styles.seasonButton,
-                    selectedSeason === seasonNum && styles.seasonButtonActive,
-                  ]}
-                  onPress={() => handleSeasonChange(seasonNum)}>
-                  <Text
+              {availableSeasons.map((seasonNum: string) => {
+                return (
+                  <TouchableOpacity
+                    key={seasonNum}
                     style={[
-                      styles.seasonButtonText,
-                      selectedSeason === seasonNum &&
-                        styles.seasonButtonTextActive,
-                    ]}>
-                    S{seasonNum}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                      styles.seasonButton,
+                      selectedSeason === seasonNum && styles.seasonButtonActive,
+                      focusSeason === seasonNum && styles.seasonButtonActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedSeason(seasonNum);
+                      handleSeasonChange(seasonNum);
+                    }}
+                    onFocus={() => {
+                      setFocusedButton('season');
+                      setFocusSeason(seasonNum);
+                    }}
+                    onBlur={() => {
+                      setFocusedButton('');
+                      setFocusSeason(null);
+                    }}>
+                    <Text
+                      style={[
+                        styles.seasonButtonText,
+                        selectedSeason === seasonNum &&
+                          styles.seasonButtonTextActive,
+                      ]}>
+                      S{seasonNum}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
         </View>
@@ -236,7 +272,9 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   row: {
-    justifyContent: 'space-between',
+    width:"100%",
+    gap:spacing.md,
+    justifyContent: 'flex-start',
   },
   cardContainer: {
     marginBottom: spacing.lg,

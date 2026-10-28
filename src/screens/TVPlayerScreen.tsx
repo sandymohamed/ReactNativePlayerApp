@@ -219,19 +219,19 @@ const PlayerScreen: React.FC = () => {
   useTVEventHandler({
     onLeft: () => {
       console.log('TV press from onLeft ');
-      handleRemoteDirection;
+      handleRemoteDirection();
     },
     onRight: () => {
       console.log('TV press from onRight');
-      handleRemoteDirection;
+      handleRemoteDirection();
     },
     onUp: () => {
       console.log('TV press from onUp');
-      handleRemoteDirection;
+      handleRemoteDirection();
     },
     onDown: () => {
       console.log('TV press from onDown');
-      handleRemoteDirection;
+      handleRemoteDirection();
     },
     onPlayPause: handlePlayPause,
     onBack: handleBack,

@@ -48,11 +48,6 @@ const SeriesScreen: React.FC = () => {
     useGlobalContext();
 
   const layout = useLandscapeLayout();
-
-  useEffect(() => {
-    console.log('listSerie', listSerie[0]);
-    console.log('listSerie', listSerie[0]?.backdrop_path[0]);
-  }, [listSerie]);
   const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSerieId, setSelectedSerieId] = useState<string | null>(null);
@@ -255,7 +250,9 @@ const SeriesScreen: React.FC = () => {
       return (
         <Card
           title={item.name}
-          image={item?.cover ?? item?.backdrop_path[0]}
+          image={
+            item?.cover ?? (item?.backdrop_path ? item?.backdrop_path[0] : '')
+          }
           style={{ width: cardWidth }}
           focused={focusZone === 'grid' && isSelected}
           onFocus={() => {

@@ -69,14 +69,19 @@ export const tvKey = {
 
 export function generateurl(action: string, playlist: Playlist): string {
   let profile = getetprofile(playlist);
-  var url =
-    profile.host +
-    '/player_api.php?username=' +
-    profile.username +
-    '&password=' +
-    profile.password;
-  if (action !== '') {
-    url += '&action=' + action;
+  let url: string;
+  if (profile.username) {
+    url =
+      profile.host +
+      '/player_api.php?username=' +
+      profile.username +
+      '&password=' +
+      profile.password;
+    if (action !== '') {
+      url += '&action=' + action;
+    }
+  } else {
+    url = profile.host;;
   }
   return url;
 }

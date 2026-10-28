@@ -20,6 +20,7 @@ import { Stream } from '../models/model';
 import { useLandscapeLayout } from '../utils/layout';
 import { generateurlplayer } from '../utils/constants';
 import { getVideoPositions, getSeriePositions } from '../utils/storage';
+import { SvgUri } from 'react-native-svg';
 
 type RecentTab = 'live' | 'movies' | 'series';
 
@@ -319,11 +320,17 @@ const RecentScreen: React.FC = () => {
               isFocused && styles.posterWrapperFocused,
             ]}>
             {imageUri ? (
-              <Image
-                source={{ uri: imageUri }}
-                style={styles.poster}
-                resizeMode="cover"
-              />
+              <>
+                {imageUri?.toLowerCase().split('?')[0].endsWith('.svg') ? (
+                  <SvgUri uri={imageUri} width="100%" height="100%" />
+                ) : (
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={styles.poster}
+                    resizeMode="cover"
+                  />
+                )}
+              </>
             ) : (
               <View style={styles.posterPlaceholder}>
                 <Text style={styles.placeholderLetter}>
