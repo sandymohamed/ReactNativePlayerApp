@@ -1,5 +1,5 @@
-
-package com.iptvplayer
+﻿
+package com.velotv.player
 
 import android.app.Application
 import com.facebook.react.PackageList
@@ -44,3 +44,4 @@ class MainApplication : Application(), ReactApplication {
     }
   }
 }
+

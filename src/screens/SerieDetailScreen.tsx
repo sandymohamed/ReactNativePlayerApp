@@ -355,9 +355,9 @@ const styles = StyleSheet.create({
   },
   seasonCard: {
     marginRight: spacing.md,
-    borderWidth: 2,
-    borderColor: colors.secondaryDark,
+    borderWidth: 1,
     borderRadius: borderRadius.md,
+    // borderColor: colors.secondaryDark,
   },
 });
 
