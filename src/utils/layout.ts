@@ -70,40 +70,34 @@
 //   };
 // }
 
-
-
-
 /**
  * Landscape-oriented layout helpers for phones and TVs.
  * TV sizing preserves the existing layout.
  * Mobile uses a narrower sidebar and smaller cards.
  */
 
-import {Platform, useWindowDimensions} from 'react-native';
-import {spacing} from '../theme/spacing';
+import { Platform, useWindowDimensions } from 'react-native';
+import { spacing } from '../theme/spacing';
 
-export const SIDEBAR_WIDTH = 200;
+// export const SIDEBAR_WIDTH = 200;
 export const CONTENT_PAD_H = spacing.xl;
-export const GRID_GAP = spacing.md;
+export const GRID_GAP = spacing.lg;
 export const MIN_CARD_WIDTH = 200;
 
 // Mobile sizing
-export const MOBILE_SIDEBAR_WIDTH = 105;
+// export const MOBILE_SIDEBAR_WIDTH = 105;
 export const MOBILE_CONTENT_PAD_H = spacing.sm;
-export const MOBILE_GRID_GAP = spacing.sm;
+export const MOBILE_GRID_GAP = spacing.md;
 export const MOBILE_MIN_CARD_WIDTH = 100;
 
 export function getNumColumns(contentWidth: number): number {
   const available = contentWidth - CONTENT_PAD_H * 2;
   const colWidth = MIN_CARD_WIDTH + GRID_GAP;
-  const n = Math.floor(available / colWidth) || 1;
+  const n = Math.floor((available + GRID_GAP) / colWidth ) || 1;
   return Math.max(1, Math.min(n, 6));
 }
 
-export function getCardWidth(
-  contentWidth: number,
-  numColumns: number,
-): number {
+export function getCardWidth(contentWidth: number, numColumns: number): number {
   const available = contentWidth - CONTENT_PAD_H * 2;
   const totalGap = (numColumns - 1) * GRID_GAP;
   const w = (available - totalGap) / numColumns;
@@ -115,13 +109,10 @@ export function getCardWidth(
  * Calculate sizes from the actual available content width.
  */
 export function getMobileNumColumns(contentWidth: number): number {
-  const available =
-    contentWidth - MOBILE_CONTENT_PAD_H * 2;
+  const available = contentWidth - MOBILE_CONTENT_PAD_H * 2;
 
   const colWidth = MOBILE_MIN_CARD_WIDTH + MOBILE_GRID_GAP;
-  const n = Math.floor(
-    (available + MOBILE_GRID_GAP) / colWidth,
-  ) || 1;
+  const n = Math.floor((available + MOBILE_GRID_GAP) / colWidth) || 1;
 
   return Math.max(1, Math.min(n, 4));
 }
@@ -130,15 +121,11 @@ export function getMobileCardWidth(
   contentWidth: number,
   numColumns: number,
 ): number {
-  const available =
-    contentWidth - MOBILE_CONTENT_PAD_H * 2;
+  const available = contentWidth - MOBILE_CONTENT_PAD_H * 2;
 
   const totalGap = (numColumns - 1) * MOBILE_GRID_GAP;
 
-  return Math.max(
-    1,
-    (available - totalGap) / numColumns,
-  );
+  return Math.max(1, (available - totalGap) / numColumns);
 }
 
 /**
@@ -164,13 +151,14 @@ export function getMainCardWidth(
 }
 
 export function useLandscapeLayout() {
-  const {width, height} = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isTV = Platform.isTV;
 
   // Keep the original TV calculations unchanged.
-  const sidebarWidth = isTV
-    ? SIDEBAR_WIDTH
-    : MOBILE_SIDEBAR_WIDTH;
+  const sidebarWidth =  width / 4.5 ;
+  // const sidebarWidth = isTV
+  //   ? SIDEBAR_WIDTH
+  //   : MOBILE_SIDEBAR_WIDTH;
 
   const contentWidth = width - sidebarWidth;
 
@@ -184,10 +172,7 @@ export function useLandscapeLayout() {
 
   // Keep the existing main-grid calculations unchanged for TV.
   const mainNumColumns = getMainGridNumColumns(width);
-  const mainCardWidth = getMainCardWidth(
-    width,
-    mainNumColumns,
-  );
+  const mainCardWidth = getMainCardWidth(width, mainNumColumns);
 
   return {
     width,
@@ -202,16 +187,10 @@ export function useLandscapeLayout() {
     mainCardWidth,
 
     // Expose responsive spacing to screens that need it.
-    contentPadding: isTV
-      ? CONTENT_PAD_H
-      : MOBILE_CONTENT_PAD_H,
+    contentPadding: isTV ? CONTENT_PAD_H : MOBILE_CONTENT_PAD_H,
 
-    gridGap: isTV
-      ? GRID_GAP
-      : MOBILE_GRID_GAP,
+    gridGap: isTV ? GRID_GAP : MOBILE_GRID_GAP,
 
-    minCardWidth: isTV
-      ? MIN_CARD_WIDTH
-      : MOBILE_MIN_CARD_WIDTH,
+    minCardWidth: isTV ? MIN_CARD_WIDTH : MOBILE_MIN_CARD_WIDTH,
   };
 }

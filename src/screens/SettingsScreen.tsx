@@ -32,7 +32,7 @@ const SETTINGS: SettingItem[] = [
   // {id: 'parental', title: 'Parental control'},
   {id: 'stream', title: 'Stream Format'},
   // {id: 'time', title: 'Time Format'},
-  // {id: 'list', title: 'List Type'},
+  {id: 'list', title: 'List Type'},
 ];
 
 const LANGUAGE_OPTIONS = [{id: 'en', title: 'English'}];
@@ -89,6 +89,8 @@ const SettingsScreen: React.FC = () => {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+              console.log(" [BACK TEST] from SettingScreeen")
+
       if (openModal) {
         setOpenModal(null);
         return true;

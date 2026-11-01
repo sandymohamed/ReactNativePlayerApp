@@ -1,79 +1,58 @@
-import React, {useState, useEffect, useRef, useMemo, useCallback, memo} from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+
 import {
   View,
   StyleSheet,
   Text,
   FlatList,
-  TouchableOpacity,
   BackHandler,
+  Pressable,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
-import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
-import {RootStackParamList} from '../navigation/AppNavigator';
-import {useGlobalContext} from '../context/GlobalContext';
-import {generateurlplayer} from '../utils/constants';
-import {colors} from '../theme/colors';
-import {spacing, borderRadius} from '../theme/spacing';
-import {typography} from '../theme/typography';
-import {Stream} from '../models/model';
 import FastImage from 'react-native-fast-image';
-import {useTVEventHandler} from '../hooks/useTVEventHandler';
-import CategorySidebar, {type CategoryItem} from '../components/CategorySidebar';
+
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { useGlobalContext } from '../context/GlobalContext';
+
+import { insertData, deleterow, generateurlplayer } from '../utils/constants';
+
+import { getSetting, SETTINGS_KEYS } from '../utils/storage';
+
+import { colors } from '../theme/colors';
+import { spacing, borderRadius } from '../theme/spacing';
+import { typography } from '../theme/typography';
+
+import { Stream } from '../models/model';
+
+import CategorySidebar, {
+  type CategoryItem,
+} from '../components/CategorySidebar';
+
+import LiveEmbeddedPlayer from '../components/LiveEmbeddedPlayer';
 
 const ROW_HEIGHT = 56;
 const LOGO_SIZE = 36;
+const SIDEBAR_WIDTH = 220;
+const CHANNELS_WIDTH = '30%';
 
-const LiveChannelRow = memo(({
-  item,
-  index,
-  isFocused,
-  isFav,
-  onPress,
-}: {
+type LayoutType = 'list' | 'grid';
+
+interface LiveChannelRowProps {
   item: Stream;
   index: number;
-  isFocused: boolean;
-  isFav: boolean;
   onPress: () => void;
-}) => (
-  <TouchableOpacity
-    activeOpacity={0.85}
-    onPress={onPress}
-    style={[liveRowStyles.row, isFocused && liveRowStyles.rowFocused]}>
-    {isFocused && <View style={liveRowStyles.rowAccent} />}
-    <View style={liveRowStyles.rowContent}>
-      <Text style={[liveRowStyles.channelNum, isFocused && liveRowStyles.channelNumFocused]}>
-        {index + 1}
-      </Text>
-      {item.stream_icon ? (
-        <FastImage
-          source={{uri: item.stream_icon, priority: FastImage.priority.low}}
-          style={liveRowStyles.logo}
-          resizeMode={FastImage.resizeMode.contain}
-        />
-      ) : (
-        <View style={liveRowStyles.logoPlaceholder}>
-          <Text style={liveRowStyles.logoPlaceholderText}>TV</Text>
-        </View>
-      )}
-      <Text
-        style={[liveRowStyles.channelName, isFocused && liveRowStyles.channelNameFocused]}
-        numberOfLines={1}>
-        {item.name}
-      </Text>
-      {isFav && <Text style={liveRowStyles.favBadge}>♥</Text>}
-    </View>
-  </TouchableOpacity>
-));
+}
 
 const liveRowStyles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     height: ROW_HEIGHT,
-    marginHorizontal: spacing.sm,
-    marginVertical: 1,
+    marginHorizontal: spacing.xs,
+    marginVertical: 2,
     borderRadius: borderRadius.md,
     backgroundColor: colors.backgroundCard,
     borderWidth: 1,
@@ -82,7 +61,8 @@ const liveRowStyles = StyleSheet.create({
   },
   rowFocused: {
     backgroundColor: colors.backgroundTertiary,
-    borderColor: colors.borderLight,
+    borderColor: colors.primary,
+    elevation: 5,
   },
   rowAccent: {
     position: 'absolute',
@@ -108,8 +88,14 @@ const liveRowStyles = StyleSheet.create({
     minWidth: 28,
     textAlign: 'right',
   },
-  channelNumFocused: { color: colors.primaryLight },
-  logo: { width: LOGO_SIZE, height: LOGO_SIZE, borderRadius: borderRadius.sm },
+  channelNumFocused: {
+    color: colors.primaryLight,
+  },
+  logo: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    borderRadius: borderRadius.sm,
+  },
   logoPlaceholder: {
     width: LOGO_SIZE,
     height: LOGO_SIZE,
@@ -118,146 +104,295 @@ const liveRowStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoPlaceholderText: { ...typography.labelSmall, color: colors.textTertiary },
-  channelName: { ...typography.body, color: colors.text, flex: 1 },
-  channelNameFocused: { color: colors.text, fontWeight: '600' },
-  favBadge: { fontSize: 14, color: colors.secondary },
+  logoPlaceholderText: {
+    ...typography.labelSmall,
+    color: colors.textTertiary,
+  },
+  channelName: {
+    ...typography.body,
+    color: colors.text,
+    flex: 1,
+  },
+  channelNameFocused: {
+    color: colors.text,
+    fontWeight: '600',
+  },
+});
+
+const LiveChannelRow = memo(({ item, index, onPress }: LiveChannelRowProps) => {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <Pressable
+      focusable
+      hasTVPreferredFocus={isFocused}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+      onPress={onPress}
+      style={[liveRowStyles.row, isFocused && liveRowStyles.rowFocused]}>
+      {isFocused && <View style={liveRowStyles.rowAccent} />}
+
+      <View style={liveRowStyles.rowContent}>
+        <Text
+          style={[
+            liveRowStyles.channelNum,
+            isFocused && liveRowStyles.channelNumFocused,
+          ]}>
+          {index + 1}
+        </Text>
+
+        {item.stream_icon ? (
+          <FastImage
+            source={{
+              uri: item.stream_icon,
+              priority: FastImage.priority.low,
+            }}
+            style={liveRowStyles.logo}
+            resizeMode={FastImage.resizeMode.contain}
+          />
+        ) : (
+          <View style={liveRowStyles.logoPlaceholder}>
+            <Text style={liveRowStyles.logoPlaceholderText}>TV</Text>
+          </View>
+        )}
+
+        <Text
+          style={[
+            liveRowStyles.channelName,
+            isFocused && liveRowStyles.channelNameFocused,
+          ]}
+          numberOfLines={1}>
+          {item.name}
+        </Text>
+      </View>
+    </Pressable>
+  );
 });
 
 const LiveScreen: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Live'>>();
-  const {profile, listLive, listLiveFav, listLiveRecent, catLive} = useGlobalContext();
-  const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
-  const [listFocusIndex, setListFocusIndex] = useState(0);
-  const [focusZone, setFocusZone] = useState<'sidebar' | 'list'>('sidebar');
-  const listRef = useRef<FlatList>(null);
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList, 'Live'>>();
 
+  const {
+    profile,
+    listLive,
+    listLiveFav,
+    listLiveRecent,
+    catLive,
+    changeListLiveFav,
+  } = useGlobalContext();
+
+  const [layoutType, setLayoutType] = useState<LayoutType>('list');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('0');
+
+  const [selectedChannel, setSelectedChannel] = useState<Stream | null>(null);
+
+  const [isPlayerFullscreen, setIsPlayerFullscreen] = useState(false);
+
+  // Load saved layout
+  useEffect(() => {
+    let mounted = true;
+
+    console.log('bbbb loadLayout');
+    const loadLayout = async () => {
+      console.log('loadLayout');
+      try {
+        const savedLayout = await getSetting(SETTINGS_KEYS.LIST_TYPE);
+
+        if (mounted && (savedLayout === 'grid' || savedLayout === 'list')) {
+          setLayoutType(savedLayout);
+        }
+      } catch (error) {
+        console.warn('Unable to load live layout setting:', error);
+      }
+    };
+
+    loadLayout();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Categories
   const categories: CategoryItem[] = useMemo(() => {
-    const raw = (catLive || []) as {category_id?: string; category_name?: string}[];
-    return raw.map(c => ({
-      category_id: String(c.category_id ?? ''),
-      category_name: String(c.category_name ?? ''),
+    const raw = (catLive || []) as {
+      category_id?: string;
+      category_name?: string;
+    }[];
+
+    return raw.map(category => ({
+      category_id: String(category.category_id ?? ''),
+      category_name: String(category.category_name ?? ''),
     }));
   }, [catLive]);
 
-  const items = categories;
-  const selectedCategoryId = items[Math.min(sidebarFocusIndex, Math.max(0, items.length - 1))]?.category_id ?? '0';
-
+  // Filter channels
   const filteredList = useMemo(() => {
-    if (!listLive.length) return [];
-    if (selectedCategoryId === '0' || selectedCategoryId === '') return listLive;
+    if (!listLive?.length) {
+      return [];
+    }
+
+    if (selectedCategoryId === '0' || selectedCategoryId === '') {
+      return listLive;
+    }
+
     if (selectedCategoryId === '-1') {
-      return listLive.filter(c => (listLiveFav || []).includes(String(c.stream_id)));
+      const favoriteIds = new Set((listLiveFav || []).map(String));
+
+      return listLive.filter(channel =>
+        favoriteIds.has(String(channel.stream_id)),
+      );
     }
+
     if (selectedCategoryId === '-2') {
-      return listLive.filter(c => (listLiveRecent || []).includes(String(c.stream_id)));
+      const recentIds = new Set((listLiveRecent || []).map(String));
+
+      return listLive.filter(channel =>
+        recentIds.has(String(channel.stream_id)),
+      );
     }
-    return listLive.filter(c => String(c.category_id) === selectedCategoryId);
+
+    return listLive.filter(
+      channel => String(channel.category_id) === selectedCategoryId,
+    );
   }, [listLive, listLiveFav, listLiveRecent, selectedCategoryId]);
 
-  useEffect(() => {
-    setListFocusIndex(0);
-  }, [filteredList.length, selectedCategoryId]);
-
-  useEffect(() => {
-    if (filteredList.length > 0 && listFocusIndex >= 0 && listFocusIndex < filteredList.length) {
-      listRef.current?.scrollToIndex({
-        index: listFocusIndex,
-        animated: true,
-        viewPosition: 0.5,
-      });
+  // Current channel favorite status
+  const isFavorite = useMemo(() => {
+    if (!selectedChannel) {
+      return false;
     }
-  }, [listFocusIndex, filteredList.length]);
+
+    return (listLiveFav || [])
+      .map(String)
+      .includes(String(selectedChannel.stream_id));
+  }, [listLiveFav, selectedChannel]);
+
+  // Reset selected channel when category changes
+  useEffect(() => {
+    setSelectedChannel(null);
+  }, [selectedCategoryId]);
 
   useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-        if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Main');
-      }
-      return true;
-    });
-    return () => sub.remove();
-  }, [navigation]);
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        console.log('LIVE SCREEN BACK PRESSED');
 
-  useTVEventHandler({
-    onBack: () => navigation.goBack(),
-    onUp: () => {
-      if (focusZone === 'sidebar') {
-        setSidebarFocusIndex(i => Math.max(0, i - 1));
-      } else {
-        setListFocusIndex(i => Math.max(0, i - 1));
-      }
-    },
-    onDown: () => {
-      if (focusZone === 'sidebar') {
-        setSidebarFocusIndex(i => Math.min(items.length - 1, i + 1));
-      } else {
-        setListFocusIndex(i => Math.min(filteredList.length - 1, i + 1));
-      }
-    },
-    onLeft: () => {
-      if (focusZone === 'list') {
-        setFocusZone('sidebar');
+        if (isPlayerFullscreen) {
+          setIsPlayerFullscreen(false);
+          return true;
+        }
+
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+          return true;
+        }
+
+        return true;
+      },
+    );
+
+    return () => subscription.remove();
+  }, [navigation, isPlayerFullscreen]);
+
+  // // Android back button
+  // useEffect(() => {
+  //   const subscription = BackHandler.addEventListener(
+  //     'hardwareBackPress',
+  //     () => {
+  //       if (isPlayerFullscreen) {
+  //         setIsPlayerFullscreen(false);
+  //         return true;
+  //       }
+
+  //       if (navigation.canGoBack()) {
+  //         navigation.goBack();
+  //       } else {
+  //         navigation.navigate('Main');
+  //       }
+
+  //       return true;
+  //     },
+  //   );
+
+  //   return () => subscription.remove();
+  // }, [navigation, isPlayerFullscreen]);
+
+  const handleChannelSelect = useCallback(
+    (channel: Stream) => {
+      if (layoutType === 'grid') {
+        setSelectedChannel(channel);
         return;
       }
-      navigation.goBack();
-    },
-    onRight: () => {
-      if (focusZone === 'sidebar' && filteredList.length > 0) {
-        setFocusZone('list');
-        setListFocusIndex(0);
+
+      if (!profile) {
+        return;
       }
-    },
-    onSelect: () => {
-      if (focusZone === 'list' && filteredList[listFocusIndex]) {
-        handleChannelPress(filteredList[listFocusIndex]);
-      }
-    },
-  });
 
-  const handleCategorySelect = (categoryId: string) => {
-    const idx = items.findIndex(it => it.category_id === categoryId);
-    if (idx >= 0) setSidebarFocusIndex(idx);
-  };
+      const url = generateurlplayer('live', channel.stream_id, 'm3u8', profile);
 
-  const handleChannelPress = useCallback((channel: Stream) => {
-    if (!profile) return;
-    const u = generateurlplayer('live', channel.stream_id, 'm3u8', profile);
-    navigation.navigate('Player', {
-      url: u,
-      title: channel.name,
-      type: 'live',
-      streamId: String(channel.stream_id),
-    });
-  }, [profile, navigation]);
-
-  const renderChannelRow = useCallback(
-    ({item, index}: {item: Stream; index: number}) => {
-      const isFocused = focusZone === 'list' && listFocusIndex === index;
-      const isFav = Array.isArray(listLiveFav) && listLiveFav.includes(String(item.stream_id));
-      return (
-        <LiveChannelRow
-          item={item}
-          index={index}
-          isFocused={isFocused}
-          isFav={isFav}
-          onPress={() => {
-            setListFocusIndex(index);
-            handleChannelPress(item);
-          }}
-        />
-      );
+      navigation.navigate('Player', {
+        url,
+        title: channel.name,
+        type: 'live',
+        streamId: String(channel.stream_id),
+      });
     },
-    [focusZone, listFocusIndex, listLiveFav, handleChannelPress],
+    [layoutType, profile, navigation],
   );
 
-  const getItemLayout = (_: any, index: number) => ({
-    length: ROW_HEIGHT + 2,
-    offset: (ROW_HEIGHT + 2) * index,
-    index,
-  });
+  // Toggle favorite
+  const handleToggleFavorite = useCallback(async () => {
+    if (!profile || !selectedChannel) {
+      return;
+    }
+
+    const streamId = String(selectedChannel.stream_id);
+    const currentFavorites = (listLiveFav || []).map(String);
+
+    const alreadyFavorite = currentFavorites.includes(streamId);
+
+    const nextFavorites = alreadyFavorite
+      ? currentFavorites.filter(id => id !== streamId)
+      : [...currentFavorites, streamId];
+
+    // Update local state immediately
+    changeListLiveFav(nextFavorites);
+
+    try {
+      if (alreadyFavorite) {
+        await deleterow(streamId, 'live', profile);
+      } else {
+        await insertData(streamId, 'live', profile);
+      }
+    } catch (error) {
+      console.warn('Unable to update live favorite:', error);
+    }
+  }, [profile, selectedChannel, listLiveFav, changeListLiveFav]);
+
+  // Select category
+  const handleCategorySelect = useCallback((categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+  }, []);
+
+  // Render channel row
+  const renderChannelRow = useCallback(
+    ({ item, index }: { item: Stream; index: number }) => (
+      <LiveChannelRow
+        item={item}
+        index={index}
+        onPress={() => handleChannelSelect(item)}
+      />
+    ),
+    [handleChannelSelect],
+  );
+
+  // Fullscreen
+  const handleFullscreenChange = useCallback((value: boolean) => {
+    setIsPlayerFullscreen(value);
+  }, []);
 
   if (!profile) {
     return (
@@ -269,49 +404,108 @@ const LiveScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={colors.gradients.dark}
-        style={styles.background}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Live TV</Text>
-          <Text style={styles.subtitle}>
-            {filteredList.length} channel{filteredList.length !== 1 ? 's' : ''}
-          </Text>
-        </View>
-        <View style={styles.body}>
-          <CategorySidebar
-            title="Categories"
-            categories={items}
-            selectedId={selectedCategoryId}
-            onSelect={handleCategorySelect}
-            focusedIndex={sidebarFocusIndex}
-            onFocusChange={setSidebarFocusIndex}
-            focusInSidebar={focusZone === 'sidebar'}
-          />
-          <View style={styles.content}>
-            <FlatList
-              ref={listRef}
-              data={filteredList}
-              renderItem={renderChannelRow}
-              keyExtractor={item => String(item.stream_id)}
-              getItemLayout={getItemLayout}
-              contentContainerStyle={styles.list}
-              showsVerticalScrollIndicator={true}
-              initialNumToRender={14}
-              maxToRenderPerBatch={12}
-              windowSize={11}
-              removeClippedSubviews={true}
-              onScrollToIndexFailed={({index}) => {
-                setTimeout(() => {
-                  listRef.current?.scrollToOffset({
-                    offset: index * (ROW_HEIGHT + 2),
-                    animated: true,
-                  });
-                }, 100);
-              }}
+      <LinearGradient colors={colors.gradients.dark} style={styles.background}>
+        {!isPlayerFullscreen && (
+          <>
+            {/* Header */}
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.title}>Live TV</Text>
+
+                <Text style={styles.subtitle}>
+                  {filteredList.length} channel
+                  {filteredList.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
+
+              {/* List / Grid */}
+              {/* <View style={styles.layoutSwitcher}>
+                <LayoutButton
+                  title="List"
+                  active={layoutType === 'list'}
+                  onPress={() => {
+                     setSetting(SETTINGS_KEYS.PARENTAL_PASSWORD, '1');
+                    setLayoutType('list')
+                  }}
+                />
+
+                <LayoutButton
+                  title="Grid"
+                  active={layoutType === 'grid'}
+                  onPress={() => setLayoutType('grid')}
+                />
+              </View> */}
+            </View>
+
+            {/* Main body */}
+            <View style={styles.body}>
+              {/* Categories column */}
+              <View style={styles.categoriesColumn}>
+                <CategorySidebar
+                  title="Categories"
+                  categories={categories}
+                  selectedId={selectedCategoryId}
+                  onSelect={handleCategorySelect}
+                  sidebarWidth={{ width: SIDEBAR_WIDTH }}
+                />
+              </View>
+
+              {/* Channels column */}
+              <View
+                style={[
+                  styles.channelsColumn,
+                  layoutType === 'list' && styles.channelsColumnList,
+                ]}>
+                <FlatList
+                  data={filteredList}
+                  renderItem={renderChannelRow}
+                  keyExtractor={item => String(item.stream_id)}
+                  contentContainerStyle={styles.list}
+                  showsVerticalScrollIndicator={false}
+                  initialNumToRender={14}
+                  maxToRenderPerBatch={12}
+                  windowSize={7}
+                  removeClippedSubviews={false}
+                  ListEmptyComponent={
+                    <View style={styles.emptyList}>
+                      <Text style={styles.emptyListText}>
+                        No channels found
+                      </Text>
+                    </View>
+                  }
+                />
+              </View>
+
+              {/* Player column - Grid only */}
+              {layoutType === 'grid' && (
+                <View style={styles.playerColumn}>
+                  <LiveEmbeddedPlayer
+                    channel={selectedChannel}
+                    profile={profile}
+                    isFullscreen={isPlayerFullscreen}
+                    onFullscreenChange={handleFullscreenChange}
+                    isFavorite={isFavorite}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                </View>
+              )}
+            </View>
+          </>
+        )}
+
+        {/* Fullscreen player */}
+        {isPlayerFullscreen && selectedChannel && (
+          <View style={styles.fullscreenPlayer}>
+            <LiveEmbeddedPlayer
+              channel={selectedChannel}
+              profile={profile}
+              isFullscreen
+              onFullscreenChange={handleFullscreenChange}
+              isFavorite={isFavorite}
+              onToggleFavorite={handleToggleFavorite}
             />
           </View>
-        </View>
+        )}
       </LinearGradient>
     </View>
   );
@@ -321,46 +515,139 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+
   background: {
     flex: 1,
   },
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
   },
+
   loadingText: {
     ...typography.body,
     color: colors.textSecondary,
   },
+
   header: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.md,
   },
+
   title: {
     ...typography.h1,
     color: colors.text,
   },
+
   subtitle: {
     ...typography.bodySmall,
     color: colors.textSecondary,
   },
+
+  layoutSwitcher: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+
+  layoutButton: {
+    minWidth: 90,
+    minHeight: 46,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    backgroundColor: colors.backgroundCard,
+  },
+
+  layoutButtonActive: {
+    backgroundColor: colors.backgroundTertiary,
+    borderColor: colors.primary,
+  },
+
+  layoutButtonFocused: {
+    borderColor: colors.primaryLight,
+    backgroundColor: colors.backgroundTertiary,
+    transform: [{ scale: 1.08 }],
+    elevation: 8,
+  },
+
+  layoutButtonText: {
+    ...typography.label,
+    color: colors.textSecondary,
+  },
+
+  layoutButtonTextActive: {
+    color: colors.primaryLight,
+  },
+
+  layoutButtonTextFocused: {
+    color: colors.text,
+    fontWeight: '700',
+  },
+
   body: {
     flex: 1,
     flexDirection: 'row',
+    alignItems: 'stretch',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    gap: spacing.md,
+    minHeight: 0,
   },
-  content: {
+
+  categoriesColumn: {
+    width: SIDEBAR_WIDTH,
+    minWidth: SIDEBAR_WIDTH,
+    overflow: 'hidden',
+  },
+
+  channelsColumn: {
+    width: CHANNELS_WIDTH,
+    minWidth: 220,
+    flexShrink: 0,
+    minHeight: 0,
+  },
+
+  channelsColumnList: {
     flex: 1,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxl,
+    width: undefined,
+    minWidth: 0,
   },
+
+  playerColumn: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 0,
+  },
+
+  fullscreenPlayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+  },
+
   list: {
     paddingBottom: spacing.xxl,
+  },
+
+  emptyList: {
+    flex: 1,
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+
+  emptyListText: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
 });
 

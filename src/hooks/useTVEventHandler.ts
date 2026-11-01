@@ -54,6 +54,7 @@ export const useTVEventHandler = (handlers: TVEventHandlers) => {
           currentHandlers.onRight?.();
           break;
         case 'back':
+          console.log('baaaaaaaaaaack frrom handler');
           currentHandlers.onBack?.();
           break;
         case 'menu':

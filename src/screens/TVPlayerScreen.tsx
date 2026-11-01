@@ -208,6 +208,8 @@ const PlayerScreen: React.FC = () => {
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
+        console.log(' [BACK TEST] from PlayerScreen');
+
         handleBack();
         return true;
       },
@@ -216,23 +218,37 @@ const PlayerScreen: React.FC = () => {
     return () => subscription.remove();
   }, [isScreenFocused, handleBack]);
 
+  // useTVEventHandler({
+  //   onLeft: () => {
+  //     console.log('TV press from onLeft ');
+  //     handleRemoteDirection();
+  //   },
+  //   onRight: () => {
+  //     console.log('TV press from onRight');
+  //     handleRemoteDirection();
+  //   },
+  //   onUp: () => {
+  //     console.log('TV press from onUp');
+  //     handleRemoteDirection();
+  //   },
+  //   onDown: () => {
+  //     console.log('TV press from onDown');
+  //     handleRemoteDirection();
+  //   },
+  //   onPlayPause: handlePlayPause,
+  //   onBack: handleBack,
+  // });
+
   useTVEventHandler({
-    onLeft: () => {
-      console.log('TV press from onLeft ');
-      handleRemoteDirection();
-    },
-    onRight: () => {
-      console.log('TV press from onRight');
-      handleRemoteDirection();
-    },
-    onUp: () => {
-      console.log('TV press from onUp');
-      handleRemoteDirection();
-    },
-    onDown: () => {
-      console.log('TV press from onDown');
-      handleRemoteDirection();
-    },
+    onSelect: handleRemoteDirection,
+
+    onLeft: handleRemoteDirection,
+    onRight: handleRemoteDirection,
+    onUp: handleRemoteDirection,
+    onDown: handleRemoteDirection,
+
+    onMenu: handleRemoteDirection,
+
     onPlayPause: handlePlayPause,
     onBack: handleBack,
   });
@@ -522,9 +538,20 @@ const PlayerScreen: React.FC = () => {
   const focusedStyle = (control: FocusedControl) =>
     focusedControl === control ? styles.focusedControl : undefined;
 
+  // const videoSource = isLive
+  //   ? { uri: url, type: 'm3u8' as const }
+  //   : { uri: url };
+
   const videoSource = isLive
-    ? { uri: url, type: 'm3u8' as const }
-    : { uri: url };
+    ? {
+        // TODO: update me but not now as live m3u  in this playlist doesn't work
+        // uri: url,
+        uri: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+        type: 'm3u8' as const,
+      }
+    : {
+        uri: url,
+      };
 
   return (
     <View style={styles.container}>
@@ -559,7 +586,7 @@ const PlayerScreen: React.FC = () => {
           bufferForPlaybackMs: isLive ? 1000 : 2500,
           bufferForPlaybackAfterRebufferMs: isLive ? 1000 : 5000,
         }}
-        onLoad={async data => {
+        onLoad={async (data: any) => {
           setLoading(false);
           setBuffering(false);
           setError(null);
@@ -596,7 +623,7 @@ const PlayerScreen: React.FC = () => {
             setLoading(false);
           }
         }}
-        onError={err => {
+        onError={(err: any) => {
           const videoError = err?.error;
           const message =
             videoError?.localizedDescription ||

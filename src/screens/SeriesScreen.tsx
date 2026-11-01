@@ -1,39 +1,33 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-  useCallback,
-} from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
+
 import {
   View,
   StyleSheet,
   Text,
   FlatList,
   BackHandler,
-  Platform,
   TVFocusGuideView,
 } from 'react-native';
-import {
-  useNavigation,
-  useFocusEffect,
-  useIsFocused,
-} from '@react-navigation/native';
+
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 import LinearGradient from 'react-native-linear-gradient';
 
 import { useGlobalContext } from '../context/GlobalContext';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
+
 import Card from '../components/Card';
 import CategorySidebar, {
   type CategoryItem,
 } from '../components/CategorySidebar';
+
 import { useLandscapeLayout } from '../utils/layout';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { SeriesWithInfo } from '../models/model';
-import { useTVEventHandler } from '../hooks/useTVEventHandler';
 
 type SeriesScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -42,20 +36,18 @@ type SeriesScreenNavigationProp = NativeStackNavigationProp<
 
 const SeriesScreen: React.FC = () => {
   const navigation = useNavigation<SeriesScreenNavigationProp>();
-  const isScreenFocused = useIsFocused();
 
   const { profile, listSerie, listSerieFav, listSerieRecent, catSerie } =
     useGlobalContext();
 
   const layout = useLandscapeLayout();
-  const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
+
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedSerieId, setSelectedSerieId] = useState<string | null>(null);
-  const [focusZone, setFocusZone] = useState<'sidebar' | 'grid'>('grid');
 
   const navigatingToSerieRef = useRef(false);
 
-  const categories: CategoryItem[] = useMemo(() => {
+  // Normalize categories.
+  const categories = useMemo<CategoryItem[]>(() => {
     const raw = (catSerie || []) as {
       category_id?: string;
       category_name?: string;
@@ -67,105 +59,73 @@ const SeriesScreen: React.FC = () => {
     }));
   }, [catSerie]);
 
+  // Resolve the currently selected category.
   const selectedCategoryId =
     selectedCategory ?? categories[0]?.category_id ?? '0';
 
+  // Filter series based on the selected category.
   const filteredList = useMemo<SeriesWithInfo[]>(() => {
-    if (!listSerie.length) {
+    if (!listSerie?.length) {
       return [];
     }
 
+    // All series.
     if (selectedCategoryId === '0' || selectedCategoryId === '') {
       return listSerie as SeriesWithInfo[];
     }
 
+    // Favorites.
     if (selectedCategoryId === '-1') {
       return listSerie.filter(serie =>
         (listSerieFav || []).includes(String(serie.series_id)),
       ) as SeriesWithInfo[];
     }
 
+    // Recently watched.
     if (selectedCategoryId === '-2') {
       return listSerie.filter(serie =>
         (listSerieRecent || []).includes(String(serie.series_id)),
       ) as SeriesWithInfo[];
     }
 
+    // Normal category.
     return listSerie.filter(
       serie => String(serie.category_id) === selectedCategoryId,
     ) as SeriesWithInfo[];
   }, [listSerie, listSerieFav, listSerieRecent, selectedCategoryId]);
 
-  useEffect(() => {
-    if (categories.length === 0) {
-      setSidebarFocusIndex(0);
-      return;
-    }
-
-    setSidebarFocusIndex(index =>
-      Math.min(Math.max(0, index), categories.length - 1),
-    );
-  }, [categories.length]);
-
-  // Keep the selected series valid after changing categories.
-  useEffect(() => {
-    if (filteredList.length === 0) {
-      setSelectedSerieId(null);
-      return;
-    }
-
-    const selectionStillExists = filteredList.some(
-      serie => String(serie.series_id) === selectedSerieId,
-    );
-
-    if (!selectionStillExists) {
-      setSelectedSerieId(String(filteredList[0].series_id));
-    }
-  }, [filteredList, selectedSerieId]);
-
-  // Reset the navigation guard when returning to Series.
+  // Reset navigation guard and handle Back while this screen is active.
   useFocusEffect(
     useCallback(() => {
       navigatingToSerieRef.current = false;
-      return undefined;
-    }, []),
+
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+                  console.log(" [BACK TEST] from SerieScreen")
+
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('Main');
+          }
+
+          return true;
+        },
+      );
+
+      return () => {
+        subscription.remove();
+      };
+    }, [navigation]),
   );
 
-  // Handle hardware Back only while this screen is active.
-  useEffect(() => {
-    if (!isScreenFocused) {
-      return;
-    }
-
-    const subscription = BackHandler.addEventListener(
-      'hardwareBackPress',
-      () => {
-        if (!isScreenFocused) {
-          return false;
-        }
-
-        if (navigation.canGoBack()) {
-          navigation.goBack();
-        } else {
-          navigation.navigate('Main');
-        }
-
-        return true;
-      },
-    );
-
-    return () => subscription.remove();
-  }, [isScreenFocused, navigation]);
-
+  // Category selection.
   const handleCategorySelect = useCallback((categoryId: string) => {
     setSelectedCategory(categoryId);
-    setSelectedSerieId(null);
-
-    // Keep the logical zone aligned with native focus.
-    // The first series card's onFocus will switch the zone to "grid".
-    setFocusZone('sidebar');
   }, []);
 
+  // Open series details.
   const handleSeriePress = useCallback(
     (serie?: SeriesWithInfo) => {
       if (!serie || navigatingToSerieRef.current) {
@@ -173,6 +133,7 @@ const SeriesScreen: React.FC = () => {
       }
 
       const serieId = String(serie.series_id);
+
       const serieStillExists = filteredList.some(
         item => String(item.series_id) === serieId,
       );
@@ -181,91 +142,43 @@ const SeriesScreen: React.FC = () => {
         console.warn('[SeriesScreen] Series is not in the current list', {
           serieId,
         });
+
         return;
       }
 
       navigatingToSerieRef.current = true;
-      setSelectedSerieId(serieId);
 
       navigation.navigate('SerieDetail', { serie });
     },
     [filteredList, navigation],
   );
 
-  useTVEventHandler({
-    onBack: () => {
-      if (!isScreenFocused) {
-        return;
-      }
-
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Main');
-      }
-    },
-
-    onSelect: () => {
-      if (!isScreenFocused || navigatingToSerieRef.current) {
-        return;
-      }
-
-      if (focusZone === 'sidebar') {
-        const category = categories[sidebarFocusIndex];
-
-        if (category) {
-          handleCategorySelect(category.category_id);
-        } else {
-          console.warn(
-            '[SeriesScreen] No category at the focused index',
-            sidebarFocusIndex,
-          );
-        }
-
-        return;
-      }
-
-      if (!selectedSerieId) {
-        return;
-      }
-
-      const serie = filteredList.find(
-        item => String(item.series_id) === selectedSerieId,
-      );
-
-      if (serie) {
-        handleSeriePress(serie);
-      }
-    },
-  });
-
+  // Grid layout
   const numColumns = layout.numColumns;
   const cardWidth = layout.cardWidth;
+  const sidebarWidth = layout.sidebarWidth;
+  const gridGap = layout.gridGap;
 
+  const cardStyle = useMemo(
+    () => ({ width: cardWidth, margin: layout.isTV ? spacing.xs : 0 }),
+    [cardWidth],
+  );
+
+  // Render each series card.
   const renderItem = useCallback(
     ({ item }: { item: SeriesWithInfo }) => {
-      const serieId = String(item.series_id);
-      const isSelected = selectedSerieId === serieId;
-
       return (
         <Card
           title={item.name}
           image={
-            item?.cover ?? (item?.backdrop_path ? item?.backdrop_path[0] : '')
+            item?.cover ?? (item?.backdrop_path ? item.backdrop_path[0] : '')
           }
-          style={{ width: cardWidth }}
-          focused={focusZone === 'grid' && isSelected}
-          onFocus={() => {
-            setSelectedSerieId(serieId);
-            setFocusZone('grid');
-          }}
-          // On TV, TVEventHandler is the only Select handler.
-          // On touch devices, Card handles the press.
-          onPress={Platform.isTV ? undefined : () => handleSeriePress(item)}
+          style={cardStyle}
+          onPress={() => handleSeriePress(item)}
         />
       );
     },
-    [focusZone, selectedSerieId, cardWidth, handleSeriePress],
+    [layout.cardWidth, handleSeriePress],
   );
 
   if (!profile) {
@@ -281,6 +194,7 @@ const SeriesScreen: React.FC = () => {
       <LinearGradient colors={colors.gradients.dark} style={styles.background}>
         <View style={styles.header}>
           <Text style={styles.title}>Series</Text>
+
           <Text style={styles.subtitle}>
             {filteredList.length} serie
             {filteredList.length !== 1 ? 's' : ''}
@@ -293,12 +207,7 @@ const SeriesScreen: React.FC = () => {
             categories={categories}
             selectedId={selectedCategoryId}
             onSelect={handleCategorySelect}
-            focusedIndex={sidebarFocusIndex}
-            onFocusChange={index => {
-              setSidebarFocusIndex(index);
-              setFocusZone('sidebar');
-            }}
-            focusInSidebar={focusZone === 'sidebar'}
+            sidebarWidth={{ width: sidebarWidth }}
           />
 
           <View style={styles.content}>
@@ -307,14 +216,22 @@ const SeriesScreen: React.FC = () => {
                 data={filteredList}
                 renderItem={renderItem}
                 keyExtractor={item => String(item.series_id)}
-                numColumns={numColumns}
+                numColumns={layout.numColumns}
                 contentContainerStyle={styles.list}
-                columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
-                key={numColumns}
-                initialNumToRender={numColumns * 4}
-                maxToRenderPerBatch={numColumns * 3}
+                columnWrapperStyle={
+                  numColumns > 1 ? { gap: gridGap } : undefined
+                }
+                key={layout.numColumns}
+                initialNumToRender={layout.numColumns * 4}
+                maxToRenderPerBatch={layout.numColumns * 3}
                 windowSize={7}
                 removeClippedSubviews={false}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>No series found.</Text>
+                  </View>
+                }
               />
             </TVFocusGuideView>
           </View>
@@ -328,19 +245,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+
   background: {
     flex: 1,
   },
+
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
   },
+
   loadingText: {
     ...typography.body,
     color: colors.textSecondary,
   },
+
   header: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -349,32 +270,49 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.sm,
   },
+
   title: {
     ...typography.h1,
     color: colors.text,
   },
+
   subtitle: {
     ...typography.bodySmall,
     color: colors.textSecondary,
   },
+
   body: {
     flex: 1,
     flexDirection: 'row',
+    padding: 0,
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
+    alignItems: 'center',
+    padding: 0,
   },
   focusGuide: {
+    width: '100%',
+    padding: 0,
     flex: 1,
+    alignItems: 'center',
   },
   list: {
+    width: '100%',
     paddingBottom: spacing.xxl,
   },
-  row: {
-    justifyContent: 'flex-start',
-    gap: spacing.md,
+
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+  },
+
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
 });
 

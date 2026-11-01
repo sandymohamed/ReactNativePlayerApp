@@ -1,23 +1,23 @@
-import React, { useState } from 'react';
+import React, { memo, useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Text,
   ViewStyle,
   StyleProp,
 } from 'react-native';
+
 import LinearGradient from 'react-native-linear-gradient';
-import { spacing } from '../theme/spacing';
 import FastImage from 'react-native-fast-image';
 import { SvgUri } from 'react-native-svg';
+import { spacing } from '../theme/spacing';
 
 interface CardProps {
   title?: string;
   image?: string;
   onPress?: () => void;
   onFocus?: () => void;
-
   focused?: boolean;
   style?: StyleProp<ViewStyle>;
   subtitle?: string;
@@ -27,7 +27,7 @@ interface CardProps {
 const Card: React.FC<CardProps> = ({
   title,
   image,
-  onPress: handlePress,
+  onPress,
   onFocus,
   focused = false,
   style,
@@ -38,38 +38,40 @@ const Card: React.FC<CardProps> = ({
 
   const isFocused = focused || nativeFocused;
   const isLive = badge?.toUpperCase() === 'LIVE';
+
+  const handleFocus = useCallback(() => {
+    setNativeFocused(true);
+    onFocus?.();
+  }, [onFocus]);
+
+  const handleBlur = useCallback(() => {
+    setNativeFocused(false);
+  }, []);
+
   return (
-    <TouchableOpacity
-      onBlur={() => setNativeFocused(false)}
-      onPress={() => {
-        console.log('[CARD] onPress:', title);
-        handlePress?.();
-      }}
-      onFocus={() => {
-        setNativeFocused(true);
-        onFocus?.();
-      }}
-      activeOpacity={0.82}
+    <Pressable
+      focusable
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onPress={onPress}
       style={[styles.container, style, isFocused && styles.focused]}
       accessibilityRole="button"
       accessibilityLabel={[title, subtitle, badge].filter(Boolean).join(', ')}
       accessibilityState={{ selected: isFocused }}>
       <View style={styles.posterWrapper}>
         {image ? (
-          <>
-            {image?.toLowerCase().split('?')[0].endsWith('.svg') ? (
-              <SvgUri uri={image} width="100%" height="100%" />
-            ) : (
-              <FastImage
-                source={{
-                  uri: image,
-                  priority: FastImage.priority.normal,
-                }}
-                style={styles.poster}
-                resizeMode={FastImage.resizeMode.cover}
-              />
-            )}
-          </>
+          image.toLowerCase().split('?')[0].endsWith('.svg') ? (
+            <SvgUri uri={image} width="100%" height="100%" />
+          ) : (
+            <FastImage
+              source={{
+                uri: image,
+                priority: FastImage.priority.normal,
+              }}
+              style={styles.poster}
+              resizeMode={FastImage.resizeMode.cover}
+            />
+          )
         ) : (
           <View style={styles.placeholder}>
             <Text style={styles.placeholderLetter}>
@@ -94,20 +96,12 @@ const Card: React.FC<CardProps> = ({
             style={[
               styles.badge,
               isLive ? styles.liveBadge : styles.defaultBadge,
-            ]}>
+            ]}
+            pointerEvents="none">
             {isLive && <View style={styles.liveDot} />}
             <Text style={styles.badgeText}>{badge}</Text>
           </View>
         ) : null}
-
-        {/* <View
-          style={[
-            styles.playButton,
-            focused && styles.playButtonFocused,
-          ]}
-          pointerEvents="none">
-          <Text style={styles.playIcon}>▶</Text>
-        </View> */}
 
         {(title || subtitle) && (
           <View style={styles.posterInfo} pointerEvents="none">
@@ -125,7 +119,7 @@ const Card: React.FC<CardProps> = ({
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -142,11 +136,7 @@ const styles = StyleSheet.create({
   focused: {
     transform: [{ scale: 1.04 }],
     borderColor: '#7C6CF6',
-    shadowColor: '#7C6CF6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    borderWidth: 2,
   },
 
   posterWrapper: {
@@ -158,6 +148,7 @@ const styles = StyleSheet.create({
 
   poster: {
     ...StyleSheet.absoluteFillObject,
+    borderRadius: 15,
     width: '100%',
     height: '100%',
   },
@@ -213,31 +204,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
 
-  playButton: {
-    position: 'absolute',
-    alignSelf: 'center',
-    top: '40%',
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(124,108,246,0.92)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  playButtonFocused: {
-    backgroundColor: 'rgba(124,108,246,1)',
-    transform: [{ scale: 1.08 }],
-  },
-
-  playIcon: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    marginLeft: 3,
-  },
-
   posterInfo: {
     position: 'absolute',
     left: 10,
@@ -259,4 +225,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Card;
+export default memo(Card);

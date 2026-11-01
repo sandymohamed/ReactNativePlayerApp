@@ -43,43 +43,43 @@ const MovieDetailScreen: React.FC = () => {
     if (listVodFav.includes(streamId)) {
       let arr = arrayFav.filter(el => el !== streamId);
       console.log('arr : ', arr);
-      profile ? deleterow(streamId, 'serie', profile) : null;
+      profile ? deleterow(streamId, 'movie', profile) : null;
 
       changeListVodFav(arr);
     } else {
       arrayFav.push(streamId);
       console.log('arrayFav : ', arrayFav);
-      profile ? insertData(streamId, 'serie', profile) : null;
+      profile ? insertData(streamId, 'movie', profile) : null;
       changeListVodFav(arrayFav);
     }
     setIsFav(isFav => !isFav);
   };
 
-  // useEffect(() => {
-  //   console.log('MovieDetailScreen: movie =', movie);
-  //   /**
-  //    * replace this with   useTVEventHandler({
-  //        onBack: () => {
-  //    */
-  //   const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-  //     console.log('baaaaaaaaaaack');
-  //     navigation.goBack();
-  //     return true;
-  //   });
-  //   return () => sub.remove();
-  // }, [navigation]);
+  useEffect(() => {
+    console.log('MovieDetailScreen: movie =', movie);
+    /**
+     * replace this with   useTVEventHandler({
+         onBack: () => {
+     */
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      console.log('baaaaaaaaaaack');
+      navigation.goBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [navigation]);
 
   useEffect(() => {
     setIsFav(listVodFav.includes(String(movie?.stream_id)));
   }, [listVodFav, movie?.stream_id]);
 
   useTVEventHandler({
-    onBack: () => {
-      if (!isScreenFocused) return;
+    // onBack: () => {
+    //   if (!isScreenFocused) return;
 
-      console.log('[MovieDetail] Back');
-      navigation.goBack();
-    },
+    //   console.log('[MovieDetail] Back');
+    //   navigation.goBack();
+    // },
 
     onSelect: () => {
       if (!isScreenFocused) return;

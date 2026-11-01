@@ -1,18 +1,14 @@
+import React, { memo, useCallback, useRef, useState } from 'react';
 
-import React, {
-  useRef,
-  useEffect,
-  useCallback,
-  useState,
-} from 'react';
 import {
   View,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   type ListRenderItemInfo,
   FlatList,
-  Platform,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
 
 import { colors } from '../theme/colors';
@@ -27,81 +23,67 @@ export type CategoryItem = {
 interface CategoryRowProps {
   item: CategoryItem;
   selected: boolean;
-  focusedIndex: number;
   index: number;
-  useNativeFocus: boolean;
   onSelect: (categoryId: string) => void;
   onFocusChange?: (index: number) => void;
 }
 
 const ROW_HEIGHT = 52;
 
-const CategoryRow: React.FC<CategoryRowProps> = ({
-  item,
-  selected,
-  focusedIndex,
-  index,
-  useNativeFocus,
-  onSelect,
-  onFocusChange,
-}) => {
-  const [nativeFocused, setNativeFocused] = useState(false);
+const CategoryRow: React.FC<CategoryRowProps> = memo(
+  ({ item, selected, index, onSelect, onFocusChange }) => {
+    const [nativeFocused, setNativeFocused] = useState(false);
 
-  const isFocused = useNativeFocus
-    ? nativeFocused
-    : focusedIndex === index;
+    const handleFocus = useCallback(() => {
+      setNativeFocused(true);
+      onFocusChange?.(index);
+    }, [index, onFocusChange]);
 
-  return (
-    <TouchableOpacity
-      style={[
-        styles.item,
-        selected && styles.itemSelected,
-        isFocused && styles.itemFocused,
-      ]}
-      onFocus={() => {
-        setNativeFocused(true);
-        onFocusChange?.(index);
-      }}
-      onBlur={() => setNativeFocused(false)}
-      onPress={
-        Platform.isTV
-          ? undefined
-          : () => {
-              onSelect(item.category_id);
-              onFocusChange?.(index);
-            }
-      }
-      activeOpacity={0.8}
-      accessibilityRole="button"
-      accessibilityLabel={item.category_name}
-      accessibilityState={{ selected }}
-    >
-      {isFocused && <View style={styles.itemAccent} />}
+    const handleBlur = useCallback(() => {
+      setNativeFocused(false);
+    }, []);
 
-      <Text
+    const handlePress = useCallback(() => {
+      onSelect(item.category_id);
+    }, [item.category_id, onSelect]);
+
+    return (
+      <Pressable
+        focusable
         style={[
-          styles.itemText,
-          selected && styles.itemTextSelected,
-          isFocused && styles.itemTextFocused,
+          styles.item,
+          selected && styles.itemSelected,
+          nativeFocused && styles.itemFocused,
         ]}
-        numberOfLines={1}
-      >
-        {item.category_name}
-      </Text>
-    </TouchableOpacity>
-  );
-};
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onPress={handlePress}
+        accessibilityRole="button"
+        accessibilityLabel={item.category_name}
+        accessibilityState={{ selected }}>
+        {nativeFocused && <View style={styles.itemAccent} />}
+
+        <Text
+          style={[
+            styles.itemText,
+            selected && styles.itemTextSelected,
+            nativeFocused && styles.itemTextFocused,
+          ]}
+          numberOfLines={1}>
+          {item.category_name}
+        </Text>
+      </Pressable>
+    );
+  },
+);
 
 interface CategorySidebarProps {
   title: string;
   categories: CategoryItem[];
   selectedId: string;
   onSelect: (categoryId: string) => void;
-  focusedIndex: number;
   onFocusChange?: (index: number) => void;
-  focusInSidebar?: boolean;
-  listRef?: React.RefObject<FlatList<CategoryItem> | null>;
-  useNativeFocus?: boolean;
+  sidebarWidth: StyleProp<ViewStyle>;
 }
 
 const CategorySidebar: React.FC<CategorySidebarProps> = ({
@@ -109,35 +91,24 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
   categories,
   selectedId,
   onSelect,
-  focusedIndex,
   onFocusChange,
-  focusInSidebar = true,
-  listRef: externalListRef,
-  useNativeFocus = false,
+  sidebarWidth,
 }) => {
-  const internalListRef = useRef<FlatList<CategoryItem>>(null);
-  const listRef = externalListRef ?? internalListRef;
 
-  const safeFocusIndex =
-    categories.length === 0
-      ? 0
-      : Math.min(Math.max(0, focusedIndex), categories.length - 1);
+  const listRef = useRef<FlatList<CategoryItem>>(null);
 
-  useEffect(() => {
-    if (
-      categories.length === 0 ||
-      safeFocusIndex < 0 ||
-      safeFocusIndex >= categories.length
-    ) {
-      return;
-    }
+  const handleRowFocus = useCallback(
+    (index: number) => {
+      listRef.current?.scrollToIndex({
+        index,
+        animated: false,
+        viewPosition: 0.5,
+      });
 
-    listRef.current?.scrollToIndex({
-      index: safeFocusIndex,
-      animated: false,
-      viewPosition: 0.5,
-    });
-  }, [safeFocusIndex, categories.length, listRef]);
+      onFocusChange?.(index);
+    },
+    [listRef, onFocusChange],
+  );
 
   const renderItem = useCallback(
     ({ item, index }: ListRenderItemInfo<CategoryItem>) => (
@@ -145,23 +116,15 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
         item={item}
         index={index}
         selected={selectedId === item.category_id}
-        focusedIndex={safeFocusIndex}
-        useNativeFocus={useNativeFocus}
         onSelect={onSelect}
-        onFocusChange={onFocusChange}
+        onFocusChange={handleRowFocus}
       />
     ),
-    [
-      selectedId,
-      safeFocusIndex,
-      useNativeFocus,
-      onSelect,
-      onFocusChange,
-    ],
+    [selectedId, onSelect, handleRowFocus],
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[sidebarWidth, styles.container]}>
       <Text style={styles.title}>{title}</Text>
 
       <FlatList
@@ -169,11 +132,6 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
         data={categories}
         renderItem={renderItem}
         keyExtractor={item => String(item.category_id)}
-        extraData={{
-          selectedId,
-          focusedIndex: safeFocusIndex,
-          focusInSidebar,
-        }}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator
         getItemLayout={(_, index) => ({
@@ -199,7 +157,7 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    width: 200,
+    // width: 200,
     backgroundColor: colors.backgroundSecondary,
     borderRightWidth: 1,
     borderRightColor: colors.border,
@@ -232,7 +190,6 @@ const styles = StyleSheet.create({
   },
   itemFocused: {
     backgroundColor: colors.backgroundTertiary,
-    borderColor: colors.borderLight,
   },
   itemAccent: {
     position: 'absolute',
@@ -257,4 +214,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CategorySidebar;
+export default memo(CategorySidebar);

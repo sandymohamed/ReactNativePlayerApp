@@ -1,10 +1,11 @@
 import React, {
   useState,
   useEffect,
-  useRef,
   useMemo,
   useCallback,
+  useRef,
 } from 'react';
+
 import {
   View,
   StyleSheet,
@@ -14,11 +15,13 @@ import {
   Platform,
   TVFocusGuideView,
 } from 'react-native';
+
 import {
   useNavigation,
   useFocusEffect,
   useIsFocused,
 } from '@react-navigation/native';
+
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 
@@ -26,19 +29,23 @@ import { useGlobalContext } from '../context/GlobalContext';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
+
 import Card from '../components/Card';
 import CategorySidebar, {
   type CategoryItem,
 } from '../components/CategorySidebar';
+
 import { useLandscapeLayout } from '../utils/layout';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Stream } from '../models/model';
-import { useTVEventHandler } from '../hooks/useTVEventHandler';
+import { vods } from '@/context/arrays';
 
 type MoviesScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'Movies'
 >;
+
+type FocusZone = 'sidebar' | 'grid';
 
 const MoviesScreen: React.FC = () => {
   const navigation = useNavigation<MoviesScreenNavigationProp>();
@@ -46,19 +53,16 @@ const MoviesScreen: React.FC = () => {
 
   const { profile, listVod, listVodFav, listVodRecent, catVod } =
     useGlobalContext();
-  useEffect(() => {
-    console.log('listVod', listVod[0]);
-  }, [listVod]);
 
   const layout = useLandscapeLayout();
 
-  const [sidebarFocusIndex, setSidebarFocusIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null);
-  const [focusZone, setFocusZone] = useState<'sidebar' | 'grid'>('grid');
+
+  const [focusZone, setFocusZone] = useState<FocusZone>('grid');
 
   const navigatingToMovieRef = useRef(false);
 
+  // Categories
   const categories: CategoryItem[] = useMemo(() => {
     const raw = (catVod || []) as {
       category_id?: string;
@@ -74,6 +78,7 @@ const MoviesScreen: React.FC = () => {
   const selectedCategoryId =
     selectedCategory ?? categories[0]?.category_id ?? '0';
 
+  // Filter movies
   const filteredList = useMemo(() => {
     if (!listVod.length) {
       return [];
@@ -100,187 +105,114 @@ const MoviesScreen: React.FC = () => {
     );
   }, [listVod, listVodFav, listVodRecent, selectedCategoryId]);
 
-  useEffect(() => {
-    if (categories.length === 0) {
-      setSidebarFocusIndex(0);
-      return;
-    }
-
-    setSidebarFocusIndex(index =>
-      Math.min(Math.max(0, index), categories.length - 1),
-    );
-  }, [categories.length]);
-
-  // Keep the selected movie valid after changing categories.
-  useEffect(() => {
-    if (filteredList.length === 0) {
-      setSelectedMovieId(null);
-      return;
-    }
-
-    const selectionStillExists = filteredList.some(
-      movie => String(movie.stream_id) === selectedMovieId,
-    );
-
-    if (!selectionStillExists) {
-      setSelectedMovieId(String(filteredList[0].stream_id));
-    }
-  }, [filteredList, selectedMovieId]);
-
-  // Reset the navigation guard when returning to Movies.
+  // Reset navigation guard when returning to Movies
   useFocusEffect(
     useCallback(() => {
       navigatingToMovieRef.current = false;
-
-      return undefined;
     }, []),
   );
 
-  // Handle hardware Back only while this screen is active.
-  useEffect(() => {
-    if (!isScreenFocused) {
-      return;
-    }
+  // Handle hardware / TV Back
+  // useEffect(() => {
+  //   if (!isScreenFocused) {
+  //     return;
+  //   }
 
-    const subscription = BackHandler.addEventListener(
-      'hardwareBackPress',
-      () => {
-        if (!isScreenFocused) {
-          return false;
-        }
+  //   const subscription = BackHandler.addEventListener(
+  //     'hardwareBackPress',
+  //     () => {
+  //               console.log(" [BACK TEST] from MoviesScreeen")
 
-        if (navigation.canGoBack()) {
-          navigation.goBack();
-        } else {
-          navigation.navigate('Main');
-        }
+  //       if (!isScreenFocused) {
+  //         return false;
+  //       }
 
-        return true;
-      },
-    );
+  //       if (navigation.canGoBack()) {
+  //         navigation.goBack();
+  //       } else {
+  //         navigation.navigate('Main');
+  //       }
 
-    return () => subscription.remove();
-  }, [isScreenFocused, navigation]);
+  //       return true;
+  //     },
+  //   );
 
+  //   return () => subscription.remove();
+  // }, [isScreenFocused, navigation]);
+
+
+
+  useFocusEffect(
+  useCallback(() => {
+    const onBackPress = () => {
+      console.log("🎯 [SUCCESS] BACK PRESSED INSIDE MOVIES SCREEN");
+
+      if (navigation.canGoBack()) {
+        navigation.goBack(); 
+      } else {
+        navigation.navigate('Main');
+      }
+      return true;
+    };
+
+    // إعداد المستمع
+    BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+    // تنظيف المستمع عند الخروج
+    return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+  }, [navigation])
+);
+
+  // Change category
   const handleCategorySelect = useCallback((categoryId: string) => {
     setSelectedCategory(categoryId);
-    setSelectedMovieId(null);
-
-    // Keep the logical zone aligned with native focus.
-    // The first movie's onFocus will switch the zone to "grid".
-    setFocusZone('sidebar');
   }, []);
 
+  // Focus zone handlers
+  const handleSidebarFocus = useCallback(() => {
+    setFocusZone(current => (current === 'sidebar' ? current : 'sidebar'));
+  }, []);
+
+  const handleGridFocus = useCallback(() => {
+    setFocusZone(current => (current === 'grid' ? current : 'grid'));
+  }, []);
+
+  // Open movie
   const handleMoviePress = useCallback(
-    (movie?: Stream) => {
+    (movie: Stream) => {
       if (!movie || navigatingToMovieRef.current) {
         return;
       }
 
-      const movieId = String(movie.stream_id);
-
-      const movieStillExists = filteredList.some(
-        item => String(item.stream_id) === movieId,
-      );
-
-      if (!movieStillExists) {
-        console.warn('[MoviesScreen] Movie is not in the current list', {
-          movieId,
-        });
-        return;
-      }
-
       navigatingToMovieRef.current = true;
-      setSelectedMovieId(movieId);
-
-      console.log('[MoviesScreen] Opening movie', {
-        movieId,
-        title: movie.name,
-      });
 
       navigation.navigate('MovieDetail', { movie });
     },
-    [filteredList, navigation],
+    [navigation],
   );
 
-  useTVEventHandler({
-    onBack: () => {
-      if (!isScreenFocused) {
-        return;
-      }
-
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.navigate('Main');
-      }
-    },
-
-    onSelect: () => {
-      if (!isScreenFocused || navigatingToMovieRef.current) {
-        return;
-      }
-
-      console.log('[MoviesScreen] TV Select', {
-        focusZone,
-        sidebarFocusIndex,
-        selectedMovieId,
-      });
-
-      if (focusZone === 'sidebar') {
-        const category = categories[sidebarFocusIndex];
-
-        if (category) {
-          handleCategorySelect(category.category_id);
-        } else {
-          console.warn(
-            '[MoviesScreen] No category at the focused index',
-            sidebarFocusIndex,
-          );
-        }
-
-        return;
-      }
-
-      if (!selectedMovieId) {
-        return;
-      }
-
-      const movie = filteredList.find(
-        item => String(item.stream_id) === selectedMovieId,
-      );
-
-      if (movie) {
-        handleMoviePress(movie);
-      }
-    },
-  });
-
+  // Grid layout
   const numColumns = layout.numColumns;
   const cardWidth = layout.cardWidth;
+  const sidebarWidth = layout.sidebarWidth;
+  const gridGap = layout.gridGap;
 
+  const cardStyle = useMemo(
+    () => ({ width: cardWidth, margin: layout.isTV ? spacing.xs : 0 }),
+    [cardWidth],
+  );
+  // Render movie
   const renderItem = useCallback(
-    ({ item, index }: { item: Stream; index: number }) => {
-      const movieId = String(item.stream_id);
-      const isSelected = selectedMovieId === movieId;
-
-      return (
-        <Card
-          title={item.name}
-          image={item?.cover ?? item?.stream_icon }
-          style={{ width: cardWidth }}
-          focused={focusZone === 'grid' && isSelected}
-          onFocus={() => {
-            setSelectedMovieId(movieId);
-            setFocusZone('grid');
-          }}
-          // On TV, TVEventHandler is the only Select handler.
-          // On touch devices, Card handles the press.
-          onPress={Platform.isTV ? undefined : () => handleMoviePress(item)}
-        />
-      );
-    },
-    [focusZone, selectedMovieId, cardWidth, handleMoviePress],
+    ({ item }: { item: Stream }) => (
+      <Card
+        title={item.name}
+        image={item?.cover ?? item?.stream_icon}
+        style={cardStyle}
+        onFocus={handleGridFocus}
+        onPress={() => handleMoviePress(item)}
+      />
+    ),
+    [cardStyle, handleGridFocus, handleMoviePress],
   );
 
   if (!profile) {
@@ -296,6 +228,7 @@ const MoviesScreen: React.FC = () => {
       <LinearGradient colors={colors.gradients.dark} style={styles.background}>
         <View style={styles.header}>
           <Text style={styles.title}>Movies</Text>
+
           <Text style={styles.subtitle}>
             {filteredList.length} movie
             {filteredList.length !== 1 ? 's' : ''}
@@ -308,12 +241,8 @@ const MoviesScreen: React.FC = () => {
             categories={categories}
             selectedId={selectedCategoryId}
             onSelect={handleCategorySelect}
-            focusedIndex={sidebarFocusIndex}
-            onFocusChange={index => {
-              setSidebarFocusIndex(index);
-              setFocusZone('sidebar');
-            }}
-            focusInSidebar={focusZone === 'sidebar'}
+            onFocusChange={handleSidebarFocus}
+            sidebarWidth={{ width: sidebarWidth }}
           />
 
           <View style={styles.content}>
@@ -324,7 +253,9 @@ const MoviesScreen: React.FC = () => {
                 keyExtractor={item => String(item.stream_id)}
                 numColumns={numColumns}
                 contentContainerStyle={styles.list}
-                columnWrapperStyle={numColumns > 1 ? styles.row : undefined}
+                columnWrapperStyle={
+                  numColumns > 1 ? { gap: gridGap } : undefined
+                }
                 key={numColumns}
                 initialNumToRender={numColumns * 4}
                 maxToRenderPerBatch={numColumns * 3}
@@ -375,21 +306,23 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     flexDirection: 'row',
+    padding: 0,
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
+    alignItems: 'center',
+    padding: 0,
   },
   focusGuide: {
+    width: '100%',
+    padding: 0,
     flex: 1,
+    alignItems: 'center',
   },
   list: {
+    width: '100%',
     paddingBottom: spacing.xxl,
-  },
-  row: {
-    justifyContent: 'flex-start',
-    gap: spacing.md,
   },
 });
 

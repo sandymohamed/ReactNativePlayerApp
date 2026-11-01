@@ -43,7 +43,7 @@ const SerieDetailScreen: React.FC = () => {
   const [serie, setSerie] = useState<SerieInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const wide = width >= 800;
-  const seasonCardWidth = wide ? 260 : 200;
+  const seasonCardWidth = wide ? 220 : 200;
 
   const [isFav, setIsFav] = useState<boolean>(false);
   const [focusedButton, setFocusedButton] = useState<'fav' | 'play'>('fav');
@@ -92,22 +92,11 @@ const SerieDetailScreen: React.FC = () => {
     },
 
     onSelect: () => {
-      if (focusedButton === 'fav') {
-        // handlePressFav();
-        console.log('faaaaaav');
-      } else if (focusedButton === 'play' && focusedSeason) {
+      if (focusedButton === 'play' && focusedSeason) {
         handleSeasonPress(focusedSeason);
       }
     },
   });
-
-  // useEffect(() => {
-  //   const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-  //     navigation.goBack();
-  //     return true;
-  //   });
-  //   return () => sub.remove();
-  // }, [navigation]);
 
   const loadSerieDetails = async () => {
     if (!profile || !routeSerie) return;
@@ -343,9 +332,9 @@ const styles = StyleSheet.create({
   },
   favoriteIcon: {
     fontSize: 22,
-    // color: colors.primaryDark,
   },
   seasonsContainer: {
+    margin: spacing.md,
     marginTop: spacing.xl,
   },
   sectionTitle: {
@@ -354,6 +343,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   seasonCard: {
+    margin: spacing.sm,
     marginRight: spacing.md,
     borderWidth: 1,
     borderRadius: borderRadius.md,

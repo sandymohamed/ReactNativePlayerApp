@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { BackHandler, Text, View } from 'react-native';
+import { BackHandler } from 'react-native';
 import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -50,21 +50,65 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// const HomeScreenWithBackBlock = () => {
+//   useFocusEffect(
+//     useCallback(() => {
+//       const subscription = BackHandler.addEventListener(
+//         'hardwareBackPress',
+//         () => true,
+//       );
+
+//       console.log( 'hardwareBackPress')
+//       return () => subscription.remove();
+//     }, []),
+//   );
+
+//   return <HomeScreen />;
+// };
+
+
+
 const HomeScreenWithBackBlock = () => {
   useFocusEffect(
     useCallback(() => {
+      console.log('[BACK TEST] Home screen focused');
+
       const subscription = BackHandler.addEventListener(
         'hardwareBackPress',
-        () => true,
+        () => {
+          console.log('[BACK TEST] Back event received on Home');
+          return true;
+        },
       );
 
-      console.log( 'hardwareBackPress')
-      return () => subscription.remove();
+      return () => {
+        console.log('[BACK TEST] Home screen blurred');
+        subscription.remove();
+      };
     }, []),
   );
 
   return <HomeScreen />;
 };
+
+const MainScreenWithBackBlock = () => {
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          console.log('Back pressed on Main - blocked');
+          return true;
+        },
+      );
+
+      return () => subscription.remove();
+    }, []),
+  );
+
+  return <MainScreen />;
+};
+
 
 const AppNavigator = () => {
   const { isAppReady, hasCachedData, profile } = useGlobalContext();
@@ -80,18 +124,28 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator
+        <Stack.Navigator
+        initialRouteName="Home" 
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}>
+      {/* <Stack.Navigator
         key={profile && hasCachedData ? 'main' : 'home'}
         initialRouteName={profile && hasCachedData ? 'Main' : 'Home'}
         // initialRouteName="Home"
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
-        }}>
+        }}> */}
         <Stack.Screen name="Home" component={HomeScreenWithBackBlock} />
-        <Stack.Screen name="Main" component={MainScreen} />
+        {/* <Stack.Screen name="Main" component={MainScreen} /> */}
+        <Stack.Screen
+  name="Main"
+  component={MainScreenWithBackBlock}
+/>
         <Stack.Screen name="Movies" component={MoviesScreen} />
-        <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />
+        {/* <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />
         <Stack.Screen name="Series" component={SeriesScreen} />
         <Stack.Screen name="SerieDetail" component={SerieDetailScreen} />
         <Stack.Screen name="Live" component={LiveScreen} />
@@ -101,7 +155,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Recent" component={RecentScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Category" component={CategoryScreen} />
-        <Stack.Screen name="Season" component={SeasonScreen} />
+        <Stack.Screen name="Season" component={SeasonScreen} /> */}
       </Stack.Navigator>
     </NavigationContainer>
   );

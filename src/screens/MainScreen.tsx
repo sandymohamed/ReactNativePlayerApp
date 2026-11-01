@@ -206,6 +206,7 @@ const MainScreen: React.FC = () => {
 
     const p = profile as any;
     console.log('profile from mainScreen in getProfileCacheId:', p);
+    console.log('catLive:', catLive);
 
     return String(
       p.id ??
@@ -496,6 +497,7 @@ const MainScreen: React.FC = () => {
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
+        console.log(" [BACK TEST] from MainScreen")
         return false;
       },
     );
@@ -503,8 +505,7 @@ const MainScreen: React.FC = () => {
     return () => subscription.remove();
   }, [isScreenFocused]);
 
-  // Do not handle Select globally. TouchableOpacity onPress
-  // should be the single source of navigation actions.
+
   useTVEventHandler({
     onBack: () => {
       if (!isScreenFocused) return;

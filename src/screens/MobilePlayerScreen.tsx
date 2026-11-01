@@ -131,6 +131,8 @@ const PlayerScreen: React.FC = () => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
+                console.log(" [BACK TEST] from PlayerScreen")
+
         navigation.goBack();
         return true;
       },
