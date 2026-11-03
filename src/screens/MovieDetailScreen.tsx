@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   useNavigation,
   useRoute,
@@ -18,11 +18,13 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { useGlobalContext } from '../context/GlobalContext';
 import { deleterow, generateurlplayer, insertData } from '../utils/constants';
 import { colors } from '../theme/colors';
-import { spacing, borderRadius } from '../theme/spacing';
+import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import Button from '../components/Button';
 import FastImage from 'react-native-fast-image';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
+import BackButton from '../components/BackButton';
+import { useLandscapeLayout } from '../utils/layout';
 
 const MovieDetailScreen: React.FC = () => {
   const navigation =
@@ -32,6 +34,8 @@ const MovieDetailScreen: React.FC = () => {
   const route = useRoute();
   const isScreenFocused = useIsFocused();
   const { width, height } = useWindowDimensions();
+  const layout = useLandscapeLayout();
+
   const { movie } = route.params as any;
   const { profile, listVodFav, changeListVodFav } = useGlobalContext();
   const [isFav, setIsFav] = useState<boolean>(false);
@@ -85,9 +89,9 @@ const MovieDetailScreen: React.FC = () => {
       if (!isScreenFocused) return;
 
       console.log('[MovieDetail] Select:', focusedButton);
-      
+
       if (focusedButton === 'fav') {
-        console.log('[MovieDetail] [fav]:', );
+        console.log('[MovieDetail] [fav]:');
 
         // handlePressFav();
       } else if (focusedButton === 'play') {
@@ -116,9 +120,29 @@ const MovieDetailScreen: React.FC = () => {
 
   const contentBlock = (
     <View style={[styles.content, styles.contentWide]}>
-      <Text style={styles.title}>
-        {movieInfo.name || movie.name || 'Movie'}
-      </Text>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: layout.isTV ? spacing.lg : spacing.sm,
+            paddingBottom: layout.isTV ? spacing.sm : spacing.xs,
+          },
+        ]}>
+        <View
+          style={[
+            styles.headerTitle,
+            {
+              gap: layout.isTV ? spacing.md : 1,
+              marginBottom: layout.isTV ? spacing.lg : spacing.sm,
+            },
+          ]}>
+          <BackButton />
+
+          <Text style={styles.title}>
+            {movieInfo.name || movie.name || 'Movie'}
+          </Text>
+        </View>
+      </View>
       {movieInfo.plot && <Text style={styles.plot}>{movieInfo.plot}</Text>}
 
       <View style={styles.row}>
@@ -145,7 +169,7 @@ const MovieDetailScreen: React.FC = () => {
         title="Play"
         onFocus={() => setFocusedButton('play')}
         onPress={handlePlay}
-        style={styles.playButton}
+        style={  {  marginTop: layout.isTV ? spacing.xxl : spacing.lg,}}
       />
     </View>
   );
@@ -162,6 +186,11 @@ const MovieDetailScreen: React.FC = () => {
           <LinearGradient
             colors={colors.gradients.dark}
             style={[styles.backgroundWide, { opacity: 1 }]}>
+            <LinearGradient
+              colors={[colors.overlay, colors.background]}
+              style={[styles.overlayWide, { opacity: 1 }]}>
+              {contentBlock}
+            </LinearGradient>
             {cover && (
               <FastImage
                 source={{ uri: cover }}
@@ -169,11 +198,6 @@ const MovieDetailScreen: React.FC = () => {
                 resizeMode={FastImage.resizeMode.cover}
               />
             )}
-            <LinearGradient
-              colors={[colors.overlay, colors.background]}
-              style={[styles.overlayWide, { opacity: 1 }]}>
-              {contentBlock}
-            </LinearGradient>
           </LinearGradient>
         </FastImage>
       </LinearGradient>
@@ -216,9 +240,21 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.xl,
+    height: '100%',
   },
   contentWide: {
     padding: 0,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
+  },
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   title: {
     ...typography.h1,
@@ -258,9 +294,6 @@ const styles = StyleSheet.create({
   },
   favoriteIcon: {
     fontSize: 22,
-  },
-  playButton: {
-    marginTop: spacing.lg,
   },
 });
 

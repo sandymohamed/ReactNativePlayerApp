@@ -32,6 +32,8 @@ import Card from '../components/Card';
 
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Episode } from '../models/model';
+import BackButton from '../components/BackButton';
+import { useLandscapeLayout } from '../utils/layout';
 
 type SeasonScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -91,6 +93,7 @@ const SeasonScreen: React.FC = () => {
   const { profile, serie: contextSerie, changeSerie } = useGlobalContext();
 
   const { width } = useWindowDimensions();
+  const layout = useLandscapeLayout();
 
   const serie = contextSerie || routeSerie;
 
@@ -259,10 +262,21 @@ const SeasonScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <LinearGradient colors={colors.gradients.dark} style={styles.background}>
-        <View style={styles.header}>
-          <Text style={styles.title} numberOfLines={1}>
-            {serie?.info?.name || 'Series'} - Season {selectedSeason}
-          </Text>
+        <View
+          style={[
+            styles.header,
+            {
+              paddingTop: layout.isTV ? spacing.lg : spacing.sm,
+              paddingBottom: layout.isTV ? spacing.sm : spacing.xs,
+            },
+          ]}>
+          <View
+            style={[styles.headerTitle, { gap: layout.isTV ? spacing.md : 1 }]}>
+            <BackButton />
+            <Text style={styles.title} numberOfLines={1}>
+              {serie?.info?.name || 'Series'} - Season {selectedSeason}
+            </Text>
+          </View>
 
           {availableSeasons.length > 1 && (
             <View style={styles.seasonSelector}>
@@ -315,11 +329,14 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
+   header: {
 
-  header: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.xs,
+  },
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
   title: {

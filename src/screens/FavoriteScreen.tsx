@@ -4,10 +4,10 @@ import {
   StyleSheet,
   Text,
   FlatList,
-  TouchableOpacity,
   Image,
   ScrollView,
   StatusBar,
+  Pressable,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -21,6 +21,7 @@ import { useLandscapeLayout } from '../utils/layout';
 import { generateurlplayer } from '../utils/constants';
 import { getVideoPositions, getSeriePositions } from '../utils/storage';
 import { SvgUri } from 'react-native-svg';
+import BackButton from '../components/BackButton';
 
 type FavoriteTab = 'live' | 'movies' | 'series';
 
@@ -69,8 +70,6 @@ const FavoriteScreen: React.FC = () => {
   const [seriePositions, setSeriePositions] = useState<SeriesPositions>({});
   const [vodPositions, setVodPositions] = useState<VideoPositions>({});
 
-  const [focusedTab, setFocusedTab] = useState<FavoriteTab | null>(null);
-  const [focusedItemKey, setFocusedItemKey] = useState<string | null>(null);
 
   const numColumns = layout.numColumns;
   const cardWidth = layout.cardWidth;
@@ -289,89 +288,90 @@ const FavoriteScreen: React.FC = () => {
       const savedPosition = Number(savedEpisode?.position ?? 0);
 
       const itemKey = `${activeTab}-${getId(item, activeTab) || index}`;
-      const isFocused = focusedItemKey === itemKey;
 
       return (
-        <TouchableOpacity
-          key={itemKey}
-          activeOpacity={0.9}
-          onFocus={() => setFocusedItemKey(itemKey)}
-          onBlur={() => setFocusedItemKey(null)}
-          onPress={() => handleNavigateItem(item, routeType)}
-          style={[
-            styles.cardContainer,
-            isFocused && styles.focusedCard,
-            {
+        <View
+          style={{
+            margin: layout.isTV ? spacing.sm : 0,
+          }}>
+          <Pressable
+            focusable
+            key={itemKey}
+            onPress={() => handleNavigateItem(item, routeType)}
+            style={({ focused }) => ({
+              ...styles.cardContainer,
               width: cardWidth,
               marginRight: 12,
-            },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={`Open ${itemData.name || 'item'}`}>
-          <View
-            style={[
-              styles.posterWrapper,
-              isFocused && styles.posterWrapperFocused,
-            ]}>
-            {imageUri ? (
-              <>
-                {imageUri?.toLowerCase().split('?')[0].endsWith('.svg') ? (
-                  <SvgUri uri={imageUri} width="100%" height="100%" />
-                ) : (
-                  <Image
-                    source={{ uri: imageUri }}
-                    style={styles.poster}
-                    resizeMode="cover"
-                  />
-                )}
-              </>
-            ) : (
-              <View style={styles.posterPlaceholder}>
-                <Text style={styles.placeholderLetter}>
-                  {itemData.name?.charAt(0)?.toUpperCase() || '?'}
+              borderColor: focused ? colors.focus : 'transparent',
+              borderWidth: focused ? 2 : 0,
+              borderRadius: 15,
+              transform: focused ? [{ scale: 1.035 }] : [{ scale: 1.0 }],
+              zIndex: 6,
+              elevation: 8,
+            })}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${itemData.name || 'item'}`}>
+            <View style={[styles.posterWrapper]}>
+              {imageUri ? (
+                <>
+                  {imageUri?.toLowerCase().split('?')[0].endsWith('.svg') ? (
+                    <SvgUri uri={imageUri} width="100%" height="100%" />
+                  ) : (
+                    <Image
+                      source={{ uri: imageUri }}
+                      style={styles.poster}
+                      resizeMode="cover"
+                    />
+                  )}
+                </>
+              ) : (
+                <View style={styles.posterPlaceholder}>
+                  <Text style={styles.placeholderLetter}>
+                    {itemData.name?.charAt(0)?.toUpperCase() || '?'}
+                  </Text>
+                </View>
+              )}
+
+              <LinearGradient
+                colors={[
+                  'transparent',
+                  'rgba(10, 10, 15, 0.25)',
+                  'rgba(10, 10, 15, 0.95)',
+                ]}
+                style={styles.posterGradient}
+              />
+
+              {activeTab === 'live' && (
+                <View style={styles.liveBadge}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveBadgeText}>LIVE</Text>
+                </View>
+              )}
+
+              <View style={styles.playButton}>
+                <Text style={styles.playIcon}>▶</Text>
+              </View>
+
+              <View style={styles.posterInfo}>
+                <Text style={styles.posterTitle} numberOfLines={2}>
+                  {itemData.name || 'Untitled'}
+                </Text>
+
+                <Text style={styles.posterSubtitle} numberOfLines={1}>
+                  {activeTab === 'live'
+                    ? 'Live channel'
+                    : activeTab === 'movies'
+                      ? 'Movie'
+                      : hasSavedEpisode && savedPosition > 0
+                        ? `Continue · ${Math.floor(savedPosition / 60)}:${String(
+                            Math.floor(savedPosition % 60),
+                          ).padStart(2, '0')}`
+                        : 'TV Series'}
                 </Text>
               </View>
-            )}
-
-            <LinearGradient
-              colors={[
-                'transparent',
-                'rgba(10, 10, 15, 0.25)',
-                'rgba(10, 10, 15, 0.95)',
-              ]}
-              style={styles.posterGradient}
-            />
-
-            {activeTab === 'live' && (
-              <View style={styles.liveBadge}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveBadgeText}>LIVE</Text>
-              </View>
-            )}
-
-            <View style={styles.playButton}>
-              <Text style={styles.playIcon}>▶</Text>
             </View>
-
-            <View style={styles.posterInfo}>
-              <Text style={styles.posterTitle} numberOfLines={2}>
-                {itemData.name || 'Untitled'}
-              </Text>
-
-              <Text style={styles.posterSubtitle} numberOfLines={1}>
-                {activeTab === 'live'
-                  ? 'Live channel'
-                  : activeTab === 'movies'
-                    ? 'Movie'
-                    : hasSavedEpisode && savedPosition > 0
-                      ? `Continue · ${Math.floor(savedPosition / 60)}:${String(
-                          Math.floor(savedPosition % 60),
-                        ).padStart(2, '0')}`
-                      : 'TV Series'}
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
+          </Pressable>
+        </View>
       );
     },
     [
@@ -380,7 +380,6 @@ const FavoriteScreen: React.FC = () => {
       getId,
       handleNavigateItem,
       seriePositions,
-      focusedItemKey,
     ],
   );
 
@@ -416,17 +415,31 @@ const FavoriteScreen: React.FC = () => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}>
             {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.headerTextContainer}>
-                <Text style={styles.eyebrow}>YOUR COLLECTION</Text>
-                <Text style={styles.title}>Favorites</Text>
-                <Text style={styles.subtitle}>
-                  Your favorite entertainment, all in one place.
-                </Text>
-              </View>
 
-              <View style={styles.favoriteIconContainer}>
-                <Text style={styles.favoriteIcon}>♥</Text>
+            <View
+              style={[
+                styles.header,
+                {
+                  paddingTop: layout.isTV ? spacing.lg : spacing.sm,
+                  paddingBottom: layout.isTV ? spacing.sm : spacing.xs,
+                },
+              ]}>
+              <View
+                style={[
+                  styles.headerTitle,
+                  { gap: layout.isTV ? spacing.md : 1 },
+                ]}>
+                <BackButton />
+                <View style={styles.headerTextContainer}>
+                  <Text style={styles.eyebrow}>YOUR COLLECTION</Text>
+                  <Text style={styles.title}>Favorites</Text>
+                  <Text style={styles.subtitle}>
+                    Your favorite entertainment, all in one place.
+                  </Text>
+                </View>
+                <View style={styles.favoriteIconContainer}>
+                  <Text style={styles.favoriteIcon}>♥</Text>
+                </View>
               </View>
             </View>
 
@@ -436,18 +449,21 @@ const FavoriteScreen: React.FC = () => {
                 const selected = activeTab === tab.key;
 
                 return (
-                  <TouchableOpacity
+                  <Pressable
+                    focusable
                     key={tab.key}
                     hasTVPreferredFocus={tab.key === 'live'}
-                    onFocus={() => setFocusedTab(tab.key)}
-                    onBlur={() => setFocusedTab(null)}
                     onPress={() => setActiveTab(tab.key)}
-                    activeOpacity={0.8}
-                    style={[
-                      styles.tab,
-                      selected && styles.activeTab,
-                      focusedTab === tab.key && styles.focusedTab,
-                    ]}
+                    style={({ focused }) => ({
+                      ...styles.tab,
+                      borderWidth: focused ? 2 : 0,
+                      borderColor: focused ? colors.focus : 'transparent',
+                      backgroundColor: focused
+                        ? colors.backgroundTertiary
+                        : selected
+                          ? colors.primary
+                          : 'transparent',
+                    })}
                     accessibilityRole="tab"
                     accessibilityState={{ selected }}>
                     <Text
@@ -471,7 +487,7 @@ const FavoriteScreen: React.FC = () => {
                         {counts[tab.key]}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </View>
@@ -537,25 +553,29 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxl,
   },
   scrollContent: {
     paddingBottom: spacing.xxl,
   },
 
-  // Header
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 28,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
   },
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
   headerTextContainer: {
     flex: 1,
     marginRight: 16,
   },
   eyebrow: {
-    color: '#5EEAD4',
+    color: colors.secondary,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 2,
@@ -563,11 +583,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h1,
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '800',
   },
   subtitle: {
-    color: '#9696A8',
+    color: colors.textSecondary,
     fontSize: 14,
     marginTop: 8,
   },
@@ -591,9 +611,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 5,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.045)',
+    backgroundColor: colors.backgroundTertiary,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: colors.border,
     marginBottom: 30,
   },
   tab: {
@@ -607,36 +627,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  activeTab: {
-    backgroundColor: '#7C6CF6',
-  },
   tabText: {
-    color: '#9292A5',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
   },
   activeTabText: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   countBadge: {
     minWidth: 20,
     height: 20,
     paddingHorizontal: 5,
     borderRadius: 7,
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: colors.backgroundTertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   activeCountBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: colors.backgroundTertiary,
   },
   countText: {
     fontSize: 10,
-    color: '#A4A4B5',
+    color: colors.textSecondary,
     fontWeight: '800',
   },
   activeCountText: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
 
   // Section
@@ -654,42 +671,18 @@ const styles = StyleSheet.create({
     width: 4,
     height: 21,
     borderRadius: 4,
-    backgroundColor: '#5EEAD4',
+    backgroundColor: colors.secondary,
     marginRight: 10,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 17,
     fontWeight: '800',
   },
   itemCount: {
-    color: '#9292A5',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
-  },
-
-  // Remote focus: Tabs
-  focusedTab: {
-    borderWidth: 2,
-    borderColor: '#5EEAD4',
-    backgroundColor: 'rgba(94, 234, 212, 0.12)',
-  },
-
-  // Remote focus: Cards
-  focusedCard: {
-    borderColor: '#5EEAD4',
-    transform: [{ scale: 1.035 }],
-    zIndex: 2,
-    elevation: 8,
-  },
-
-  posterWrapperFocused: {
-    borderWidth: 3,
-    borderColor: '#5EEAD4',
-    shadowColor: '#5EEAD4',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.65,
-    shadowRadius: 8,
   },
 
   // Poster cards
@@ -707,9 +700,9 @@ const styles = StyleSheet.create({
     aspectRatio: 0.68,
     borderRadius: 15,
     overflow: 'hidden',
-    backgroundColor: '#191923',
+    backgroundColor: colors.backgroundCard,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.border,
   },
   poster: {
     ...StyleSheet.absoluteFillObject,
@@ -718,12 +711,12 @@ const styles = StyleSheet.create({
   },
   posterPlaceholder: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#201C38',
+    backgroundColor: colors.backgroundTertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   placeholderLetter: {
-    color: '#A99CFF',
+    color: colors.textSecondary,
     fontSize: 44,
     fontWeight: '800',
   },
@@ -739,19 +732,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 7,
-    backgroundColor: 'rgba(220, 38, 38, 0.95)',
+    backgroundColor: colors.error,
     gap: 5,
   },
   liveDot: {
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
   },
   liveBadgeText: {
     fontSize: 9,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: colors.white,
     letterSpacing: 0.8,
   },
   playButton: {
@@ -761,14 +754,14 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(124,108,246,0.92)',
+    backgroundColor: colors.primaryLight,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: colors.backgroundTertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   playIcon: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     marginLeft: 3,
   },
@@ -779,13 +772,13 @@ const styles = StyleSheet.create({
     bottom: 12,
   },
   posterTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 18,
   },
   posterSubtitle: {
-    color: '#C1C0D0',
+    color: colors.textSecondary,
     fontSize: 10,
     marginTop: 5,
   },
@@ -799,8 +792,8 @@ const styles = StyleSheet.create({
     paddingVertical: 35,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-    backgroundColor: 'rgba(255,255,255,0.025)',
+    borderColor: colors.border,
+    backgroundColor: colors.backgroundTertiary,
   },
   emptyIconContainer: {
     width: 68,
@@ -808,27 +801,27 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(124,108,246,0.13)',
+    backgroundColor: colors.backgroundSecondary,
     marginBottom: 20,
   },
   emptyIcon: {
     fontSize: 39,
-    color: '#A99CFF',
+    color: colors.textSecondary,
   },
   emptyTitle: {
     fontSize: 18,
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '800',
     marginBottom: 9,
   },
   emptyDescription: {
-    color: '#9696A8',
+    color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 21,
     textAlign: 'center',
   },
   emptyHint: {
-    color: '#5EEAD4',
+    color: colors.accent,
     fontSize: 12,
     marginTop: 14,
     fontWeight: '600',
@@ -842,7 +835,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   footerText: {
-    color: 'rgba(255,255,255,0.25)',
+    color: colors.textSecondary,
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1.5,

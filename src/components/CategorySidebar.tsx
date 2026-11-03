@@ -14,6 +14,7 @@ import {
 import { colors } from '../theme/colors';
 import { spacing, borderRadius } from '../theme/spacing';
 import { typography } from '../theme/typography';
+import { useLandscapeLayout } from '../utils/layout';
 
 export type CategoryItem = {
   category_id: string;
@@ -50,11 +51,14 @@ const CategoryRow: React.FC<CategoryRowProps> = memo(
     return (
       <Pressable
         focusable
-        style={[
-          styles.item,
-          selected && styles.itemSelected,
-          nativeFocused && styles.itemFocused,
-        ]}
+        style={({ focused }) => ({
+          ...styles.item,
+          backgroundColor: focused
+            ? colors.backgroundTertiary
+            : selected
+              ? colors.backgroundTertiary
+              : 'transparent',
+        })}
         onFocus={handleFocus}
         onBlur={handleBlur}
         onPress={handlePress}
@@ -94,8 +98,8 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
   onFocusChange,
   sidebarWidth,
 }) => {
-
   const listRef = useRef<FlatList<CategoryItem>>(null);
+  const layout = useLandscapeLayout();
 
   const handleRowFocus = useCallback(
     (index: number) => {
@@ -124,7 +128,7 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
   );
 
   return (
-    <View style={[sidebarWidth, styles.container]}>
+    <View style={[sidebarWidth, styles.container, { height: layout.height }]}>
       <Text style={styles.title}>{title}</Text>
 
       <FlatList
@@ -182,15 +186,9 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.md,
     paddingRight: spacing.sm,
     borderRadius: borderRadius.md,
-    backgroundColor: 'transparent',
     position: 'relative',
   },
-  itemSelected: {
-    backgroundColor: colors.backgroundTertiary,
-  },
-  itemFocused: {
-    backgroundColor: colors.backgroundTertiary,
-  },
+
   itemAccent: {
     position: 'absolute',
     left: 0,

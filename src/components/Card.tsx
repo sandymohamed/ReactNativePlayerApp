@@ -12,6 +12,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import FastImage from 'react-native-fast-image';
 import { SvgUri } from 'react-native-svg';
 import { spacing } from '../theme/spacing';
+import { colors } from '../theme';
 
 interface CardProps {
   title?: string;
@@ -30,7 +31,7 @@ const Card: React.FC<CardProps> = ({
   onPress,
   onFocus,
   focused = false,
-  style,
+  style: cardStyle,
   subtitle,
   badge,
 }) => {
@@ -54,7 +55,16 @@ const Card: React.FC<CardProps> = ({
       onFocus={handleFocus}
       onBlur={handleBlur}
       onPress={onPress}
-      style={[styles.container, style, isFocused && styles.focused]}
+      style={({ focused }) => ({
+        borderRadius: 15,
+        overflow: 'hidden',
+        backgroundColor: colors.backgroundCard,
+        marginBottom: spacing.md,
+        transform: focused ? [{ scale: 1.04 }] : [{ scale: 1.0 }],
+        borderColor: focused ? colors.focus : 'rgba(255,255,255,0.08)',
+        borderWidth: focused ? 2 : 1,
+        ...StyleSheet.flatten(cardStyle),
+      })}
       accessibilityRole="button"
       accessibilityLabel={[title, subtitle, badge].filter(Boolean).join(', ')}
       accessibilityState={{ selected: isFocused }}>
@@ -124,21 +134,6 @@ const Card: React.FC<CardProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    borderRadius: 15,
-    overflow: 'hidden',
-    backgroundColor: '#191923',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    marginBottom: spacing.md,
-  },
-
-  focused: {
-    transform: [{ scale: 1.04 }],
-    borderColor: '#7C6CF6',
-    borderWidth: 2,
-  },
-
   posterWrapper: {
     width: '100%',
     aspectRatio: 0.68,

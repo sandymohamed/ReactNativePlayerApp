@@ -23,6 +23,8 @@ import FastImage from 'react-native-fast-image';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
 import Button from '../components/Button';
 import { SvgUri } from 'react-native-svg';
+import BackButton from '../components/BackButton';
+import { useLandscapeLayout } from '../utils/layout';
 
 const SerieDetailScreen: React.FC = () => {
   const navigation =
@@ -32,6 +34,8 @@ const SerieDetailScreen: React.FC = () => {
 
   const route = useRoute();
   const { width } = useWindowDimensions();
+  const layout = useLandscapeLayout();
+
   const { serie: routeSerie } = route.params as any;
   console.log(
     '[SERIE DETAIL] rendered:',
@@ -139,9 +143,23 @@ const SerieDetailScreen: React.FC = () => {
   const renderContent = () => (
     <View
       style={[{ zIndex: 9999 }, styles.content, wide && styles.contentWide]}>
-      <Text style={styles.title}>
-        {serieInfo.name || routeSerie.name || 'Series'}
-      </Text>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: layout.isTV ? spacing.lg : spacing.sm,
+            paddingBottom: layout.isTV ? spacing.sm : spacing.xs,
+          },
+        ]}>
+        <View
+          style={[styles.headerTitle, { gap: layout.isTV ? spacing.md : 1 }]}>
+          <BackButton />
+          <Text style={[styles.title]}>
+            {serieInfo.name || routeSerie.name || 'Series'}
+          </Text>
+        </View>
+      </View>
+
       {serieInfo.plot && <Text style={styles.plot}>{serieInfo.plot}</Text>}
 
       <View style={styles.row}>
@@ -189,6 +207,7 @@ const SerieDetailScreen: React.FC = () => {
         return seasonsList.length > 0 ? (
           <View style={styles.seasonsContainer}>
             <Text style={styles.sectionTitle}>Seasons</Text>
+
             <FlatList
               data={seasonsList}
               horizontal
@@ -282,7 +301,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   content: {
-    padding: spacing.xl,
+    // padding: spacing.xl,
     // backgroundColor: '#715f5f',
   },
   contentWide: {
@@ -291,6 +310,18 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
+  },
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
   cover: {
     width: '100%',
     minHeight: 400,

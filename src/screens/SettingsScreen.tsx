@@ -19,6 +19,7 @@ import {typography} from '../theme/typography';
 import {getSetting, setSetting, SETTINGS_KEYS} from '../utils/storage';
 import {useTVEventHandler} from '../hooks/useTVEventHandler';
 import SettingIcon from '../components/SettingIcon';
+import BackButton from '../components/BackButton';
 
 type SettingId = 'language' | 'parental' | 'stream' | 'time' | 'list';
 
@@ -279,13 +280,7 @@ const SettingsScreen: React.FC = () => {
     <View style={styles.container}>
       <LinearGradient colors={colors.gradients.dark} style={styles.background}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            activeOpacity={0.7}>
-            <Text style={styles.backArrow}>←</Text>
-            <Text style={styles.backLabel}>Back</Text>
-          </TouchableOpacity>
+          <BackButton />
           <Text style={styles.title}>Setting</Text>
         </View>
         <ScrollView

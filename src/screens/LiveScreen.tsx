@@ -32,6 +32,8 @@ import CategorySidebar, {
 } from '../components/CategorySidebar';
 
 import LiveEmbeddedPlayer from '../components/LiveEmbeddedPlayer';
+import BackButton from '../components/BackButton';
+import { useLandscapeLayout } from '../utils/layout';
 
 const ROW_HEIGHT = 56;
 const LOGO_SIZE = 36;
@@ -189,13 +191,13 @@ const LiveScreen: React.FC = () => {
 
   const [isPlayerFullscreen, setIsPlayerFullscreen] = useState(false);
 
+  const layout = useLandscapeLayout();
+
   // Load saved layout
   useEffect(() => {
     let mounted = true;
 
-    console.log('bbbb loadLayout');
     const loadLayout = async () => {
-      console.log('loadLayout');
       try {
         const savedLayout = await getSetting(SETTINGS_KEYS.LIST_TYPE);
 
@@ -408,33 +410,30 @@ const LiveScreen: React.FC = () => {
         {!isPlayerFullscreen && (
           <>
             {/* Header */}
-            <View style={styles.header}>
-              <View>
-                <Text style={styles.title}>Live TV</Text>
 
-                <Text style={styles.subtitle}>
-                  {filteredList.length} channel
-                  {filteredList.length !== 1 ? 's' : ''}
-                </Text>
+            <View
+              style={[
+                styles.header,
+                {
+                  paddingTop: layout.isTV ? spacing.lg : spacing.sm,
+                  paddingBottom: layout.isTV ? spacing.sm : spacing.xs,
+                },
+              ]}>
+              <View
+                style={[
+                  styles.headerTitle,
+                  { gap: layout.isTV ? spacing.md : 1 },
+                ]}>
+                <BackButton />
+                <View>
+                  <Text style={styles.title}>Live TV</Text>
+
+                  <Text style={styles.subtitle}>
+                    {filteredList.length} channel
+                    {filteredList.length !== 1 ? 's' : ''}
+                  </Text>
+                </View>
               </View>
-
-              {/* List / Grid */}
-              {/* <View style={styles.layoutSwitcher}>
-                <LayoutButton
-                  title="List"
-                  active={layoutType === 'list'}
-                  onPress={() => {
-                     setSetting(SETTINGS_KEYS.PARENTAL_PASSWORD, '1');
-                    setLayoutType('list')
-                  }}
-                />
-
-                <LayoutButton
-                  title="Grid"
-                  active={layoutType === 'grid'}
-                  onPress={() => setLayoutType('grid')}
-                />
-              </View> */}
             </View>
 
             {/* Main body */}
@@ -541,6 +540,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
 
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   title: {
     ...typography.h1,
     color: colors.text,

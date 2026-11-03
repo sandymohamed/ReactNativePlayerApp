@@ -38,7 +38,7 @@ import CategorySidebar, {
 import { useLandscapeLayout } from '../utils/layout';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Stream } from '../models/model';
-import { vods } from '@/context/arrays';
+import BackButton from '../components/BackButton';
 
 type MoviesScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -140,28 +140,27 @@ const MoviesScreen: React.FC = () => {
   //   return () => subscription.remove();
   // }, [isScreenFocused, navigation]);
 
-
-
   useFocusEffect(
-  useCallback(() => {
-    const onBackPress = () => {
-      console.log("🎯 [SUCCESS] BACK PRESSED INSIDE MOVIES SCREEN");
+    useCallback(() => {
+      const onBackPress = () => {
+        console.log('🎯 [SUCCESS] BACK PRESSED INSIDE MOVIES SCREEN');
 
-      if (navigation.canGoBack()) {
-        navigation.goBack(); 
-      } else {
-        navigation.navigate('Main');
-      }
-      return true;
-    };
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation.navigate('Main');
+        }
+        return true;
+      };
 
-    // إعداد المستمع
-    BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      // إعداد المستمع
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
 
-    // تنظيف المستمع عند الخروج
-    return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
-  }, [navigation])
-);
+      // تنظيف المستمع عند الخروج
+      return () =>
+        BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [navigation]),
+  );
 
   // Change category
   const handleCategorySelect = useCallback((categoryId: string) => {
@@ -226,8 +225,19 @@ const MoviesScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <LinearGradient colors={colors.gradients.dark} style={styles.background}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Movies</Text>
+        <View
+          style={[
+            styles.header,
+            {
+              paddingTop: layout.isTV ? spacing.lg : spacing.sm,
+              paddingBottom: layout.isTV ? spacing.sm : spacing.xs,
+            },
+          ]}>
+          <View
+            style={[styles.headerTitle, { gap: layout.isTV ? spacing.md : 1 }]}>
+            <BackButton />
+            <Text style={styles.title}>Movies</Text>
+          </View>
 
           <Text style={styles.subtitle}>
             {filteredList.length} movie
@@ -291,9 +301,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   title: {
     ...typography.h1,

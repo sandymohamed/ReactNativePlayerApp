@@ -145,7 +145,7 @@ const AppNavigator = () => {
   component={MainScreenWithBackBlock}
 />
         <Stack.Screen name="Movies" component={MoviesScreen} />
-        {/* <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />
+      <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />
         <Stack.Screen name="Series" component={SeriesScreen} />
         <Stack.Screen name="SerieDetail" component={SerieDetailScreen} />
         <Stack.Screen name="Live" component={LiveScreen} />
@@ -155,7 +155,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Recent" component={RecentScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Category" component={CategoryScreen} />
-        <Stack.Screen name="Season" component={SeasonScreen} /> */}
+        <Stack.Screen name="Season" component={SeasonScreen} /> 
       </Stack.Navigator>
     </NavigationContainer>
   );

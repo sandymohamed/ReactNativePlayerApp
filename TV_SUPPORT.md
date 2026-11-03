@@ -141,3 +141,14 @@ The app already uses `useTVEventHandler`; that can work on tvOS once the target 
 - **Samsung / LG smart TVs**: **Not supported**; use Tizen/webOS apps or a web app instead.  
 - **Android TV (and Fire TV)**: **Supported**; use emulator or physical device + ADB, then `npm run android`.  
 - **Apple TV**: **Not yet set up**; add a tvOS target in Xcode to enable it.
+
+
+
+
+
+
+
+
+& "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -list-avds
+
+& "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd Television_1080p

@@ -8,13 +8,9 @@ import {
   BackHandler,
   TVFocusGuideView,
 } from 'react-native';
-
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
 import LinearGradient from 'react-native-linear-gradient';
-
 import { useGlobalContext } from '../context/GlobalContext';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
@@ -28,6 +24,7 @@ import CategorySidebar, {
 import { useLandscapeLayout } from '../utils/layout';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { SeriesWithInfo } from '../models/model';
+import BackButton from '../components/BackButton';
 
 type SeriesScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -102,7 +99,7 @@ const SeriesScreen: React.FC = () => {
       const subscription = BackHandler.addEventListener(
         'hardwareBackPress',
         () => {
-                  console.log(" [BACK TEST] from SerieScreen")
+          console.log(' [BACK TEST] from SerieScreen');
 
           if (navigation.canGoBack()) {
             navigation.goBack();
@@ -192,8 +189,19 @@ const SeriesScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <LinearGradient colors={colors.gradients.dark} style={styles.background}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Series</Text>
+        <View
+          style={[
+            styles.header,
+            {
+              paddingTop: layout.isTV ? spacing.lg : spacing.sm,
+              paddingBottom: layout.isTV ? spacing.sm : spacing.xs,
+            },
+          ]}>
+          <View
+            style={[styles.headerTitle, { gap: layout.isTV ? spacing.md : 1 }]}>
+            <BackButton />
+            <Text style={styles.title}>Series</Text>
+          </View>
 
           <Text style={styles.subtitle}>
             {filteredList.length} serie
@@ -261,16 +269,17 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
   },
-
   header: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
-
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   title: {
     ...typography.h1,
     color: colors.text,

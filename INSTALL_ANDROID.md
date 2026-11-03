@@ -152,7 +152,11 @@ adb shell am start -n com.iptvplayer/.MainActivity
 - Shake device or press `Ctrl+M` (Windows) to open dev menu
 
 /**
-http://photos.uploadsite.org:80/get.php?username=69691694834305&password=36281467238030&type=m3u_plus&output=ts
+.
+http://photos.uploadsite.org:80/get.php?us4
+mme*
+
+rname=69691694834305&password=36281467238030&type=m3u_plus&output=ts
 **/
 
 

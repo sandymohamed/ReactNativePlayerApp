@@ -12,12 +12,12 @@ import {
   Text,
   TextInput,
   FlatList,
-  TouchableOpacity,
   ScrollView,
   Keyboard,
   Platform,
   useWindowDimensions,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -31,6 +31,8 @@ import { useGlobalContext } from '../context/GlobalContext';
 import { Stream } from '../models/model';
 import Card from '../components/Card';
 import { generateurlplayer } from '../utils/constants';
+import BackButton from '../components/BackButton';
+import { useLandscapeLayout } from '../utils/layout';
 
 type SearchCategory = 'all' | 'live' | 'movies' | 'series';
 
@@ -47,7 +49,7 @@ type SearchSectionProps = {
   onItemPress: (item: SearchItem) => void;
 };
 
-const DEBOUNCE_MS = 300;
+const DEBOUNCE_MS = 500;
 
 const normalize = (value: unknown): string =>
   String(value ?? '')
@@ -61,40 +63,37 @@ const matchesQuery = (item: SearchItem, query: string): boolean =>
 
 const SearchSection = memo<SearchSectionProps>(
   ({ title, data, cardWidth, onItemPress }) => {
-    const [focusedItemId, setFocusedItemId] = useState<string | null>(null);
-
     const renderItem = useCallback(
       ({ item }: { item: SearchItem }) => {
-        const itemId = String(item.stream_id);
-
         return (
-          <View style={[styles.cardContainer, { width: cardWidth }]}>
-            <TouchableOpacity
-              activeOpacity={1}
+          <View style={[{ width: cardWidth, margin: spacing.sm }]}>
+            <Pressable
+              focusable
               onPress={() => onItemPress(item)}
-              onFocus={() => setFocusedItemId(itemId)}
-              onBlur={() => setFocusedItemId(null)}
               accessibilityRole="button"
               accessibilityLabel={item.name}
-              style={[
-                styles.focusableCard,
-                focusedItemId === itemId && styles.focusableCardFocused,
-              ]}>
+              style={({ focused }) => ({
+                ...styles.focusableCard,
+                width: cardWidth,
+                borderWidth: focused ? 2 : 0,
+                borderColor: focused ? colors.focus : 'transparent',
+                padding: focused ? 2 : 0,
+                // transform: focused ? [{ scale: 1.03 }] : [{ scale: 1.0 }],
+              })}>
               <Card
                 title={item.name}
                 image={item.stream_icon || item.cover || item.backdrop_path}
                 style={{ width: cardWidth }}
               />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         );
       },
-      [cardWidth, focusedItemId, onItemPress],
+      [cardWidth, onItemPress],
     );
 
     const keyExtractor = useCallback(
-      (item: SearchItem, index: number) =>
-        `${String(item.stream_id)}-${index}`,
+      (item: SearchItem, index: number) => `${String(item.stream_id)}-${index}`,
       [],
     );
 
@@ -131,14 +130,11 @@ const SearchScreen: React.FC = () => {
 
   const { width } = useWindowDimensions();
   const { listSerie, listVod, listLive, profile } = useGlobalContext();
+  const layout = useLandscapeLayout();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [category, setCategory] = useState<SearchCategory>('all');
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [focusedCategory, setFocusedCategory] =
-    useState<SearchCategory | null>(null);
-  const [focusedControl, setFocusedControl] = useState<string | null>(null);
 
   const inputRef = useRef<TextInput>(null);
 
@@ -158,8 +154,7 @@ const SearchScreen: React.FC = () => {
   }, [normalizedQuery]);
 
   const isSearching =
-    normalizedQuery.length > 0 &&
-    normalizedQuery !== debouncedQuery;
+    normalizedQuery.length > 0 && normalizedQuery !== debouncedQuery;
 
   const isLargeScreen = width >= 700;
 
@@ -205,13 +200,6 @@ const SearchScreen: React.FC = () => {
     setSearchQuery(text);
   }, []);
 
-  const handleSearchFocus = useCallback(() => {
-    setSearchFocused(true);
-  }, []);
-
-  const handleSearchBlur = useCallback(() => {
-    setSearchFocused(false);
-  }, []);
 
   const handleSeriePress = useCallback(
     (serie: SearchItem) => {
@@ -224,7 +212,7 @@ const SearchScreen: React.FC = () => {
   const handleMoviePress = useCallback(
     (movie: SearchItem) => {
       Keyboard.dismiss();
-      navigation.navigate('MovieDetail' as never, { movie } as never);
+      navigation.navigate('MovieDetail', { movie });
     },
     [navigation],
   );
@@ -237,12 +225,7 @@ const SearchScreen: React.FC = () => {
         return;
       }
 
-      const url = generateurlplayer(
-        'live',
-        channel.stream_id,
-        'm3u8',
-        profile,
-      );
+      const url = generateurlplayer('live', channel.stream_id, 'm3u8', profile);
 
       if (!url) {
         return;
@@ -274,19 +257,22 @@ const SearchScreen: React.FC = () => {
       const selected = category === item.value;
 
       return (
-        <TouchableOpacity
+        <Pressable
+          focusable
           key={item.value}
           accessibilityRole="button"
           accessibilityState={{ selected }}
           onPress={() => setCategory(item.value)}
-          onFocus={() => setFocusedCategory(item.value)}
-          onBlur={() => setFocusedCategory(null)}
-          activeOpacity={0.8}
-          style={[
-            styles.categoryButton,
-            selected && styles.categoryButtonSelected,
-            focusedCategory === item.value && styles.categoryButtonFocused,
-          ]}>
+          style={({ focused }) => ({
+            ...styles.categoryButton,
+            borderWidth: focused || selected ? 2 : 0,
+            backgroundColor: selected
+              ? colors.primaryLight
+              : colors.backgroundCard,
+            borderColor: focused || selected ? colors.focus : colors.border,
+            transform:
+              focused || selected ? [{ scale: 1.04 }] : [{ scale: 1.0 }],
+          })}>
           <Text
             style={[
               styles.categoryText,
@@ -304,10 +290,10 @@ const SearchScreen: React.FC = () => {
               {isSearching ? '…' : item.count}
             </Text>
           )}
-        </TouchableOpacity>
+        </Pressable>
       );
     },
-    [category, normalizedQuery, isSearching, categories, focusedCategory],
+    [category, normalizedQuery, isSearching, categories],
   );
 
   const hasResultsForCategory =
@@ -320,40 +306,49 @@ const SearchScreen: React.FC = () => {
           : seriesResults.length > 0;
 
   return (
-    <LinearGradient
-      colors={colors.gradients.dark}
-      style={styles.container}>
+    <LinearGradient colors={colors.gradients.dark} style={styles.container}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Search</Text>
+        {/* Header */}
+        <View
+          style={[
+            styles.header,
+            {
+              paddingTop: layout.isTV ? spacing.lg : spacing.sm,
+              paddingBottom: layout.isTV ? spacing.sm : spacing.xs,
+            },
+          ]}>
+          <View
+            style={[styles.headerTitle, { gap: layout.isTV ? spacing.md : 1 }]}>
+            <BackButton />
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.title}>Search</Text>
 
-          <Text style={styles.subtitle}>
-            Find channels, movies and series
-          </Text>
+              <Text style={styles.subtitle}>
+                Find channels, movies and series
+              </Text>
+            </View>
+          </View>
 
-          <TouchableOpacity
-            activeOpacity={1}
+          <Pressable
+            focusable
+            hasTVPreferredFocus={layout.isTV}
             onPress={() => inputRef.current?.focus()}
-            onFocus={() => setFocusedControl('search')}
-            onBlur={() => setFocusedControl(null)}
             accessibilityLabel="Search field"
-            style={[
-              styles.searchBar,
-              (searchFocused || focusedControl === 'search') &&
-                styles.searchBarFocused,
-            ]}>
+            style={({ focused }) => ({
+              ...styles.searchBar,
+              borderWidth: focused ? 2 : 0,
+              borderColor: focused ? colors.focus : 'transparent',
+            })}>
             <Text style={styles.searchIcon}>⌕</Text>
 
             <TextInput
               ref={inputRef}
               value={searchQuery}
               onChangeText={handleSearchChange}
-              onFocus={handleSearchFocus}
-              onBlur={handleSearchBlur}
               placeholder="Search for anything..."
               placeholderTextColor={colors.textTertiary}
               style={styles.input}
@@ -380,30 +375,30 @@ const SearchScreen: React.FC = () => {
                 style={styles.searchSpinner}
               />
             ) : searchQuery.length > 0 ? (
-              <TouchableOpacity
+              <Pressable
+                focusable
                 accessibilityRole="button"
                 accessibilityLabel="Clear search"
                 onPress={clearSearch}
-                onFocus={() => setFocusedControl('clear')}
-                onBlur={() => setFocusedControl(null)}
-                style={[
-                  styles.clearButton,
-                  focusedControl === 'clear' && styles.clearButtonFocused,
-                ]}
+                style={({ focused }) => ({
+                  ...styles.clearButton,
+                  borderColor: focused ? colors.primary : 'transparent',
+                  backgroundColor: focused ? colors.background : 'transparent',
+                })}
                 hitSlop={8}>
                 <Text style={styles.clearText}>×</Text>
-              </TouchableOpacity>
+              </Pressable>
             ) : null}
-          </TouchableOpacity>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.categoryList}>
-            {categories.map(renderCategory)}
-          </ScrollView>
+          </Pressable>
         </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.categoryList}>
+          {categories.map(renderCategory)}
+        </ScrollView>
 
         {!normalizedQuery ? (
           <View style={styles.messageContainer}>
@@ -425,9 +420,7 @@ const SearchScreen: React.FC = () => {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
 
-            <Text style={styles.loadingText}>
-              Searching your library…
-            </Text>
+            <Text style={styles.loadingText}>Searching your library…</Text>
           </View>
         ) : !hasResultsForCategory ? (
           <View style={styles.messageContainer}>
@@ -444,17 +437,17 @@ const SearchScreen: React.FC = () => {
             </Text>
 
             {totalResults === 0 && (
-              <TouchableOpacity
+              <Pressable
+                focusable
                 onPress={clearSearch}
-                onFocus={() => setFocusedControl('tryAgain')}
-                onBlur={() => setFocusedControl(null)}
-                style={[
-                  styles.tryAgainButton,
-                  focusedControl === 'tryAgain' &&
-                    styles.tryAgainButtonFocused,
-                ]}>
+                style={({ focused }) => ({
+                  ...styles.tryAgainButton,
+                  borderWidth: focused ? 2 : 0,
+                  borderColor: focused ? '#FFFFFF' : 'transparent',
+                  transform: focused ? [{ scale: 1.04 }] : [{ scale: 1.0 }],
+                })}>
                 <Text style={styles.tryAgainText}>Clear search</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         ) : (
@@ -514,8 +507,17 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxl,
+    paddingHorizontal: spacing.xs,
+  },
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  headerTextContainer: {
+    flex: 1,
+    marginRight: 16,
   },
 
   title: {
@@ -575,11 +577,6 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
 
-  clearButtonFocused: {
-    borderColor: colors.primary,
-    backgroundColor: colors.background,
-  },
-
   clearText: {
     fontSize: 28,
     color: colors.textSecondary,
@@ -598,14 +595,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.backgroundCard,
     gap: spacing.sm,
-  },
-
-  categoryButtonSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
 
   categoryButtonFocused: {
@@ -668,22 +658,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
 
-  cardContainer: {
-    marginRight: spacing.md,
-  },
-
   focusableCard: {
     borderWidth: 2,
     borderColor: 'transparent',
     borderRadius: borderRadius.md,
     overflow: 'hidden',
   },
-
-  focusableCardFocused: {
-    borderColor: colors.primary,
-    transform: [{ scale: 1.03 }],
-  },
-
   messageContainer: {
     flex: 1,
     alignItems: 'center',
@@ -741,12 +721,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     borderRadius: borderRadius.md,
     backgroundColor: colors.primary,
-  },
-
-  tryAgainButtonFocused: {
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    transform: [{ scale: 1.04 }],
   },
 
   tryAgainText: {
