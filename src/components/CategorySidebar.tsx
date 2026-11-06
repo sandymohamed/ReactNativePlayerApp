@@ -33,16 +33,20 @@ const ROW_HEIGHT = 52;
 
 const CategoryRow: React.FC<CategoryRowProps> = memo(
   ({ item, selected, index, onSelect, onFocusChange }) => {
-    const [nativeFocused, setNativeFocused] = useState(false);
+    // const [nativeFocused, setNativeFocused] = useState(false);
 
     const handleFocus = useCallback(() => {
-      setNativeFocused(true);
       onFocusChange?.(index);
     }, [index, onFocusChange]);
 
-    const handleBlur = useCallback(() => {
-      setNativeFocused(false);
-    }, []);
+    // const handleFocus = useCallback(() => {
+    //   setNativeFocused(true);
+    //   onFocusChange?.(index);
+    // }, [index, onFocusChange]);
+
+    // const handleBlur = useCallback(() => {
+    //   setNativeFocused(false);
+    // }, []);
 
     const handlePress = useCallback(() => {
       onSelect(item.category_id);
@@ -56,22 +60,28 @@ const CategoryRow: React.FC<CategoryRowProps> = memo(
           backgroundColor: focused
             ? colors.backgroundTertiary
             : selected
-              ? colors.backgroundTertiary
+              ? colors.primary
+              : 'transparent',
+          borderWidth: focused ? 2 : selected ? 1 : 0,
+          borderColor: focused
+            ? colors.primary
+            : selected
+              ? colors.focus
               : 'transparent',
         })}
         onFocus={handleFocus}
-        onBlur={handleBlur}
+        // onBlur={handleBlur}
         onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel={item.category_name}
         accessibilityState={{ selected }}>
-        {nativeFocused && <View style={styles.itemAccent} />}
+        {/* {nativeFocused && <View style={styles.itemAccent} />} */}
 
         <Text
           style={[
             styles.itemText,
             selected && styles.itemTextSelected,
-            nativeFocused && styles.itemTextFocused,
+            // nativeFocused && styles.itemTextFocused,
           ]}
           numberOfLines={1}>
           {item.category_name}
@@ -109,9 +119,9 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
         viewPosition: 0.5,
       });
 
-      onFocusChange?.(index);
+      // onFocusChange?.(index);
     },
-    [listRef, onFocusChange],
+    [listRef, ],
   );
 
   const renderItem = useCallback(
@@ -166,6 +176,7 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: colors.border,
     paddingVertical: spacing.md,
+    marginBottom: spacing.xxl,
   },
   title: {
     ...typography.h3,

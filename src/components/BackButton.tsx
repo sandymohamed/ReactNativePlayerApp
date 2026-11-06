@@ -19,6 +19,7 @@ const BackButton = ({ onPress }: BackButtonProps) => {
       style={({ focused }) => ({
         borderWidth: focused ? 2 : 0,
         borderColor: colors.focusRing,
+        marginRight: spacing.sm,
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: spacing.sm,

@@ -33,6 +33,7 @@ import Card from '../components/Card';
 import { generateurlplayer } from '../utils/constants';
 import BackButton from '../components/BackButton';
 import { useLandscapeLayout } from '../utils/layout';
+import { TouchableOpacity } from 'react-native-gesture-handler';
 
 type SearchCategory = 'all' | 'live' | 'movies' | 'series';
 
@@ -65,35 +66,66 @@ const SearchSection = memo<SearchSectionProps>(
   ({ title, data, cardWidth, onItemPress }) => {
     const renderItem = useCallback(
       ({ item }: { item: SearchItem }) => {
-        return (
-          <View style={[{ width: cardWidth, margin: spacing.sm }]}>
+        const card = (
+          <Card
+            title={item.name}
+            image={item.stream_icon || item.cover || item.backdrop_path}
+            style={{ width: cardWidth }}
+          />
+        );
+
+        if (Platform.isTV) {
+          return (
             <Pressable
               focusable
-              onPress={() => onItemPress(item)}
+              onPress={() => {
+                console.log('[Search] TV card pressed:', item.name);
+                onItemPress(item);
+              }}
               accessibilityRole="button"
               accessibilityLabel={item.name}
               style={({ focused }) => ({
                 ...styles.focusableCard,
                 width: cardWidth,
-                borderWidth: focused ? 2 : 0,
+                borderWidth: focused ? 4 : 0,
                 borderColor: focused ? colors.focus : 'transparent',
-                padding: focused ? 2 : 0,
-                // transform: focused ? [{ scale: 1.03 }] : [{ scale: 1.0 }],
-              })}>
-              <Card
-                title={item.name}
-                image={item.stream_icon || item.cover || item.backdrop_path}
-                style={{ width: cardWidth }}
-              />
+                padding: focused ? 3 : 0,
+                transform: [{ scale: focused ? 1.03 : 1 }],
+              })}
+            >
+              {card}
             </Pressable>
-          </View>
+          );
+        }
+
+        return (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              console.log('[Search] Mobile card pressed:', item.name);
+              onItemPress(item);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={item.name}
+            style={[
+              styles.focusableCard,
+              {
+                width: cardWidth,
+                borderWidth: 0,
+                padding: 0,
+              },
+            ]}
+          >
+            {card}
+          </TouchableOpacity>
         );
       },
       [cardWidth, onItemPress],
     );
 
     const keyExtractor = useCallback(
-      (item: SearchItem, index: number) => `${String(item.stream_id)}-${index}`,
+      (item: SearchItem, index: number) =>
+        `${String(item.stream_id)}-${index}`,
       [],
     );
 
@@ -114,8 +146,9 @@ const SearchSection = memo<SearchSectionProps>(
           initialNumToRender={5}
           maxToRenderPerBatch={5}
           windowSize={3}
-          keyboardShouldPersistTaps="handled"
-          removeClippedSubviews={Platform.OS === 'android'}
+          keyboardShouldPersistTaps="always"
+          nestedScrollEnabled
+          removeClippedSubviews={false}
         />
       </View>
     );
@@ -200,17 +233,26 @@ const SearchScreen: React.FC = () => {
     setSearchQuery(text);
   }, []);
 
+const handleSubmitSearch = useCallback(() => {
+  setDebouncedQuery(normalize(searchQuery));
+
+  if (!Platform.isTV) {
+    Keyboard.dismiss();
+  }
+}, [searchQuery]);
 
   const handleSeriePress = useCallback(
     (serie: SearchItem) => {
+      console.log("handleSeriePress")
       Keyboard.dismiss();
       navigation.navigate('SerieDetail', { serie } as never);
     },
     [navigation],
   );
-
+  
   const handleMoviePress = useCallback(
     (movie: SearchItem) => {
+      console.log("handleMoviePress")
       Keyboard.dismiss();
       navigation.navigate('MovieDetail', { movie });
     },
@@ -220,6 +262,7 @@ const SearchScreen: React.FC = () => {
   const handleLivePress = useCallback(
     (channel: SearchItem) => {
       Keyboard.dismiss();
+      console.log("handleLivePress")
 
       if (!profile) {
         return;
@@ -310,8 +353,8 @@ const SearchScreen: React.FC = () => {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
+        keyboardShouldPersistTaps="always"
+        showsVerticalScrollIndicator={true}>
         {/* Header */}
         <View
           style={[
@@ -345,28 +388,24 @@ const SearchScreen: React.FC = () => {
             })}>
             <Text style={styles.searchIcon}>⌕</Text>
 
-            <TextInput
-              ref={inputRef}
-              value={searchQuery}
-              onChangeText={handleSearchChange}
-              placeholder="Search for anything..."
-              placeholderTextColor={colors.textTertiary}
-              style={styles.input}
-              returnKeyType={Platform.isTV ? 'none' : 'search'}
-              blurOnSubmit={false}
-              onSubmitEditing={() => {
-                if (!Platform.isTV) {
-                  setDebouncedQuery(normalize(searchQuery));
-                }
-              }}
-              autoCapitalize="none"
-              autoCorrect={false}
-              spellCheck={false}
-              showSoftInputOnFocus
-              accessibilityLabel="Search channels, movies and series"
-              accessibilityHint="Type a title, then navigate to results when finished"
-              underlineColorAndroid="transparent"
-            />
+      <TextInput
+  ref={inputRef}
+  value={searchQuery}
+  onChangeText={handleSearchChange}
+  placeholder="Search for anything..."
+  placeholderTextColor={colors.textTertiary}
+  style={styles.input}
+  returnKeyType={Platform.isTV ? 'none' : 'search'}
+  blurOnSubmit={!Platform.isTV}
+  onSubmitEditing={handleSubmitSearch}
+  autoCapitalize="none"
+  autoCorrect={false}
+  spellCheck={false}
+  showSoftInputOnFocus
+  accessibilityLabel="Search channels, movies and series"
+  accessibilityHint="Type a title, then press Search to see results"
+  underlineColorAndroid="transparent"
+/>
 
             {isSearching ? (
               <ActivityIndicator
@@ -395,7 +434,7 @@ const SearchScreen: React.FC = () => {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           contentContainerStyle={styles.categoryList}>
           {categories.map(renderCategory)}
         </ScrollView>

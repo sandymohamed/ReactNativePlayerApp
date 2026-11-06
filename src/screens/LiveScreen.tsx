@@ -46,6 +46,7 @@ interface LiveChannelRowProps {
   item: Stream;
   index: number;
   onPress: () => void;
+  selectedChannel: Stream | null;
 }
 
 const liveRowStyles = StyleSheet.create({
@@ -65,16 +66,9 @@ const liveRowStyles = StyleSheet.create({
     backgroundColor: colors.backgroundTertiary,
     borderColor: colors.primary,
     elevation: 5,
+    color: colors.primaryLight,
   },
-  rowAccent: {
-    position: 'absolute',
-    left: 0,
-    top: '20%',
-    bottom: '20%',
-    width: 4,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-  },
+
   rowContent: {
     flex: 1,
     flexDirection: 'row',
@@ -121,55 +115,45 @@ const liveRowStyles = StyleSheet.create({
   },
 });
 
-const LiveChannelRow = memo(({ item, index, onPress }: LiveChannelRowProps) => {
-  const [isFocused, setIsFocused] = useState(false);
+const LiveChannelRow = memo(
+  ({ item, index, onPress, selectedChannel = null }: LiveChannelRowProps) => {
 
-  return (
-    <Pressable
-      focusable
-      hasTVPreferredFocus={isFocused}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-      onPress={onPress}
-      style={[liveRowStyles.row, isFocused && liveRowStyles.rowFocused]}>
-      {isFocused && <View style={liveRowStyles.rowAccent} />}
+    return (
+      <Pressable
+        focusable
+        hasTVPreferredFocus
+        onPress={onPress}
+        style={({ focused }) => [
+          liveRowStyles.row,
+          focused && liveRowStyles.rowFocused,
+          (selectedChannel?.stream_id === item?.stream_id) && {backgroundColor: colors.primary},
+        ]}>
+        <View style={liveRowStyles.rowContent}>
+          <Text style={[liveRowStyles.channelNum]}>{index + 1} </Text>
 
-      <View style={liveRowStyles.rowContent}>
-        <Text
-          style={[
-            liveRowStyles.channelNum,
-            isFocused && liveRowStyles.channelNumFocused,
-          ]}>
-          {index + 1}
-        </Text>
+          {item.stream_icon ? (
+            <FastImage
+              source={{
+                uri: item.stream_icon,
+                priority: FastImage.priority.low,
+              }}
+              style={liveRowStyles.logo}
+              resizeMode={FastImage.resizeMode.contain}
+            />
+          ) : (
+            <View style={liveRowStyles.logoPlaceholder}>
+              <Text style={liveRowStyles.logoPlaceholderText}>TV</Text>
+            </View>
+          )}
 
-        {item.stream_icon ? (
-          <FastImage
-            source={{
-              uri: item.stream_icon,
-              priority: FastImage.priority.low,
-            }}
-            style={liveRowStyles.logo}
-            resizeMode={FastImage.resizeMode.contain}
-          />
-        ) : (
-          <View style={liveRowStyles.logoPlaceholder}>
-            <Text style={liveRowStyles.logoPlaceholderText}>TV</Text>
-          </View>
-        )}
-
-        <Text
-          style={[
-            liveRowStyles.channelName,
-            isFocused && liveRowStyles.channelNameFocused,
-          ]}
-          numberOfLines={1}>
-          {item.name}
-        </Text>
-      </View>
-    </Pressable>
-  );
-});
+          <Text style={[liveRowStyles.channelName]} numberOfLines={1}>
+            {item.name}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  },
+);
 
 const LiveScreen: React.FC = () => {
   const navigation =
@@ -271,10 +255,7 @@ const LiveScreen: React.FC = () => {
       .includes(String(selectedChannel.stream_id));
   }, [listLiveFav, selectedChannel]);
 
-  // Reset selected channel when category changes
-  useEffect(() => {
-    setSelectedChannel(null);
-  }, [selectedCategoryId]);
+
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener(
@@ -325,6 +306,7 @@ const LiveScreen: React.FC = () => {
   const handleChannelSelect = useCallback(
     (channel: Stream) => {
       if (layoutType === 'grid') {
+        console.log('Grid layout: selecting channel', channel);
         setSelectedChannel(channel);
         return;
       }
@@ -385,6 +367,7 @@ const LiveScreen: React.FC = () => {
       <LiveChannelRow
         item={item}
         index={index}
+        selectedChannel={selectedChannel}
         onPress={() => handleChannelSelect(item)}
       />
     ),

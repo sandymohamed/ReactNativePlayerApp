@@ -22,6 +22,7 @@ import { colors } from '../theme/colors';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
 import Logo from '../components/Logo';
+import { Pressable } from 'react-native';
 
 type MainScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -389,8 +390,8 @@ const MainScreen: React.FC = () => {
       await Promise.all([categoriesTask, ...streamsTasks, favoritesTask]);
 
       if (isCurrentRequest()) {
+        console.log('Load data completed. Successful:', successful);
         setLoadError(!successful);
-
         if (successful) {
           try {
             await AsyncStorage.setItem(
@@ -497,14 +498,13 @@ const MainScreen: React.FC = () => {
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
-        console.log(" [BACK TEST] from MainScreen")
+        console.log(' [BACK TEST] from MainScreen');
         return false;
       },
     );
 
     return () => subscription.remove();
   }, [isScreenFocused]);
-
 
   useTVEventHandler({
     onBack: () => {
@@ -514,7 +514,7 @@ const MainScreen: React.FC = () => {
 
   const handleRefresh = useCallback(() => {
     if (isLoading) return;
-
+    console.log('[MainScreen] Manual refresh triggered');
     void loadData().catch(error => {
       console.error('Manual refresh failed:', error);
       setLoadError(true);
@@ -551,13 +551,13 @@ const MainScreen: React.FC = () => {
 
         <View style={styles.headerActions}>
           <View style={styles.profileContainer}>
-            <TouchableOpacity
-              activeOpacity={0.8}
+            <Pressable
+              focusable
               onPress={handleChangeProfile}
-              onFocus={() => setFocusedIndex(-1)}
-              style={[
+              // onFocus={() => setFocusedIndex(-1)}
+              style={({ focused }) => [
                 styles.profileButton,
-                focusedIndex === -1 && styles.focusedButton,
+                focused && styles.focusedButton,
               ]}
               accessibilityRole="button"
               accessibilityLabel={`Current profile: ${profileLabel}`}>
@@ -573,18 +573,18 @@ const MainScreen: React.FC = () => {
                 </Text>
                 <Text style={styles.profileHint}>Change profile</Text>
               </View>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
-          <TouchableOpacity
-            activeOpacity={0.8}
+          <Pressable
+            focusable
             disabled={isLoading}
             onPress={handleRefresh}
-            onFocus={() => setFocusedIndex(-2)}
-            style={[
+            // onFocus={() => setFocusedIndex(-2)}
+            style={({ focused }) => [
               styles.refreshButton,
-              focusedIndex === -2 && styles.focusedButton,
               isLoading && styles.refreshButtonDisabled,
+              focused && styles.focusedButton,
             ]}
             accessibilityRole="button"
             accessibilityLabel="Refresh content">
@@ -597,7 +597,7 @@ const MainScreen: React.FC = () => {
             <Text style={styles.refreshText}>
               {isLoading ? 'Refreshing' : 'Refresh'}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
@@ -644,11 +644,9 @@ const MainScreen: React.FC = () => {
                   countLabel={countLabel}
                   image={destination.image ?? ''}
                   focused={focusedIndex === index}
-                  preferredFocus={index === 0}
                   isCountLoading={cardLoading[type]}
                   disabled={false}
                   onPress={() => handleCardPress(index)}
-                  onFocus={() => setFocusedIndex(index)}
                 />
               </View>
             );
@@ -660,15 +658,13 @@ const MainScreen: React.FC = () => {
             const index = offset + 3;
 
             return (
-              <TouchableOpacity
+              <Pressable
+                focusable
                 key={destination.id}
-                // focusable
-                activeOpacity={0.85}
                 onPress={() => handleCardPress(index)}
-                onFocus={() => setFocusedIndex(index)}
-                style={[
+                style={({ focused }) => [
                   styles.quickTile,
-                  focusedIndex === index && styles.quickTileFocused,
+                  focused && styles.quickTileFocused,
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel={destination.title}>
@@ -676,7 +672,7 @@ const MainScreen: React.FC = () => {
                 <Text style={styles.quickTitle} numberOfLines={1}>
                   {destination.title}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
         </View>
@@ -688,13 +684,20 @@ const MainScreen: React.FC = () => {
             Some content could not be loaded.
           </Text>
 
-          <TouchableOpacity
-            // focusable
+          <Pressable
+            focusable
             onPress={handleRefresh}
-            style={styles.retryButton}
+            style={({ focused }) => [
+              styles.retryButton,
+              focused && {
+                borderWidth: 2,
+                borderColor: colors.focus,
+                borderRadius: 12,
+              },
+            ]}
             accessibilityRole="button">
             <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       )}
     </View>
@@ -937,11 +940,9 @@ type MainScreenCardProps = {
   countLabel: string;
   image: string;
   focused: boolean;
-  preferredFocus: boolean;
   isCountLoading: boolean;
   disabled: boolean;
   onPress: () => void;
-  onFocus: () => void;
 };
 
 const MainScreenCard: React.FC<MainScreenCardProps> = ({
@@ -949,22 +950,21 @@ const MainScreenCard: React.FC<MainScreenCardProps> = ({
   countLabel,
   image,
   focused,
-  preferredFocus,
   isCountLoading,
   disabled,
   onPress,
-  onFocus,
 }) => (
-  <TouchableOpacity
-    activeOpacity={0.9}
-    hasTVPreferredFocus={preferredFocus}
-    disabled={disabled}
+  <Pressable
+    focusable
+    hasTVPreferredFocus={focused}
+    style={({ focused }) => [
+      styles.mainCard,
+      focused && styles.mainCardFocused,
+    ]}
     onPress={onPress}
-    onFocus={onFocus}
     accessibilityRole="button"
     accessibilityLabel={`${title}, ${countLabel}`}
-    accessibilityState={{ selected: focused, disabled }}
-    style={[styles.mainCard, focused && styles.mainCardFocused]}>
+    accessibilityState={{ selected: focused, disabled }}>
     <ImageBackground
       source={{ uri: image }}
       resizeMode="cover"
@@ -987,7 +987,7 @@ const MainScreenCard: React.FC<MainScreenCardProps> = ({
         </View>
       </LinearGradient>
     </ImageBackground>
-  </TouchableOpacity>
+  </Pressable>
 );
 
 export default MainScreen;

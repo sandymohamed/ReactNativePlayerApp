@@ -37,7 +37,7 @@ const Card: React.FC<CardProps> = ({
 }) => {
   const [nativeFocused, setNativeFocused] = useState(false);
 
-  const isFocused = focused || nativeFocused;
+  // const isFocused = focused || nativeFocused;
   const isLive = badge?.toUpperCase() === 'LIVE';
 
   const handleFocus = useCallback(() => {
@@ -45,15 +45,15 @@ const Card: React.FC<CardProps> = ({
     onFocus?.();
   }, [onFocus]);
 
-  const handleBlur = useCallback(() => {
-    setNativeFocused(false);
-  }, []);
+  // const handleBlur = useCallback(() => {
+  //   setNativeFocused(false);
+  // }, []);
 
   return (
     <Pressable
       focusable
       onFocus={handleFocus}
-      onBlur={handleBlur}
+      // onBlur={handleBlur}
       onPress={onPress}
       style={({ focused }) => ({
         borderRadius: 15,
@@ -67,7 +67,8 @@ const Card: React.FC<CardProps> = ({
       })}
       accessibilityRole="button"
       accessibilityLabel={[title, subtitle, badge].filter(Boolean).join(', ')}
-      accessibilityState={{ selected: isFocused }}>
+      // accessibilityState={{ selected: isFocused }}
+      >
       <View style={styles.posterWrapper}>
         {image ? (
           image.toLowerCase().split('?')[0].endsWith('.svg') ? (

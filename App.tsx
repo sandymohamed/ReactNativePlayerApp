@@ -4,8 +4,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GlobalProvider } from './src/context/GlobalContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import { colors } from './src/theme/colors';
 
+// TODO: clean this code
 const App: React.FC = () => {
   useEffect(() => {
     StatusBar.setHidden(true, 'none');
@@ -14,49 +14,43 @@ const App: React.FC = () => {
       StatusBar.setHidden(false, 'none');
     };
   }, []);
-useEffect(() => {
-  console.log('[EVENT TEST] App mounted');
 
-  // 1. Android hardware Back
-  const backSubscription = BackHandler.addEventListener(
-    'hardwareBackPress',
-    () => {
-      console.log('[EVENT TEST] hardwareBackPress received');
-      return true;
-    },
-  );
+// useEffect(() => {
+//   console.log('[EVENT TEST] App mounted');
 
-  // 2. App state changes
-  const appStateSubscription = AppState.addEventListener(
-    'change',
-    state => {
-      console.log('[EVENT TEST] AppState:', state);
-    },
-  );
+//   // 1. Android hardware Back
+//   const backSubscription = BackHandler.addEventListener(
+//     'hardwareBackPress',
+//     () => {
+//       console.log('[EVENT TEST] hardwareBackPress received');
+//       return true;
+//     },
+//   );
 
-  // 3. Keyboard events (if supported by the TV fork)
-  const keyDownSubscription = DeviceEventEmitter.addListener(
-    'onKeyDown',
-    event => {
-      console.log('[EVENT TEST] onKeyDown:', event);
-    },
-  );
+//   // 2. App state changes
+//   const appStateSubscription = AppState.addEventListener(
+//     'change',
+//     state => {
+//       console.log('[EVENT TEST] AppState:', state);
+//     },
+//   );
 
-  return () => {
-    backSubscription.remove();
-    appStateSubscription.remove();
-    keyDownSubscription.remove();
-  };
-}, []);
+//   // 3. Keyboard events (if supported by the TV fork)
+//   const keyDownSubscription = DeviceEventEmitter.addListener(
+//     'onKeyDown',
+//     event => {
+//       console.log('[EVENT TEST] onKeyDown:', event);
+//     },
+//   );
 
-// 4. Android TV remote events
-useTVEventHandler(evt => {
-  console.log('[EVENT TEST] TV Event:', evt);
-});
+//   return () => {
+//     backSubscription.remove();
+//     appStateSubscription.remove();
+//     keyDownSubscription.remove();
+//   };
+// }, []);
 
-useTVEventHandler(evt => {
-  console.log('[TV EVENT TEST]', evt.eventType);
-});
+
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

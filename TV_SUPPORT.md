@@ -144,11 +144,6 @@ The app already uses `useTVEventHandler`; that can work on tvOS once the target 
 
 
 
-
-
-
-
-
 & "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -list-avds
 
 & "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd Television_1080p

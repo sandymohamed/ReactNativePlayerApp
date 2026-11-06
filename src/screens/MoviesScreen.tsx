@@ -45,7 +45,7 @@ type MoviesScreenNavigationProp = NativeStackNavigationProp<
   'Movies'
 >;
 
-type FocusZone = 'sidebar' | 'grid';
+// type FocusZone = 'sidebar' | 'grid';
 
 const MoviesScreen: React.FC = () => {
   const navigation = useNavigation<MoviesScreenNavigationProp>();
@@ -58,7 +58,7 @@ const MoviesScreen: React.FC = () => {
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const [focusZone, setFocusZone] = useState<FocusZone>('grid');
+  // // // const [focusZone, setFocusZone] = useState<FocusZone>('grid');
 
   const navigatingToMovieRef = useRef(false);
 
@@ -168,13 +168,13 @@ const MoviesScreen: React.FC = () => {
   }, []);
 
   // Focus zone handlers
-  const handleSidebarFocus = useCallback(() => {
-    setFocusZone(current => (current === 'sidebar' ? current : 'sidebar'));
-  }, []);
+  // const handleSidebarFocus = useCallback(() => {
+  //   // setFocusZone(current => (current === 'sidebar' ? current : 'sidebar'));
+  // }, []);
 
-  const handleGridFocus = useCallback(() => {
-    setFocusZone(current => (current === 'grid' ? current : 'grid'));
-  }, []);
+  // const handleGridFocus = useCallback(() => {
+  //   // setFocusZone(current => (current === 'grid' ? current : 'grid'));
+  // }, []);
 
   // Open movie
   const handleMoviePress = useCallback(
@@ -207,11 +207,10 @@ const MoviesScreen: React.FC = () => {
         title={item.name}
         image={item?.cover ?? item?.stream_icon}
         style={cardStyle}
-        onFocus={handleGridFocus}
         onPress={() => handleMoviePress(item)}
       />
     ),
-    [cardStyle, handleGridFocus, handleMoviePress],
+    [cardStyle,  handleMoviePress],
   );
 
   if (!profile) {
@@ -251,7 +250,7 @@ const MoviesScreen: React.FC = () => {
             categories={categories}
             selectedId={selectedCategoryId}
             onSelect={handleCategorySelect}
-            onFocusChange={handleSidebarFocus}
+            // onFocusChange={handleSidebarFocus}
             sidebarWidth={{ width: sidebarWidth }}
           />
 

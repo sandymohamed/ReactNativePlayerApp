@@ -97,8 +97,8 @@ const LiveEmbeddedPlayer: React.FC<Props> = ({
     <Pressable
       key={id}
       focusable
-      onFocus={() => setFocusedControl(id)}
-      onBlur={() => setFocusedControl(null)}
+      // onFocus={() => setFocusedControl(id)}
+      // onBlur={() => setFocusedControl(null)}
       onPress={onPress}
       style={[
         styles.controlButton,
@@ -204,7 +204,7 @@ const LiveEmbeddedPlayer: React.FC<Props> = ({
 
           {renderControl(
             'favorite',
-            isFavorite ? '♥' : '♡',
+            isFavorite ? '❤' : '🤍',
             onToggleFavorite || (() => {}),
             isFavorite,
           )}

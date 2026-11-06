@@ -5,10 +5,10 @@ import {
   StyleSheet,
   Text,
   ScrollView,
-  TouchableOpacity,
   useWindowDimensions,
   ActivityIndicator,
   FlatList,
+  Pressable,
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,6 +26,7 @@ import Logo from '../components/Logo';
 import Button from '../components/Button';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
+import { useLandscapeLayout } from '../utils/layout';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -70,8 +71,9 @@ const HomeScreen: React.FC = () => {
   console.log('HomeScreen');
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { width, height } = useWindowDimensions();
+  const layout = useLandscapeLayout();
 
-  const PROFILE_SIZE = height / 2 - 100;
+  const PROFILE_SIZE = layout.isTV ? height / 2 - 100 : height / 2 -50;
 
   const { deviceInfo, changeDeviceInfo, changeProfile } = useGlobalContext();
 
@@ -436,7 +438,19 @@ const HomeScreen: React.FC = () => {
               updated_at: '',
               allowed_output_formats: ['m3u'],
             },
-           
+            {
+              id: 2,
+              profile_name: 'demo2',
+              xml_epg: '',
+              username: 'demo',
+              password: 'demo',
+              host: 'https://spannable.com/mock/xtream',
+              pin: '',
+              isXS: 1,
+              created_at: '',
+              updated_at: '',
+              allowed_output_formats: ['m3u'],
+            },
           ],
         };
 
@@ -476,6 +490,7 @@ const HomeScreen: React.FC = () => {
 
       const identity = await getDeviceCredentials();
 
+      console.log('identity:', identity);
       changeDeviceInfo({
         mac: identity.identifier,
         version: identity.version,
@@ -547,13 +562,12 @@ const HomeScreen: React.FC = () => {
     setDeviceInfoShowForce(value => !value);
   }, []);
 
-  const handleProfileSelect = useCallback(
+  const handleProfileChange = useCallback(
     (profile: Playlist) => {
-      console.log('handleProfileSelect:', profile);
       changeProfile(profile);
       navigation.replace('Main');
     },
-    [changeProfile, navigation],
+    [navigation],
   );
 
   const showDeviceInfoCard =
@@ -596,10 +610,7 @@ const HomeScreen: React.FC = () => {
     item: Playlist;
     index: number;
   }) => {
-    const focused = showProfilePicker && selectedProfileIndex === index;
-
-    const logoSize =
-      PROFILE_SIZE > 120 ? PROFILE_SIZE - 100 : PROFILE_SIZE - 40;
+    const logoSize = layout.isTV ? PROFILE_SIZE - 80 : PROFILE_SIZE - 40 ;
 
     const profileNameStyle =
       PROFILE_SIZE > 120
@@ -607,75 +618,37 @@ const HomeScreen: React.FC = () => {
         : { ...typography.bodyLarge, marginTop: spacing.sm };
 
     return (
-      <TouchableOpacity
+      <Pressable
+        focusable
         hasTVPreferredFocus={index === 0}
-        onFocus={() => setSelectedProfileIndex(index)}
-        onBlur={() => {
-          setSelectedProfileIndex(current =>
-            current === index ? null : current,
-          );
-        }}
-        onPress={() => handleProfileSelect(item)}
-        activeOpacity={0.9}
-        style={[
-          styles.profileItem,
-          {
-            width: PROFILE_SIZE,
-            height: PROFILE_SIZE,
-          },
-          focused && styles.profileItemFocused,
-        ]}>
-        {focused ? (
-          <>
-            <LinearGradient
-              colors={[colors.primary, colors.secondary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[
-                styles.profileRing,
-                {
-                  width: PROFILE_SIZE,
-                  height: PROFILE_SIZE,
-                  borderRadius: PROFILE_SIZE / 2,
-                },
-              ]}>
-              <View
-                style={[
-                  styles.profileCircleInner,
-                  {
-                    width: PROFILE_SIZE - 8,
-                    height: PROFILE_SIZE - 8,
-                    borderRadius: (PROFILE_SIZE - 8) / 2,
-                  },
-                ]}>
-                <Logo size={logoSize} />
-              </View>
-            </LinearGradient>
+        onPress={() => handleProfileChange(item)}
+        style={({ focused }) => ({
+          ...styles.profileItem,
+          width: PROFILE_SIZE,
+          height: PROFILE_SIZE,
 
-            <Text style={[styles.selectedProfileName, profileNameStyle]}>
-              {item.profile_name}
-            </Text>
-          </>
-        ) : (
-          <>
-            <View
-              style={[
-                styles.profileCircle,
-                {
-                  width: PROFILE_SIZE,
-                  height: PROFILE_SIZE,
-                  borderRadius: PROFILE_SIZE / 2,
-                },
-              ]}>
-              <Logo size={logoSize} />
-            </View>
+          padding: focused ? 4 : 0,
+          borderWidth: focused ? 4 : 0,
+          borderColor: focused ? colors.focus : 'transparent',
+          borderRadius: PROFILE_SIZE / 2,
+          backgroundColor: focused ? colors.backgroundCard : 'transparent',
+        })}>
+        <View
+          style={[
+            styles.profileCircle,
+            {
+              width: PROFILE_SIZE - 15,
+              height: PROFILE_SIZE - 15,
+              borderRadius: PROFILE_SIZE / 2,
+            },
+          ]}>
+          <Logo size={logoSize} />
+        </View>
 
-            <Text style={[styles.selectedProfileName, profileNameStyle]}>
-              {item.profile_name}
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
+        <Text style={[styles.selectedProfileName, profileNameStyle]}>
+          {item.profile_name}
+        </Text>
+      </Pressable>
     );
   };
 
@@ -848,7 +821,7 @@ const HomeScreen: React.FC = () => {
                 title="Refresh"
                 onPress={handleRefresh}
                 loading={loading}
-                variant="outline"
+                // variant="outline"
                 style={styles.actionBtn}
               />
 
@@ -856,7 +829,7 @@ const HomeScreen: React.FC = () => {
                 <Button
                   title="Device Info"
                   onPress={handleDeviceInfoToggle}
-                  variant="outline"
+                  // variant="outline"
                   style={styles.actionBtn}
                 />
               )}
@@ -938,36 +911,22 @@ const styles = StyleSheet.create({
   profileItem: {
     marginTop: PROFILE_GAP,
     marginRight: PROFILE_GAP,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
-  profileItemFocused: {
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-
-  profileRing: {
-    padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  // profileRing: {
+  //   padding: 4,
+  //   alignItems: 'center',
+  //   justifyContent: 'center',
+  // },
 
   profileCircle: {
     backgroundColor: colors.backgroundCard,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    width: '100%',
+    height: '100%',
+    borderWidth: 1,
     borderColor: colors.border,
-  },
-
-  profileCircleInner: {
-    backgroundColor: colors.backgroundTertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   selectedProfileName: {
@@ -1024,8 +983,8 @@ const styles = StyleSheet.create({
   badgeText: {
     ...typography.button,
     color: colors.text,
-    width:"100%",
-    height:"100%",
+    width: '100%',
+    height: '100%',
   },
 
   deviceMessageBlock: {

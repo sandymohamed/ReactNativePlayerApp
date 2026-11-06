@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -10,16 +10,20 @@ import {
   BackHandler,
   Pressable,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+
+import { useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
-import {useGlobalContext} from '../context/GlobalContext';
-import {colors} from '../theme/colors';
-import {spacing, borderRadius} from '../theme/spacing';
-import {typography} from '../theme/typography';
-import {getSetting, setSetting, SETTINGS_KEYS} from '../utils/storage';
-import {useTVEventHandler} from '../hooks/useTVEventHandler';
+
+import { useGlobalContext } from '../context/GlobalContext';
+import { colors } from '../theme/colors';
+import { spacing, borderRadius } from '../theme/spacing';
+import { typography } from '../theme/typography';
+import { getSetting, setSetting, SETTINGS_KEYS } from '../utils/storage';
+
+import { useTVEventHandler } from '../hooks/useTVEventHandler';
 import SettingIcon from '../components/SettingIcon';
 import BackButton from '../components/BackButton';
+import { useLandscapeLayout } from '../utils/layout';
 
 type SettingId = 'language' | 'parental' | 'stream' | 'time' | 'list';
 
@@ -29,17 +33,29 @@ interface SettingItem {
 }
 
 const SETTINGS: SettingItem[] = [
-  // {id: 'language', title: 'Select Language'},
-  // {id: 'parental', title: 'Parental control'},
-  {id: 'stream', title: 'Stream Format'},
-  // {id: 'time', title: 'Time Format'},
-  {id: 'list', title: 'List Type'},
+  // { id: 'language', title: 'Select Language' },
+  // { id: 'parental', title: 'Parental control' },
+  { id: 'stream', title: 'Stream Format' },
+  // { id: 'time', title: 'Time Format' },
+  { id: 'list', title: 'List Type' },
 ];
 
-const LANGUAGE_OPTIONS = [{id: 'en', title: 'English'}];
-const STREAM_OPTIONS = [{id: 'm3u8', title: 'm3u8'}, {id: 'ts', title: 'ts'}];
-const TIME_OPTIONS = [{id: '12hours', title: '12 hours'}, {id: '24hours', title: '24 hours'}];
-const LIST_OPTIONS = [{id: 'list', title: 'List'}, {id: 'grid', title: 'Grid'}];
+const LANGUAGE_OPTIONS = [{ id: 'en', title: 'English' }];
+
+const STREAM_OPTIONS = [
+  { id: 'm3u8', title: 'm3u8' },
+  { id: 'ts', title: 'ts' },
+];
+
+const TIME_OPTIONS = [
+  { id: '12hours', title: '12 hours' },
+  { id: '24hours', title: '24 hours' },
+];
+
+const LIST_OPTIONS = [
+  { id: 'list', title: 'List' },
+  { id: 'grid', title: 'Grid' },
+];
 
 const MIN_MODAL_HEIGHT = 420;
 const MODAL_MAX_HEIGHT_PCT = 0.75;
@@ -47,8 +63,8 @@ const MODAL_PADDING_V = 80;
 
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation();
-  const {width, height} = useWindowDimensions();
-  const {changeParental} = useGlobalContext();
+  const { width, height } = useWindowDimensions();
+  const { changeParental } = useGlobalContext();
 
   const modalHeight = Math.min(
     Math.max(MIN_MODAL_HEIGHT, height * MODAL_MAX_HEIGHT_PCT),
@@ -57,14 +73,18 @@ const SettingsScreen: React.FC = () => {
 
   const [openModal, setOpenModal] = useState<SettingId | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
+
   const [language, setLanguage] = useState('English');
   const [streamFormat, setStreamFormat] = useState('m3u8');
   const [timeFormat, setTimeFormat] = useState('24 hours');
   const [listType, setListType] = useState('List');
   const [parentalStatus, setParentalStatus] = useState('off');
 
+  const layout = useLandscapeLayout();
+
   const wide = width >= 800;
   const numCols = wide ? 3 : 2;
+
   const cardWidth = wide
     ? (width - spacing.xl * 2 - spacing.md * (numCols - 1)) / numCols
     : (width - spacing.xl * 2 - spacing.md) / 2;
@@ -77,6 +97,7 @@ const SettingsScreen: React.FC = () => {
       getSetting(SETTINGS_KEYS.LIST_TYPE),
       getSetting(SETTINGS_KEYS.PARENTAL_PASSWORD),
     ]);
+
     setLanguage(lang === 'en' || !lang ? 'English' : lang);
     setStreamFormat(stream || 'm3u8');
     setTimeFormat(!time || time === '24hours' ? '24 hours' : '12 hours');
@@ -90,15 +111,15 @@ const SettingsScreen: React.FC = () => {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-              console.log(" [BACK TEST] from SettingScreeen")
-
       if (openModal) {
         setOpenModal(null);
         return true;
       }
+
       navigation.goBack();
       return true;
     });
+
     return () => sub.remove();
   }, [navigation, openModal]);
 
@@ -108,39 +129,55 @@ const SettingsScreen: React.FC = () => {
         setOpenModal(null);
         return;
       }
+
       navigation.goBack();
     },
+
     onSelect: () => {
       if (!openModal && SETTINGS[focusedIndex]) {
         setOpenModal(SETTINGS[focusedIndex].id);
       }
     },
+
     onUp: () => {
       if (openModal) return;
+
       setFocusedIndex(i => Math.max(0, i - numCols));
     },
+
     onDown: () => {
       if (openModal) return;
+
       setFocusedIndex(i => Math.min(SETTINGS.length - 1, i + numCols));
     },
+
     onLeft: () => {
       if (openModal) return;
+
       setFocusedIndex(i => Math.max(0, i - 1));
     },
+
     onRight: () => {
       if (openModal) return;
+
       setFocusedIndex(i => Math.min(SETTINGS.length - 1, i + 1));
     },
   });
 
   const getSubtitle = (id: SettingId) => {
     switch (id) {
-      case 'language': return language;
-      case 'parental': return parentalStatus;
-      case 'stream': return streamFormat;
-      case 'time': return timeFormat;
-      case 'list': return listType;
-      default: return '';
+      case 'language':
+        return language;
+      case 'parental':
+        return parentalStatus;
+      case 'stream':
+        return streamFormat;
+      case 'time':
+        return timeFormat;
+      case 'list':
+        return listType;
+      default:
+        return '';
     }
   };
 
@@ -179,61 +216,119 @@ const SettingsScreen: React.FC = () => {
       changeParental(true);
       setParentalStatus('On');
     }
+
     handleCloseModal();
   };
 
+  // Modal option button
+  // No onFocus / onBlur state updates.
   const renderOptionButton = (
     title: string,
     onPress: () => void,
     key?: string,
+    preferredFocus = false,
   ) => (
-    <TouchableOpacity
+    <Pressable
+      focusable
+      hasTVPreferredFocus={preferredFocus}
       key={key}
       onPress={onPress}
-      activeOpacity={0.7}
-      style={styles.optionRow}>
+      style={({ focused }) => [
+        styles.optionRow,
+        {
+          paddingVertical: layout.isTV ? spacing.lg : spacing.sm,
+          paddingHorizontal: layout.isTV ? spacing.lg : spacing.sm,
+        },
+        focused && styles.optionRowFocused,
+      ]}>
       <Text style={styles.optionText}>{title}</Text>
       <Text style={styles.optionChevron}>›</Text>
-    </TouchableOpacity>
+    </Pressable>
+  );
+
+  // Modal backdrop
+  const renderModalBackdrop = () => (
+    <Pressable
+      accessible={false}
+      focusable={false}
+      style={StyleSheet.absoluteFill}
+      onPress={handleCloseModal}
+    />
   );
 
   const renderOptionsModal = () => {
     if (!openModal) return null;
 
     const titre =
-      openModal === 'language' ? 'Select your language' :
-      openModal === 'parental' ? 'Parental control' :
-      openModal === 'stream' ? 'Select your stream type' :
-      openModal === 'time' ? 'Select Time Format' :
-      'Select List Type';
+      openModal === 'language'
+        ? 'Select your language'
+        : openModal === 'parental'
+          ? 'Parental control'
+          : openModal === 'stream'
+            ? 'Select your stream type'
+            : openModal === 'time'
+              ? 'Select Time Format'
+              : 'Select List Type';
 
+    // Parental control modal
     if (openModal === 'parental') {
       return (
-        <Modal visible animationType="slide" transparent>
+        <Modal
+          visible
+          animationType="slide"
+          transparent
+          onRequestClose={handleCloseModal}>
           <View style={styles.modalOverlay}>
-            
-            <Pressable onFocus={()=>{
-              console.log("focuss", this)
-            }} style={StyleSheet.absoluteFill} onPress={handleCloseModal} />
-            <View style={[styles.modalBox, {minHeight: modalHeight, maxHeight: modalHeight}]}>
+            {renderModalBackdrop()}
+
+            <View
+              style={[
+                styles.modalBox,
+                {
+                  minHeight: modalHeight,
+                  maxHeight: modalHeight,
+                },
+              ]}>
               <Text style={styles.modalTitle}>{titre}</Text>
+
               <View style={styles.modalOptions}>
-                {renderOptionButton('On', () => handleParental('on'))}
-                {renderOptionButton('Off', () => handleParental('off'))}
+                {renderOptionButton(
+                  'On',
+                  () => handleParental('on'),
+                  'on',
+                  true,
+                )}
+
+                {renderOptionButton('Off', () => handleParental('off'), 'off')}
               </View>
-              <TouchableOpacity
+
+              <Pressable
+                focusable
                 onPress={handleCloseModal}
-                activeOpacity={0.8}
-                style={styles.modalCloseBtn}>
+                style={({ focused }) => [
+                  styles.modalCloseBtn,
+                  {
+                    marginTop: layout.isTV ? spacing.lg : spacing.sm,
+                    paddingVertical: layout.isTV ? spacing.lg : spacing.sm,
+                    paddingHorizontal: layout.isTV ? spacing.xl : spacing.sm,
+
+                    backgroundColor: focused
+                      ? colors.primaryLight
+                      : colors.primary,
+                    borderWidth: focused ? 2 : 0,
+                    borderColor: focused ? colors.focus : 'transparent',
+                  },
+                ]}>
                 <Text style={styles.modalCloseBtnText}>Close</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </Modal>
       );
     }
 
-    let options: {id: string; title: string}[] = [];
+    // Other options
+    let options: { id: string; title: string }[] = [];
     let onSelect: (id: string) => void = () => {};
 
     if (openModal === 'language') {
@@ -251,25 +346,54 @@ const SettingsScreen: React.FC = () => {
     }
 
     return (
-      <Modal visible animationType="slide" transparent>
+      <Modal
+        visible
+        animationType="slide"
+        transparent
+        onRequestClose={handleCloseModal}>
         <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleCloseModal} />
-          <View style={[styles.modalBox, {minHeight: modalHeight, maxHeight: modalHeight}]}>
+          {renderModalBackdrop()}
+
+          <View
+            style={[
+              styles.modalBox,
+              {
+                minHeight: modalHeight,
+                maxHeight: modalHeight,
+              },
+            ]}>
             <Text style={styles.modalTitle}>{titre}</Text>
+
             <ScrollView
               style={styles.modalOptionsScroll}
               contentContainerStyle={styles.modalOptionsContent}
-              showsVerticalScrollIndicator={true}>
-              {options.map(opt =>
-                renderOptionButton(opt.title, () => onSelect(opt.id), opt.id),
+              showsVerticalScrollIndicator
+              keyboardShouldPersistTaps="handled">
+              {options.map((opt, index) =>
+                renderOptionButton(
+                  opt.title,
+                  () => onSelect(opt.id),
+                  opt.id,
+                  index === 0,
+                ),
               )}
             </ScrollView>
-            <TouchableOpacity
+
+            <Pressable
+              focusable
               onPress={handleCloseModal}
-              activeOpacity={0.8}
-              style={styles.modalCloseBtn}>
+              style={({ focused }) => [
+                styles.modalCloseBtn,
+                {
+                  backgroundColor: focused
+                    ? colors.primaryLight
+                    : colors.primary,
+                  borderWidth: focused ? 2 : 0,
+                  borderColor: focused ? colors.focus : 'transparent',
+                },
+              ]}>
               <Text style={styles.modalCloseBtnText}>Close</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -283,26 +407,55 @@ const SettingsScreen: React.FC = () => {
           <BackButton />
           <Text style={styles.title}>Setting</Text>
         </View>
+
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <View style={[styles.grid, {width: '100%', maxWidth: wide ? 900 : width - spacing.xl * 2}]}>
+          <View
+            style={[
+              styles.grid,
+              {
+                width: '100%',
+                maxWidth: wide ? 900 : width - spacing.xl * 2,
+              },
+            ]}>
             {SETTINGS.map((item, index) => {
               const focused = !openModal && focusedIndex === index;
+
               return (
                 <TouchableOpacity
                   key={item.id}
-                  style={[styles.card, {width: cardWidth}, focused && styles.cardFocused]}
+                  style={[
+                    styles.card,
+                    { width: cardWidth },
+                    focused && styles.cardFocused,
+                  ]}
                   onPress={() => {
                     setFocusedIndex(index);
                     setOpenModal(item.id);
                   }}
                   activeOpacity={0.85}>
-                  <View style={[styles.cardTopBar, focused && styles.cardTopBarFocused]} />
+                  <View
+                    style={[
+                      styles.cardTopBar,
+                      focused && styles.cardTopBarFocused,
+                    ]}
+                  />
+
                   <View style={styles.cardInner}>
                     <SettingIcon id={item.id} size={40} />
-                    <Text style={[styles.cardTitle, focused && styles.cardTitleFocused]}>{item.title}</Text>
-                    <Text style={styles.cardSubtitle}>{getSubtitle(item.id)}</Text>
+
+                    <Text
+                      style={[
+                        styles.cardTitle,
+                        focused && styles.cardTitleFocused,
+                      ]}>
+                      {item.title}
+                    </Text>
+
+                    <Text style={styles.cardSubtitle}>
+                      {getSubtitle(item.id)}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -310,14 +463,21 @@ const SettingsScreen: React.FC = () => {
           </View>
         </ScrollView>
       </LinearGradient>
+
       {renderOptionsModal()}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  background: { flex: 1 },
+  container: {
+    flex: 1,
+  },
+
+  background: {
+    flex: 1,
+  },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -326,6 +486,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     gap: spacing.md,
   },
+
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -334,29 +495,35 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     backgroundColor: colors.backgroundCard,
   },
+
   backArrow: {
     fontSize: 20,
     color: colors.text,
     marginRight: spacing.xs,
   },
+
   backLabel: {
     ...typography.button,
     color: colors.text,
   },
+
   title: {
     ...typography.h1,
     color: colors.text,
     flex: 1,
   },
+
   scrollContent: {
     padding: spacing.xl,
     paddingTop: spacing.md,
   },
+
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
   },
+
   card: {
     backgroundColor: colors.backgroundCard,
     borderRadius: borderRadius.lg,
@@ -365,10 +532,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+
   cardFocused: {
     borderColor: colors.primary,
     backgroundColor: colors.backgroundTertiary,
   },
+
   cardTopBar: {
     height: 4,
     width: '33%',
@@ -377,27 +546,33 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     marginTop: spacing.sm,
   },
+
   cardTopBarFocused: {
     backgroundColor: colors.secondary,
   },
+
   cardTitleFocused: {
     color: colors.primaryLight,
   },
+
   cardInner: {
     flex: 1,
     padding: spacing.lg,
     justifyContent: 'flex-end',
   },
+
   cardTitle: {
     ...typography.h2,
     color: colors.text,
     marginTop: spacing.md,
   },
+
   cardSubtitle: {
     ...typography.bodySmall,
     color: colors.textTertiary,
     marginTop: spacing.xs,
   },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',
@@ -405,6 +580,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.xl,
   },
+
   modalBox: {
     width: '100%',
     maxWidth: 440,
@@ -415,55 +591,65 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+
   modalTitle: {
     ...typography.h2,
     fontSize: 22,
     color: colors.text,
     marginBottom: spacing.lg,
   },
+
   modalOptions: {
     marginBottom: spacing.sm,
   },
+
   modalOptionsScroll: {
     flex: 1,
     minHeight: 140,
   },
+
   modalOptionsContent: {
     paddingBottom: spacing.md,
   },
+
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
+
     backgroundColor: colors.backgroundCard,
     borderRadius: borderRadius.md,
     marginBottom: spacing.sm,
     minHeight: 56,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
+
+  optionRowFocused: {
+    backgroundColor: colors.backgroundTertiary,
+    borderColor: colors.focus,
+    transform: [{ scale: 1.02 }],
+  },
+
   optionText: {
     fontSize: 17,
     fontWeight: '600',
     color: colors.text,
   },
+
   optionChevron: {
     fontSize: 22,
     color: colors.textSecondary,
     fontWeight: '700',
   },
+
   modalCloseBtn: {
-    marginTop: spacing.lg,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 56,
   },
+
   modalCloseBtnText: {
     fontSize: 18,
     fontWeight: '700',

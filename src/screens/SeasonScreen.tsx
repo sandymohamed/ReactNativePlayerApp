@@ -171,6 +171,7 @@ const SeasonScreen: React.FC = () => {
   // Open the selected episode.
   const handleEpisodePress = useCallback(
     (episode: Episode) => {
+      console.log('handleEpisodePress epssss', episode, profile);
       if (!profile || !episode) {
         return;
       }
@@ -199,6 +200,7 @@ const SeasonScreen: React.FC = () => {
         profile,
       );
 
+      console.log("urlllllllllll", url)
       // Save current episode for next/previous navigation.
       if (serie) {
         changeSerie({
@@ -217,6 +219,8 @@ const SeasonScreen: React.FC = () => {
         streamId: String(streamId),
         seriesId: routeSeriesId,
       });
+
+      console.log('[NAV TEST] AFTER NAVIGATE')
     },
     [profile, contextSerie, routeSerie, changeSerie, navigation, routeSeriesId],
   );
@@ -245,12 +249,15 @@ const SeasonScreen: React.FC = () => {
             subtitle={subtitle}
             image={cover}
             style={{ width: cardWidth }}
-            onPress={() => handleEpisodePress(item)}
+            onPress={() => {
+              console.log('11111handleEpisodePress', item);
+              handleEpisodePress(item);
+            }}
           />
         </View>
       );
     },
-    [serie?.info?.cover, cardWidth, handleEpisodePress],
+    [serie?.info?.cover, cardWidth],
   );
 
   const keyExtractor = useCallback(
@@ -329,8 +336,7 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
-   header: {
-
+  header: {
     paddingHorizontal: spacing.xs,
   },
   headerTitle: {

@@ -3,7 +3,7 @@ import {
   View,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   ActivityIndicator,
   BackHandler,
@@ -31,17 +31,7 @@ import {
 } from '../utils/storage';
 
 const { width, height } = Dimensions.get('window');
-const CONTROLS_HIDE_DELAY = 2000;
-
-type FocusedControl =
-  | 'back'
-  | 'retry'
-  | 'previous'
-  | 'backward'
-  | 'playPause'
-  | 'forward'
-  | 'next'
-  | `speed-${number}`;
+const CONTROLS_HIDE_DELAY = 1000;
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -83,9 +73,6 @@ const PlayerScreen: React.FC = () => {
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [videoKey, setVideoKey] = useState(0);
-  const [focusedControl, setFocusedControl] = useState<FocusedControl | null>(
-    'playPause',
-  );
 
   const videoRef = useRef<any>(null);
   const resumePositionRef = useRef(0);
@@ -101,6 +88,7 @@ const PlayerScreen: React.FC = () => {
   const pausedRef = useRef(false);
 
   useEffect(() => {
+    console.log('showControls:', showControls);
     showControlsRef.current = showControls;
   }, [showControls]);
 
@@ -127,7 +115,6 @@ const PlayerScreen: React.FC = () => {
     controlsTimeout.current = setTimeout(() => {
       showControlsRef.current = false;
       setShowControls(false);
-      setFocusedControl(null);
       console.log(
         'showControlsTemporarily showControlsRef:',
         showControlsRef.current,
@@ -137,29 +124,12 @@ const PlayerScreen: React.FC = () => {
     }, CONTROLS_HIDE_DELAY);
   }, [clearControlsTimeout]);
 
-  const handleFocus = useCallback(
-    (control: FocusedControl) => {
-      setFocusedControl(control);
-      showControlsTemporarily();
-    },
-    [showControlsTemporarily],
-  );
-
-  const handleBlur = useCallback((control: FocusedControl) => {
-    // Don't clear a newer focus that was received by another button.
-    setFocusedControl(current => (current === control ? null : current));
-  }, []);
-
   /**
    * Native TV focus handles movement while controls are visible.
    * When the overlay has disappeared, a directional key brings it back.
    */
   const handleRemoteDirection = useCallback(() => {
     console.log('handleRemoteDirection');
-    if (!showControlsRef.current) {
-      setFocusedControl('playPause');
-    }
-
     showControlsTemporarily();
   }, [showControlsTemporarily]);
 
@@ -182,10 +152,6 @@ const PlayerScreen: React.FC = () => {
   }, [isScreenFocused, navigation]);
 
   const handlePlayPause = useCallback(() => {
-    if (!showControlsRef.current) {
-      setFocusedControl('playPause');
-    }
-
     setPaused(value => !value);
     showControlsTemporarily();
   }, [showControlsTemporarily]);
@@ -218,36 +184,36 @@ const PlayerScreen: React.FC = () => {
     return () => subscription.remove();
   }, [isScreenFocused, handleBack]);
 
-  // useTVEventHandler({
-  //   onLeft: () => {
-  //     console.log('TV press from onLeft ');
-  //     handleRemoteDirection();
-  //   },
-  //   onRight: () => {
-  //     console.log('TV press from onRight');
-  //     handleRemoteDirection();
-  //   },
-  //   onUp: () => {
-  //     console.log('TV press from onUp');
-  //     handleRemoteDirection();
-  //   },
-  //   onDown: () => {
-  //     console.log('TV press from onDown');
-  //     handleRemoteDirection();
-  //   },
-  //   onPlayPause: handlePlayPause,
-  //   onBack: handleBack,
-  // });
-
   useTVEventHandler({
-    onSelect: handleRemoteDirection,
+    onSelect: () => {
+      console.log('[PLAYER] SELECT');
+      handleRemoteDirection();
+    },
 
-    onLeft: handleRemoteDirection,
-    onRight: handleRemoteDirection,
-    onUp: handleRemoteDirection,
-    onDown: handleRemoteDirection,
+    onLeft: () => {
+      console.log('[PLAYER] LEFT');
+      handleRemoteDirection();
+    },
 
-    onMenu: handleRemoteDirection,
+    onRight: () => {
+      console.log('[PLAYER] RIGHT');
+      handleRemoteDirection();
+    },
+
+    onUp: () => {
+      console.log('[PLAYER] UP');
+      handleRemoteDirection();
+    },
+
+    onDown: () => {
+      console.log('[PLAYER] DOWN');
+      handleRemoteDirection();
+    },
+
+    onMenu: () => {
+      console.log('[PLAYER] MENU');
+      handleRemoteDirection();
+    },
 
     onPlayPause: handlePlayPause,
     onBack: handleBack,
@@ -535,9 +501,6 @@ const PlayerScreen: React.FC = () => {
     }
   }
 
-  const focusedStyle = (control: FocusedControl) =>
-    focusedControl === control ? styles.focusedControl : undefined;
-
   // const videoSource = isLive
   //   ? { uri: url, type: 'm3u8' as const }
   //   : { uri: url };
@@ -673,7 +636,6 @@ const PlayerScreen: React.FC = () => {
           setPaused(true);
           setShowControls(true);
           showControlsRef.current = true;
-          setFocusedControl('playPause');
           clearControlsTimeout();
 
           if (hasNextEpisode) {
@@ -698,9 +660,7 @@ const PlayerScreen: React.FC = () => {
           <Text style={styles.errorTitle}>Playback problem</Text>
           <Text style={styles.errorText}>{error}</Text>
 
-          <TouchableOpacity
-            onFocus={() => handleFocus('retry')}
-            onBlur={() => handleBlur('retry')}
+          <Pressable
             onPress={() => {
               setError(null);
               setLoading(true);
@@ -708,16 +668,19 @@ const PlayerScreen: React.FC = () => {
               setVideoKey(key => key + 1);
               showControlsTemporarily();
             }}
-            style={[styles.retryButton, focusedStyle('retry')]}
+            style={({ focused }) => [
+              styles.retryButton,
+              focused && styles.focusedControl,
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Retry playback">
             <Text style={styles.retryButtonText}>Try again</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       )}
 
       {/*
-        Intentionally no full-screen TouchableOpacity here.
+        Intentionally no full-screen Pressable here.
         It can take TV focus away from the actual player controls.
         Directional remote events reveal the overlay when it is hidden.
       */}
@@ -725,15 +688,16 @@ const PlayerScreen: React.FC = () => {
       {showControls && (
         <>
           <View style={styles.topBar}>
-            <TouchableOpacity
-              onFocus={() => handleFocus('back')}
-              onBlur={() => handleBlur('back')}
+            <Pressable
               onPress={handleBack}
-              style={[styles.backButton, focusedStyle('back')]}
+              style={({ focused }) => [
+                styles.backButton,
+                focused && styles.focusedControl,
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Go back">
               <Text style={styles.backText}>‹</Text>
-            </TouchableOpacity>
+            </Pressable>
 
             <View style={styles.titleContainer}>
               <Text style={styles.title} numberOfLines={1}>
@@ -791,78 +755,75 @@ const PlayerScreen: React.FC = () => {
 
             <View style={styles.mainControlsRow}>
               {type === 'serie' && (
-                <TouchableOpacity
-                  onFocus={() => handleFocus('previous')}
-                  onBlur={() => handleBlur('previous')}
+                <Pressable
                   onPress={handlePreviousEpisode}
                   disabled={!hasPreviousEpisode}
-                  style={[
+                  style={({ focused }) => [
                     styles.iconButton,
                     !hasPreviousEpisode && styles.disabledButton,
-                    focusedStyle('previous'),
+                    focused && styles.focusedControl,
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel="Previous episode">
                   <Text style={styles.iconButtonText}>|◀</Text>
                   <Text style={styles.buttonCaption}>PREV</Text>
-                </TouchableOpacity>
+                </Pressable>
               )}
 
               {!isLive && (
-                <TouchableOpacity
-                  onFocus={() => handleFocus('backward')}
-                  onBlur={() => handleBlur('backward')}
+                <Pressable
                   onPress={() => handleSeek(-10)}
-                  style={[styles.iconButton, focusedStyle('backward')]}
+                  style={({ focused }) => [
+                    styles.iconButton,
+                    focused && styles.focusedControl,
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel="Back 10 seconds">
                   <Text style={styles.seekButtonText}>−10</Text>
                   <Text style={styles.buttonCaption}>SEC</Text>
-                </TouchableOpacity>
+                </Pressable>
               )}
 
-              <TouchableOpacity
-                hasTVPreferredFocus={
-                  showControls && focusedControl === 'playPause'
-                }
-                onFocus={() => handleFocus('playPause')}
-                onBlur={() => handleBlur('playPause')}
+              <Pressable
+                hasTVPreferredFocus={showControls}
                 onPress={handlePlayPause}
-                style={[styles.playButton, focusedStyle('playPause')]}
+                style={({ focused }) => [
+                  styles.playButton,
+                  focused && styles.focusedControl,
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel={paused ? 'Play' : 'Pause'}>
                 <Text style={styles.playButtonText}>{paused ? '▶' : 'Ⅱ'}</Text>
-              </TouchableOpacity>
+              </Pressable>
 
               {!isLive && (
-                <TouchableOpacity
-                  onFocus={() => handleFocus('forward')}
-                  onBlur={() => handleBlur('forward')}
+                <Pressable
                   onPress={() => handleSeek(10)}
-                  style={[styles.iconButton, focusedStyle('forward')]}
+                  style={({ focused }) => [
+                    styles.iconButton,
+                    focused && styles.focusedControl,
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel="Forward 10 seconds">
                   <Text style={styles.seekButtonText}>+10</Text>
                   <Text style={styles.buttonCaption}>SEC</Text>
-                </TouchableOpacity>
+                </Pressable>
               )}
 
               {type === 'serie' && (
-                <TouchableOpacity
-                  onFocus={() => handleFocus('next')}
-                  onBlur={() => handleBlur('next')}
+                <Pressable
                   onPress={handleNextEpisode}
                   disabled={!hasNextEpisode}
-                  style={[
+                  style={({ focused }) => [
                     styles.iconButton,
                     !hasNextEpisode && styles.disabledButton,
-                    focusedStyle('next'),
+                    focused && styles.focusedControl,
                   ]}
                   accessibilityRole="button"
                   accessibilityLabel="Next episode">
                   <Text style={styles.iconButtonText}>▶|</Text>
                   <Text style={styles.buttonCaption}>NEXT</Text>
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
 
@@ -872,19 +833,16 @@ const PlayerScreen: React.FC = () => {
 
                 <View style={styles.speedRow}>
                   {SPEED_OPTIONS.map(speed => {
-                    const control = `speed-${speed}` as FocusedControl;
                     const active = playbackRate === speed;
 
                     return (
-                      <TouchableOpacity
+                      <Pressable
                         key={speed}
-                        onFocus={() => handleFocus(control)}
-                        onBlur={() => handleBlur(control)}
                         onPress={() => handleSpeedChange(speed)}
-                        style={[
+                        style={({ focused }) => [
                           styles.speedButton,
                           active && styles.speedButtonActive,
-                          focusedStyle(control),
+                          focused && styles.focusedControl,
                         ]}
                         accessibilityRole="button"
                         accessibilityLabel={`Playback speed ${speed} times`}>
@@ -895,7 +853,7 @@ const PlayerScreen: React.FC = () => {
                           ]}>
                           {speed}x
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     );
                   })}
                 </View>
@@ -957,8 +915,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   backText: {
     color: '#FFFFFF',
@@ -1073,7 +1031,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#171720',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
   disabledButton: {
@@ -1135,7 +1093,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 12,
     backgroundColor: '#171720',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.07)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1157,14 +1115,9 @@ const styles = StyleSheet.create({
    * bright mint outline + stronger background + slight enlargement.
    */
   focusedControl: {
-    borderColor: '#5EEAD4',
-    backgroundColor: 'rgba(94,234,212,0.24)',
-    transform: [{ scale: 1.1 }],
-    elevation: 12,
-    shadowColor: '#5EEAD4',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.65,
-    shadowRadius: 9,
+    borderColor: colors.focus,
+    borderWidth: 2,
+    backgroundColor: 'rgba(94,234,212,0.18)',
   },
   errorContainer: {
     position: 'absolute',

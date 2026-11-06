@@ -25,6 +25,7 @@ import FastImage from 'react-native-fast-image';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
 import BackButton from '../components/BackButton';
 import { useLandscapeLayout } from '../utils/layout';
+import { SvgUri } from 'react-native-svg';
 
 const MovieDetailScreen: React.FC = () => {
   const navigation =
@@ -169,7 +170,7 @@ const MovieDetailScreen: React.FC = () => {
         title="Play"
         onFocus={() => setFocusedButton('play')}
         onPress={handlePlay}
-        style={  {  marginTop: layout.isTV ? spacing.xxl : spacing.lg,}}
+        style={{ marginTop: layout.isTV ? spacing.xxl : spacing.lg }}
       />
     </View>
   );
@@ -191,10 +192,18 @@ const MovieDetailScreen: React.FC = () => {
               style={[styles.overlayWide, { opacity: 1 }]}>
               {contentBlock}
             </LinearGradient>
-            {cover && (
+            {cover?.toLowerCase().split('?')[0].endsWith('.svg') ? (
+              <SvgUri
+                uri={cover}
+                width={layout.isTV ? 380 : 380}
+                height="100%"
+                preserveAspectRatio="xMidYMid slice"
+                style={[styles.coverWide]}
+              />
+            ) : (
               <FastImage
                 source={{ uri: cover }}
-                style={[styles.coverWide]}
+                style={[styles.coverWide, { width: 380 }]}
                 resizeMode={FastImage.resizeMode.cover}
               />
             )}
@@ -222,7 +231,6 @@ const styles = StyleSheet.create({
     height: 400,
   },
   coverWide: {
-    width: 380,
     height: '100%',
     minHeight: 320,
   },
@@ -293,7 +301,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   favoriteIcon: {
-    fontSize: 22,
+    fontSize: 18,
   },
 });
 

@@ -61,13 +61,11 @@ const SerieDetailScreen: React.FC = () => {
     const arrayFav = [...listSerieFav];
     if (listSerieFav.includes(streamId)) {
       let arr = arrayFav.filter(el => el !== streamId);
-      console.log('arr : ', arr);
-      profile ? deleterow(streamId, 'serie', profile) : null;
+            profile ? deleterow(streamId, 'serie', profile) : null;
 
       changeListSerieFav(arr);
     } else {
       arrayFav.push(streamId);
-      console.log('arrayFav : ', arrayFav);
       profile ? insertData(streamId, 'serie', profile) : null;
       changeListSerieFav(arrayFav);
     }
@@ -362,7 +360,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   favoriteIcon: {
-    fontSize: 22,
+    fontSize: 18,
   },
   seasonsContainer: {
     margin: spacing.md,

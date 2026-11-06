@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   StyleSheet,
   ActivityIndicator,
@@ -59,21 +59,22 @@ const Button: React.FC<ButtonProps> = ({
   const indicatorColor = variant === 'outline' ? colors.primary : colors.text;
 
   return (
-    <TouchableOpacity
+    <Pressable
+      focusable
       onPress={onPress}
       onFocus={handleFocus}
       onBlur={handleBlur}
       disabled={isDisabled}
-      // focusable={focusable && !isDisabled}
-      activeOpacity={isPrimary ? 0.8 : 0.7}
-      style={[
+
+      style={({ focused }) => [
         styles.button,
-        isPrimary ? styles.primaryButton : variantStyles[variant],
         sizeStyles[size],
+        isPrimary ? styles.primaryButton : variantStyles[variant],
         disabled && styles.disabled,
         style,
         focused && styles.focused,
-      ]}>
+      ]}
+    >
       {isPrimary && (
         <LinearGradient
           colors={colors.gradients.primary}
@@ -97,7 +98,7 @@ const Button: React.FC<ButtonProps> = ({
           {title}
         </Text>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

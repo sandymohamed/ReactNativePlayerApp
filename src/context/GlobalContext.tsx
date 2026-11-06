@@ -149,6 +149,8 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
           getMainData(),
         ]);
 
+        console.log('Restored saved profile:', savedProfile);
+        console.log('Restored cached data:', cachedData);
         if (cancelled) return;
 
         if (savedProfile) {
@@ -273,6 +275,7 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
   };
 
   const changeProfile = (item: Playlist | null) => {
+    console.log('Changing profile to:', item);
     setProfile(item);
   };
 
