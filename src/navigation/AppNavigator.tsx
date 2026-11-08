@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { BackHandler } from 'react-native';
+import { BackHandler, View } from 'react-native';
 import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -20,6 +20,7 @@ import CategoryScreen from '../screens/CategoryScreen';
 import SeasonScreen from '../screens/SeasonScreen';
 import { SerieInfo } from '../models/model';
 import { useGlobalContext } from '../context/GlobalContext';
+import { Text } from 'react-native-svg';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -66,8 +67,6 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 //   return <HomeScreen />;
 // };
 
-
-
 const HomeScreenWithBackBlock = () => {
   useFocusEffect(
     useCallback(() => {
@@ -109,43 +108,35 @@ const MainScreenWithBackBlock = () => {
   return <MainScreen />;
 };
 
-
 const AppNavigator = () => {
   const { isAppReady, hasCachedData, profile } = useGlobalContext();
 
-  // if (!isAppReady) {
-  //   return (
-  //     <View>
-  //       {' '}
-  //       <Text>SplashScreen</Text>
-  //     </View>
-  //   );
-  // }
+  if (!isAppReady) {
+    return (
+      <View><Text>SplashScreen</Text></View>
+    );
+  }
 
   return (
     <NavigationContainer>
-        <Stack.Navigator
+      {/* <Stack.Navigator
         initialRouteName="Home" 
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
-        }}>
-      {/* <Stack.Navigator
+        }}> */}
+      <Stack.Navigator
         key={profile && hasCachedData ? 'main' : 'home'}
         initialRouteName={profile && hasCachedData ? 'Main' : 'Home'}
-        // initialRouteName="Home"
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
-        }}> */}
+        }}>
         <Stack.Screen name="Home" component={HomeScreenWithBackBlock} />
         {/* <Stack.Screen name="Main" component={MainScreen} /> */}
-        <Stack.Screen
-  name="Main"
-  component={MainScreenWithBackBlock}
-/>
+        <Stack.Screen name="Main" component={MainScreenWithBackBlock} />
         <Stack.Screen name="Movies" component={MoviesScreen} />
-      <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />
+        <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />
         <Stack.Screen name="Series" component={SeriesScreen} />
         <Stack.Screen name="SerieDetail" component={SerieDetailScreen} />
         <Stack.Screen name="Live" component={LiveScreen} />
@@ -155,7 +146,7 @@ const AppNavigator = () => {
         <Stack.Screen name="Recent" component={RecentScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Category" component={CategoryScreen} />
-        <Stack.Screen name="Season" component={SeasonScreen} /> 
+        <Stack.Screen name="Season" component={SeasonScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

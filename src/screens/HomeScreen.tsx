@@ -62,13 +62,12 @@ const DEF_VERSION = '1.0.2';
 const DEF_TYPE = 1;
 
 // const LOGIN_URL = 'https://api.uiplayer.com/api/apps/devices/login';
-const LOGIN_URL = 'http://192.168.1.19:5000/api/apps/devices/login';
+// const LOGIN_URL = 'http://192.168.1.19:5000/api/apps/devices/login';
 
 const DEVICE_IDENTITY_KEY = '@iptv/device_identity_v1';
 const LOGIN_CACHE_PREFIX = '@iptv/device_login_v1:';
 
 const HomeScreen: React.FC = () => {
-  console.log('HomeScreen');
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { width, height } = useWindowDimensions();
   const layout = useLandscapeLayout();
@@ -206,13 +205,12 @@ const HomeScreen: React.FC = () => {
 
       // Save once; never silently replace a previously saved identity.
       await AsyncStorage.setItem(DEVICE_IDENTITY_KEY, JSON.stringify(identity));
-
       return identity;
     }, []);
 
   const applyLoginData = useCallback(
     (data: LoginModel) => {
-      console.log('from applyLoginData');
+      console.log('from applyLoginData', data);
       setError('');
       setIsTrial(!!data.is_terial);
 
@@ -224,7 +222,7 @@ const HomeScreen: React.FC = () => {
       setExpiredAt(daysRemaining > 0 ? `Expired in ${daysRemaining} days` : '');
 
       if (data.status === -1) {
-        console.log('from applyLoginData data.status === -1');
+        console.log('from applyLoginData data.status === -1', data.status);
         setDeviceInfoShow('-1');
         setProfileList([]);
         setDeviceInfoShowForce(false);
@@ -313,6 +311,7 @@ const HomeScreen: React.FC = () => {
       identifier: string,
       data: LoginModel,
     ) => {
+      console.log(' saveLoginCache:', data);
       const expiryTimestamp = parseExpiry(data.ExipiredAt);
 
       // Never cache an expired response or a response without
@@ -322,6 +321,7 @@ const HomeScreen: React.FC = () => {
         !expiryTimestamp ||
         expiryTimestamp <= Date.now()
       ) {
+        console.log(' data.status === -1', expiryTimestamp);
         return;
       }
 
@@ -331,6 +331,7 @@ const HomeScreen: React.FC = () => {
         data,
         cachedAt: Date.now(),
       };
+      console.log('cacheKey', cacheKey);
 
       await AsyncStorage.setItem(cacheKey, JSON.stringify(cache));
     },
@@ -356,6 +357,7 @@ const HomeScreen: React.FC = () => {
         );
 
         if (cachedData) {
+          console.log('cachedData', cachedData);
           applyLoginData(cachedData);
           return;
         }
@@ -365,93 +367,93 @@ const HomeScreen: React.FC = () => {
       setDeviceInfoShow('-2');
 
       try {
-        const response = await fetch(LOGIN_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            mac: identifier,
-            password: getPassword(identifier),
-            type: String(type),
-            version,
-          }),
-        });
-
-        console.log('ressss', response);
-        if (!response.ok) {
-          throw new Error(`Login request failed with HTTP ${response.status}.`);
-        }
-
-        const data: LoginModel = await response.json();
-        console.log('data:', data);
-        if (typeof data.status !== 'number') {
-          throw new Error('The login API returned an unexpected response.');
-        }
-
-        data.playlist?.map(i => (i.allowed_output_formats = ['m3u']));
-        console.log(
-          'Login response received for device identifier type:',
-          identifierType,
-          data,
-        );
-
-        if (data.status === -1) {
-          const cacheKey = getLoginCacheKey(identifierType, identifier);
-
-          await AsyncStorage.removeItem(cacheKey);
-          applyLoginData(data);
-          return;
-        }
-
-        // const data: LoginModel = {
-        //   id: 1,
-        //   mac: 'b8:b4:09:45:24:f6',
-        //   password: '',
-        //   startPackage: '',
-        //   ExipiredAt: '',
-        //   status: 1,
-        //   type: 3,
-        //   city: {
-        //     city: '',
-        //     lat: '',
-        //     lng: '',
-        //     iso2: '',
+        // const response = await fetch(LOGIN_URL, {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json',
         //   },
-        //   country: '',
-        //   created_at: '',
-        //   updated_at: '',
-        //   version: '1.0.2',
-        //   is_terial: false,
-        //   playlist: [
-        //     {
-        //       id: 1,
-        //       profile_name: 'demo',
-        //       xml_epg: '',
-        //       username: 'demo',
-        //       password: 'demo',
-        //       host: 'https://spannable.com/mock/xtream',
-        //       pin: '',
-        //       isXS: 1,
-        //       created_at: '',
-        //       updated_at: '',
-        //       allowed_output_formats: ['m3u'],
-        //     },
-        //     {
-        //       id: 2,
-        //       profile_name: 'demo2',
-        //       xml_epg: '',
-        //       username: 'demo',
-        //       password: 'demo',
-        //       host: 'https://spannable.com/mock/xtream',
-        //       pin: '',
-        //       isXS: 1,
-        //       created_at: '',
-        //       updated_at: '',
-        //       allowed_output_formats: ['m3u'],
-        //     },
-        //   ],
-        // };
+        //   body: JSON.stringify({
+        //     mac: identifier,
+        //     password: getPassword(identifier),
+        //     type: String(type),
+        //     version,
+        //   }),
+        // });
+
+        // console.log('ressss', response);
+        // if (!response.ok) {
+        //   throw new Error(`Login request failed with HTTP ${response.status}.`);
+        // }
+
+        // const data: LoginModel = await response.json();
+        // console.log('data:', data);
+        // if (typeof data.status !== 'number') {
+        //   throw new Error('The login API returned an unexpected response.');
+        // }
+
+        // data.playlist?.map(i => (i.allowed_output_formats = ['m3u']));
+        // console.log(
+        //   'Login response received for device identifier type:',
+        //   identifierType,
+        //   data,
+        // );
+
+        // if (data.status === -1) {
+        //   const cacheKey = getLoginCacheKey(identifierType, identifier);
+
+        //   await AsyncStorage.removeItem(cacheKey);
+        //   applyLoginData(data);
+        //   return;
+        // }
+
+        const data: LoginModel = {
+          id: 1,
+          mac: 'b8:b4:09:45:24:f6',
+          password: '',
+          startPackage: '',
+          ExipiredAt: '25-05-2030',
+          status: 1,
+          type: 3,
+          city: {
+            city: '',
+            lat: '',
+            lng: '',
+            iso2: '',
+          },
+          country: '',
+          created_at: '',
+          updated_at: '',
+          version: '1.0.2',
+          is_terial: false,
+          playlist: [
+            {
+              id: 1,
+              profile_name: 'demo',
+              xml_epg: '',
+              username: 'demo',
+              password: 'demo',
+              host: 'https://spannable.com/mock/xtream',
+              pin: '',
+              isXS: 1,
+              created_at: '',
+              updated_at: '',
+              allowed_output_formats: ['m3u'],
+            },
+            {
+              id: 2,
+              profile_name: 'demo2',
+              xml_epg: '',
+              username: 'demo',
+              password: 'demo',
+              host: 'https://spannable.com/mock/xtream',
+              pin: '',
+              isXS: 1,
+              created_at: '',
+              updated_at: '',
+              allowed_output_formats: ['m3u'],
+            },
+          ],
+        };
 
         setLoading(false);
         setDeviceInfoShow('1');
@@ -521,7 +523,7 @@ const HomeScreen: React.FC = () => {
   }, [callService, changeDeviceInfo, getDeviceCredentials]);
 
   useEffect(() => {
-    console.log('from HOmeScreen');
+    console.log('will initialize');
     void initializeDevice();
   }, []);
 
@@ -665,6 +667,7 @@ const HomeScreen: React.FC = () => {
           ]}
           showsVerticalScrollIndicator={false}>
           <View style={[styles.center, wide && styles.centerWide]}>
+            {/* Loading */}
             {deviceInfoShow === '-2' && (
               <View style={styles.loadingBlock}>
                 <ActivityIndicator size="large" color={colors.primary} />
@@ -672,6 +675,7 @@ const HomeScreen: React.FC = () => {
               </View>
             )}
 
+            {/* Profile Selection */}
             {showProfilePicker && (
               <View
                 style={[
@@ -681,7 +685,13 @@ const HomeScreen: React.FC = () => {
                     height: height / 1.8,
                   },
                 ]}>
-                <Text style={styles.whoConnected}>Who Connected</Text>
+                <View style={styles.sectionHeading}>
+                  {/* <Text style={styles.sectionEyebrow}>YOUR PROFILES</Text> */}
+                  <Text style={styles.whoConnected}>Who's Watching?</Text>
+                  <Text style={styles.sectionSubtitle}>
+                    Select a profile to continue
+                  </Text>
+                </View>
 
                 <FlatList
                   ref={profileListRef}
@@ -707,24 +717,38 @@ const HomeScreen: React.FC = () => {
               </View>
             )}
 
+            {/* Device Dashboard */}
             {showDeviceInfoCard && (
               <View style={styles.deviceInfoSection}>
-                <View
-                  style={[
-                    styles.deviceCard,
-                    deviceInfoShow === '1'
-                      ? styles.deviceCardActive
-                      : styles.deviceCardInactive,
-                  ]}>
-                  <View style={styles.badgeWrapper}>
+                <View style={styles.deviceCard}>
+                  {/* Card Header */}
+                  <View style={styles.cardHeader}>
+                    <View style={styles.cardTitleGroup}>
+                      <Text style={styles.cardEyebrow}>DEVICE OVERVIEW</Text>
+                      <Text style={styles.cardTitle}>Device Information</Text>
+                    </View>
+
                     <View
                       style={[
-                        styles.badge,
+                        styles.statusChip,
                         deviceInfoShow === '1'
-                          ? styles.badgeActive
-                          : styles.badgeInactive,
+                          ? styles.statusChipActive
+                          : deviceInfoShow === '0'
+                            ? styles.statusChipTrial
+                            : styles.statusChipInactive,
                       ]}>
-                      <Text style={styles.badgeText}>
+                      <View
+                        style={[
+                          styles.statusDot,
+                          deviceInfoShow === '1'
+                            ? styles.statusDotActive
+                            : deviceInfoShow === '0'
+                              ? styles.statusDotTrial
+                              : styles.statusDotInactive,
+                        ]}
+                      />
+
+                      <Text style={styles.statusText}>
                         {deviceInfoShow === '1' && 'Active'}
                         {deviceInfoShow === '-1' && 'Expired'}
                         {deviceInfoShow === '0' && 'Trial'}
@@ -732,14 +756,12 @@ const HomeScreen: React.FC = () => {
                     </View>
                   </View>
 
-                  <View style={styles.deviceMessageBlock}>
+                  {/* Status Information */}
+                  <View style={styles.statusContent}>
                     {deviceInfoShow === '-1' && !isTrial && (
                       <Text style={styles.deviceMessage}>
                         Your TV subscription is expired.
                         {'\n'}
-                        {/* Use the following device identifier and password to
-                        upload your playlist at{' '}
-                        <Text style={styles.link}>uiplayer.com </Text> */}
                       </Text>
                     )}
 
@@ -747,9 +769,6 @@ const HomeScreen: React.FC = () => {
                       <Text style={styles.deviceMessage}>
                         Limited Time Trial Has Expired
                         {'\n'}
-                        {/* Use the following device identifier and password to
-                        upload your playlist at{' '}
-                        <Text style={styles.link}>uiplayer.com</Text> */}
                       </Text>
                     )}
 
@@ -761,9 +780,6 @@ const HomeScreen: React.FC = () => {
                           <Text style={styles.expiredAt}>{expiredAt}</Text>
                         ) : null}
                         {expiredAt ? '\n' : ''}
-                        {/* Use the following device identifier and password to
-                        upload your playlist at{' '}
-                        <Text style={styles.link}>uiplayer.com</Text> */}
                       </Text>
                     )}
 
@@ -775,9 +791,6 @@ const HomeScreen: React.FC = () => {
                           <Text style={styles.expiredAt}>{expiredAt}</Text>
                         ) : null}
                         {expiredAt ? '\n' : ''}
-                        {/* Use the following device identifier and password to
-                        upload your playlist at{' '}
-                        <Text style={styles.link}>uiplayer.com</Text> */}
                       </Text>
                     )}
 
@@ -791,40 +804,42 @@ const HomeScreen: React.FC = () => {
                         {expiredAt ? '\n' : ''}
                         There is no playlist uploaded for your device.
                         {'\n\n'}
-                        {/* Use the following device identifier and password to
-                        upload your playlist at{' '}
-                        <Text style={styles.link}>uiplayer.com</Text> */}
                       </Text>
                     )}
                   </View>
 
-                  <View style={styles.divider} />
+                  {/* Device Credentials */}
+                  <View style={styles.credentialsSection}>
+                    <Text style={styles.credentialsHeading}>
+                      DEVICE CREDENTIALS
+                    </Text>
 
-                  <View style={styles.macRow}>
-                    <View style={styles.macItem}>
-                      <Text style={styles.macLabel}>{identifierLabel}</Text>
-                      <Text style={styles.macValue}>
-                        {deviceInfo?.mac || '—'}
-                      </Text>
-                    </View>
+                    <View style={styles.credentialsRow}>
+                      <View style={styles.credentialBox}>
+                        <Text style={styles.macLabel}>{identifierLabel}</Text>
+                        <Text style={styles.macValue} selectable>
+                          {deviceInfo?.mac || '—'}
+                        </Text>
+                      </View>
 
-                    <View style={styles.macItem}>
-                      <Text style={styles.macLabel}>Password</Text>
-                      <Text style={styles.macValue}>
-                        {deviceInfo?.mac ? getPassword(deviceInfo.mac) : '—'}
-                      </Text>
+                      <View style={styles.credentialBox}>
+                        <Text style={styles.macLabel}>Password</Text>
+                        <Text style={styles.macValue} selectable>
+                          {deviceInfo?.mac ? getPassword(deviceInfo.mac) : '—'}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 </View>
               </View>
             )}
 
+            {/* Actions */}
             <View style={[styles.actions, wide && styles.actionsWide]}>
               <Button
                 title="Refresh"
                 onPress={handleRefresh}
                 loading={loading}
-                // variant="outline"
                 style={styles.actionBtn}
               />
 
@@ -832,19 +847,12 @@ const HomeScreen: React.FC = () => {
                 <Button
                   title="Device Info"
                   onPress={handleDeviceInfoToggle}
-                  // variant="outline"
                   style={styles.actionBtn}
                 />
               )}
             </View>
-            {/* 
-            {showDeviceInfoCard && (
-              <View style={styles.moreInfo}>
-                <Text style={styles.moreInfoLabel}>More Info At</Text>
-                <Text style={styles.moreInfoLink}>uiplayer.com</Text>
-              </View>
-            )} */}
 
+            {/* Error */}
             {error ? (
               <View style={styles.errorBlock}>
                 <Text style={styles.errorText}>{error}</Text>
@@ -858,18 +866,25 @@ const HomeScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  gradient: { flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: '#080B14',
+  },
+
+  gradient: {
+    flex: 1,
+  },
 
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.xl,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
   },
 
   scrollContentWide: {
-    paddingVertical: spacing.xxl,
+    paddingVertical: 45,
   },
 
   center: {
@@ -879,174 +894,264 @@ const styles = StyleSheet.create({
   },
 
   centerWide: {
-    maxWidth: 720,
+    maxWidth: 760,
   },
 
+  // Loading
+
   loadingBlock: {
-    minHeight: 120,
+    minHeight: 150,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   loadingText: {
     ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.md,
+    color: '#9CA3B5',
+    marginTop: 16,
   },
+
+  // Profile Section
 
   profileSection: {
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: 28,
+    justifyContent: 'center',
+  },
+
+  sectionHeading: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+
+  sectionEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 3,
+    color: '#8586A5',
+    marginBottom: 10,
   },
 
   whoConnected: {
     ...typography.h1,
-    color: colors.text,
-    marginBottom: spacing.sm,
+    color: '#FFFFFF',
+    fontWeight: '800',
     textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#9299AB',
+    marginTop: 7,
   },
 
   profileList: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
 
   profileItem: {
-    marginTop: PROFILE_GAP,
+    marginTop: 0,
     marginRight: PROFILE_GAP,
   },
 
-  // profileRing: {
-  //   padding: 4,
-  //   alignItems: 'center',
-  //   justifyContent: 'center',
-  // },
-
   profileCircle: {
-    backgroundColor: colors.backgroundCard,
+    backgroundColor: '#171C2B',
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
     height: '100%',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#30374A',
+    borderRadius: 24,
   },
 
   selectedProfileName: {
-    color: colors.text,
+    color: '#FFFFFF',
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '700',
   },
+
+  // Device Section
 
   deviceInfoSection: {
     width: '100%',
-    marginBottom: spacing.xl,
+    marginBottom: 28,
     alignItems: 'center',
   },
 
   deviceCard: {
     width: '100%',
-    maxWidth: 520,
-    padding: spacing.xl,
-    borderRadius: borderRadius.lg,
+    maxWidth: 560,
+    backgroundColor: '#121827',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#293349',
     overflow: 'hidden',
   },
 
-  deviceCardActive: {
-    backgroundColor: colors.backgroundSecondary,
+  // Header
+
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 22,
+    gap: 12,
+  },
+
+  cardTitleGroup: {
+    flex: 1,
+  },
+
+  cardEyebrow: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 2.5,
+    color: '#818CA5',
+    marginBottom: 7,
+  },
+
+  cardTitle: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+
+  // Status Chip
+
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: colors.success,
+    gap: 7,
   },
 
-  deviceCardInactive: {
-    backgroundColor: colors.backgroundSecondary,
-    borderWidth: 1,
-    borderColor: colors.error,
+  statusChipActive: {
+    backgroundColor: 'rgba(52,211,153,0.10)',
+    borderColor: 'rgba(52,211,153,0.25)',
   },
 
-  badgeWrapper: {
-    position: 'absolute',
-    top: -spacing.lg,
-    right: -spacing.lg,
+  statusChipTrial: {
+    backgroundColor: 'rgba(251,191,36,0.10)',
+    borderColor: 'rgba(251,191,36,0.25)',
   },
 
-  badge: {
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.xxl,
-    borderRadius: borderRadius.md,
+  statusChipInactive: {
+    backgroundColor: 'rgba(248,113,113,0.10)',
+    borderColor: 'rgba(248,113,113,0.25)',
   },
 
-  badgeActive: {
-    backgroundColor: colors.success,
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
 
-  badgeInactive: {
-    backgroundColor: colors.error,
+  statusDotActive: {
+    backgroundColor: '#34D399',
   },
 
-  badgeText: {
-    ...typography.button,
-    color: colors.text,
-    width: '100%',
-    height: '100%',
+  statusDotTrial: {
+    backgroundColor: '#FBBF24',
   },
 
-  deviceMessageBlock: {
-    marginBottom: spacing.lg,
+  statusDotInactive: {
+    backgroundColor: '#F87171',
+  },
+
+  statusText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // Status Message
+
+  statusContent: {
+    backgroundColor: '#1A2233',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 17,
+    marginBottom: 24,
+    borderLeftWidth: 3,
+    borderLeftColor: '#7775F5',
   },
 
   deviceMessage: {
     ...typography.body,
-    color: colors.text,
-    textAlign: 'center',
-    lineHeight: 24,
+    color: '#E2E7F0',
+    textAlign: 'left',
+    lineHeight: 25,
   },
 
   expiredAt: {
-    color: colors.textTertiary,
-    fontWeight: '600',
-  },
-
-  link: {
-    color: colors.info,
+    color: '#A5B4FC',
     fontWeight: '700',
   },
 
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  link: {
+    color: '#A5B4FC',
+    fontWeight: '700',
+  },
+
+  // Credentials
+
+  credentialsSection: {
     width: '100%',
-    marginBottom: spacing.lg,
   },
 
-  macRow: {
+  credentialsHeading: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 2,
+    color: '#818CA5',
+    marginBottom: 13,
+  },
+
+  credentialsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: spacing.xl,
+    gap: 12,
   },
 
-  macItem: {
-    alignItems: 'center',
+  credentialBox: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: '#0C1220',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#293349',
   },
 
   macLabel: {
     ...typography.bodySmall,
-    color: colors.textTertiary,
-    marginBottom: spacing.xs,
+    color: '#8994AA',
+    marginBottom: 10,
   },
 
   macValue: {
-    ...typography.h4,
-    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
+
+  // Actions
 
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: spacing.md,
-    marginTop: spacing.md,
+    gap: 14,
+    marginTop: 12,
   },
 
   actionsWide: {
@@ -1054,38 +1159,24 @@ const styles = StyleSheet.create({
   },
 
   actionBtn: {
-    minWidth: 140,
+    minWidth: 150,
   },
 
-  moreInfo: {
-    flexDirection: 'row',
-    marginTop: spacing.lg,
-    alignItems: 'center',
-  },
-
-  moreInfoLabel: {
-    ...typography.body,
-    color: colors.textTertiary,
-  },
-
-  moreInfoLink: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '700',
-    marginLeft: spacing.sm,
-  },
+  // Error
 
   errorBlock: {
-    backgroundColor: colors.error + '20',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginTop: spacing.lg,
+    backgroundColor: 'rgba(248,113,113,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.25)',
+    padding: 16,
+    borderRadius: 14,
+    marginTop: 20,
     alignSelf: 'stretch',
   },
 
   errorText: {
     ...typography.bodySmall,
-    color: colors.error,
+    color: '#FCA5A5',
     textAlign: 'center',
   },
 });
