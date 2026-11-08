@@ -1,3 +1,4 @@
+// src/screens/LiveScreen.tsx
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 
 import {
@@ -14,26 +15,30 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 import FastImage from 'react-native-fast-image';
 
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { useGlobalContext } from '../context/GlobalContext';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { useGlobalContext } from '../../context/GlobalContext';
 
-import { insertData, deleterow, generateurlplayer } from '../utils/constants';
+import {
+  insertData,
+  deleterow,
+  generateurlplayer,
+} from '../../utils/constants';
 
-import { getSetting, SETTINGS_KEYS } from '../utils/storage';
+import { getSetting, SETTINGS_KEYS } from '../../utils/storage';
 
-import { colors } from '../theme/colors';
-import { spacing, borderRadius } from '../theme/spacing';
-import { typography } from '../theme/typography';
+import { colors } from '../../theme/colors';
+import { spacing, borderRadius } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
 
-import { Stream } from '../models/model';
+import { Stream } from '../../models/model';
 
 import CategorySidebar, {
   type CategoryItem,
-} from '../components/CategorySidebar';
+} from '../../components/CategorySidebar';
 
-import LiveEmbeddedPlayer from '../components/LiveEmbeddedPlayer';
-import BackButton from '../components/BackButton';
-import { useLandscapeLayout } from '../utils/layout';
+import LiveEmbeddedPlayer from '../../components/LiveEmbeddedPlayer';
+import BackButton from '../../components/BackButton';
+import { useLandscapeLayout } from '../../utils/layout';
 
 const ROW_HEIGHT = 56;
 const LOGO_SIZE = 36;
@@ -117,7 +122,6 @@ const liveRowStyles = StyleSheet.create({
 
 const LiveChannelRow = memo(
   ({ item, index, onPress, selectedChannel = null }: LiveChannelRowProps) => {
-
     return (
       <Pressable
         focusable
@@ -126,7 +130,9 @@ const LiveChannelRow = memo(
         style={({ focused }) => [
           liveRowStyles.row,
           focused && liveRowStyles.rowFocused,
-          (selectedChannel?.stream_id === item?.stream_id) && {backgroundColor: colors.primary},
+          selectedChannel?.stream_id === item?.stream_id && {
+            backgroundColor: colors.primary,
+          },
         ]}>
         <View style={liveRowStyles.rowContent}>
           <Text style={[liveRowStyles.channelNum]}>{index + 1} </Text>
@@ -254,8 +260,6 @@ const LiveScreen: React.FC = () => {
       .map(String)
       .includes(String(selectedChannel.stream_id));
   }, [listLiveFav, selectedChannel]);
-
-
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener(

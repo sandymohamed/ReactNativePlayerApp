@@ -5,22 +5,22 @@ import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import HomeScreen from '../screens/HomeScreen';
-import MainScreen from '../screens/MainScreen';
-import MoviesScreen from '../screens/MoviesScreen';
-import MovieDetailScreen from '../screens/MovieDetailScreen';
-import SeriesScreen from '../screens/SeriesScreen';
-import SerieDetailScreen from '../screens/SerieDetailScreen';
-import LiveScreen from '../screens/LiveScreen';
-import PlayerScreen from '../screens/PlayerScreen';
-import SearchScreen from '../screens/SearchScreen';
-import FavoriteScreen from '../screens/FavoriteScreen';
-import RecentScreen from '../screens/RecentScreen';
-import SettingsScreen from '../screens/SettingsScreen';
-import CategoryScreen from '../screens/CategoryScreen';
-import SeasonScreen from '../screens/SeasonScreen';
+import MainScreen from '../screens/Main/MainScreen';
+import MoviesScreen from '../screens/Movies/MoviesScreen';
+import MovieDetailScreen from '../screens/Movies/MovieDetailScreen';
+import SeriesScreen from '../screens/Series/SeriesScreen';
+import SerieDetailScreen from '../screens/Series/SerieDetailScreen';
+import LiveScreen from '../screens/Live/LiveScreen';
+import PlayerScreen from '../screens/Player/PlayerScreen';
+
+import SeasonScreen from '../screens/Series/SeasonScreen';
 import { SerieInfo } from '../models/model';
 import { useGlobalContext } from '../context/GlobalContext';
 import { Text } from 'react-native-svg';
+import SearchScreen from '../screens/Search/SearchScreen';
+import FavoriteScreen from '../screens/Favorites/FavoriteScreen';
+import RecentScreen from '../screens/Recent/RecentScreen';
+import SettingsScreen from '../screens/Settings/SettingsScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -113,18 +113,14 @@ const AppNavigator = () => {
 
   if (!isAppReady) {
     return (
-      <View><Text>SplashScreen</Text></View>
+      <View>
+        <Text>SplashScreen</Text>
+      </View>
     );
   }
 
   return (
     <NavigationContainer>
-      {/* <Stack.Navigator
-        initialRouteName="Home" 
-        screenOptions={{
-          headerShown: false,
-          animation: 'slide_from_right',
-        }}> */}
       <Stack.Navigator
         key={profile && hasCachedData ? 'main' : 'home'}
         initialRouteName={profile && hasCachedData ? 'Main' : 'Home'}
@@ -133,7 +129,6 @@ const AppNavigator = () => {
           animation: 'slide_from_right',
         }}>
         <Stack.Screen name="Home" component={HomeScreenWithBackBlock} />
-        {/* <Stack.Screen name="Main" component={MainScreen} /> */}
         <Stack.Screen name="Main" component={MainScreenWithBackBlock} />
         <Stack.Screen name="Movies" component={MoviesScreen} />
         <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />
@@ -145,7 +140,6 @@ const AppNavigator = () => {
         <Stack.Screen name="Favorite" component={FavoriteScreen} />
         <Stack.Screen name="Recent" component={RecentScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
-        <Stack.Screen name="Category" component={CategoryScreen} />
         <Stack.Screen name="Season" component={SeasonScreen} />
       </Stack.Navigator>
     </NavigationContainer>

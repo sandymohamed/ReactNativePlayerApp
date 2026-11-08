@@ -14,17 +14,21 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { useGlobalContext } from '../context/GlobalContext';
-import { deleterow, generateurlplayer, insertData } from '../utils/constants';
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
-import { typography } from '../theme/typography';
-import Button from '../components/Button';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { useGlobalContext } from '../../context/GlobalContext';
+import {
+  deleterow,
+  generateurlplayer,
+  insertData,
+} from '../../utils/constants';
+import { colors } from '../../theme/colors';
+import { spacing } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
+import Button from '../../components/Button';
 import FastImage from 'react-native-fast-image';
-import { useTVEventHandler } from '../hooks/useTVEventHandler';
-import BackButton from '../components/BackButton';
-import { useLandscapeLayout } from '../utils/layout';
+import { useTVEventHandler } from '../../hooks/useTVEventHandler';
+import BackButton from '../../components/BackButton';
+import { useLandscapeLayout } from '../../utils/layout';
 import { SvgUri } from 'react-native-svg';
 
 const MovieDetailScreen: React.FC = () => {

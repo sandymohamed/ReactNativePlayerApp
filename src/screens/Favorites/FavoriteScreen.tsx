@@ -4,7 +4,6 @@ import {
   StyleSheet,
   Text,
   FlatList,
-  TouchableOpacity,
   Image,
   ScrollView,
   StatusBar,
@@ -13,18 +12,18 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
-import { typography } from '../theme/typography';
-import { useGlobalContext } from '../context/GlobalContext';
-import { Stream } from '../models/model';
-import { useLandscapeLayout } from '../utils/layout';
-import { generateurlplayer } from '../utils/constants';
-import { getVideoPositions, getSeriePositions } from '../utils/storage';
+import { colors } from '../../theme/colors';
+import { spacing } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
+import { useGlobalContext } from '../../context/GlobalContext';
+import { Stream } from '../../models/model';
+import { useLandscapeLayout } from '../../utils/layout';
+import { generateurlplayer } from '../../utils/constants';
+import { getVideoPositions, getSeriePositions } from '../../utils/storage';
 import { SvgUri } from 'react-native-svg';
-import BackButton from '../components/BackButton';
+import BackButton from '../../components/BackButton';
 
-type RecentTab = 'live' | 'movies' | 'series';
+type FavoriteTab = 'live' | 'movies' | 'series';
 
 type SavedPosition = {
   episodeId?: string;
@@ -42,28 +41,28 @@ type SavedVideoPosition = {
 type SeriesPositions = Record<string, SavedPosition>;
 type VideoPositions = Record<string, SavedVideoPosition>;
 
-const TABS: { key: RecentTab; label: string }[] = [
+const TABS: { key: FavoriteTab; label: string }[] = [
   { key: 'live', label: 'Live TV' },
   { key: 'movies', label: 'Movies' },
   { key: 'series', label: 'Series' },
 ];
 
-const RecentScreen: React.FC = () => {
+const FavoriteScreen: React.FC = () => {
   const navigation = useNavigation<any>();
 
   const {
     profile,
-    listVodRecent,
+    listVodFav,
     listLive,
-    listSerieRecent,
+    listSerieFav,
     listSerie,
-    listLiveRecent,
+    listLiveFav,
     listVod,
   } = useGlobalContext();
 
   const layout = useLandscapeLayout();
 
-  const [activeTab, setActiveTab] = useState<RecentTab>('live');
+  const [activeTab, setActiveTab] = useState<FavoriteTab>('live');
   const [listLives, setListLives] = useState<Stream[]>([]);
   const [listVods, setListVods] = useState<Stream[]>([]);
   const [listSeries, setListSeries] = useState<Stream[]>([]);
@@ -71,13 +70,11 @@ const RecentScreen: React.FC = () => {
   const [seriePositions, setSeriePositions] = useState<SeriesPositions>({});
   const [vodPositions, setVodPositions] = useState<VideoPositions>({});
 
-  // const [focusedTab, setFocusedTab] = useState<RecentTab | null>(null);
-  const [focusedItemKey, setFocusedItemKey] = useState<string | null>(null);
 
   const numColumns = layout.numColumns;
   const cardWidth = layout.cardWidth;
 
-  const getId = useCallback((item: any, type: RecentTab) => {
+  const getId = useCallback((item: any, type: FavoriteTab) => {
     if (type === 'series') {
       return String(
         item.series_id ?? item.seriesId ?? item.stream_id ?? item.id ?? '',
@@ -106,7 +103,7 @@ const RecentScreen: React.FC = () => {
         setVodPositions((savedVideos || {}) as VideoPositions);
       } catch (error) {
         console.warn(
-          '[RecentScreen] Failed to load playback positions:',
+          '[FavoriteScreen] Failed to load playback positions:',
           error,
         );
       }
@@ -119,39 +116,32 @@ const RecentScreen: React.FC = () => {
     };
   }, []);
 
-  // Resolve recent IDs to the matching items while preserving recent order.
-  const resolveRecent = (
+  // Resolve favorite IDs to the matching items.
+  const resolveFavorites = (
     source: any[],
-    recentIds: unknown[],
-    type: RecentTab,
+    favoriteIds: unknown[],
+    type: FavoriteTab,
   ): Stream[] => {
-    if (!Array.isArray(source) || !Array.isArray(recentIds)) {
+    if (!Array.isArray(source) || !Array.isArray(favoriteIds)) {
       return [];
     }
 
     return source.filter(item =>
-      recentIds.includes(
+      favoriteIds.includes(
         String(type === 'series' ? item.series_id : item.stream_id),
       ),
     );
   };
 
   useEffect(() => {
-    setListLives(resolveRecent(listLive ?? [], listLiveRecent ?? [], 'live'));
+    setListLives(resolveFavorites(listLive ?? [], listLiveFav ?? [], 'live'));
 
-    setListVods(resolveRecent(listVod ?? [], listVodRecent ?? [], 'movies'));
+    setListVods(resolveFavorites(listVod ?? [], listVodFav ?? [], 'movies'));
 
     setListSeries(
-      resolveRecent(listSerie ?? [], listSerieRecent ?? [], 'series'),
+      resolveFavorites(listSerie ?? [], listSerieFav ?? [], 'series'),
     );
-  }, [
-    listLive,
-    listLiveRecent,
-    listVod,
-    listVodRecent,
-    listSerie,
-    listSerieRecent,
-  ]);
+  }, [listLive, listLiveFav, listVod, listVodFav, listSerie, listSerieFav]);
 
   const currentItems = useMemo(() => {
     switch (activeTab) {
@@ -298,6 +288,7 @@ const RecentScreen: React.FC = () => {
       const savedPosition = Number(savedEpisode?.position ?? 0);
 
       const itemKey = `${activeTab}-${getId(item, activeTab) || index}`;
+
       return (
         <View
           style={{
@@ -389,28 +380,27 @@ const RecentScreen: React.FC = () => {
       getId,
       handleNavigateItem,
       seriePositions,
-      focusedItemKey,
     ],
   );
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Text style={styles.emptyIcon}>◷</Text>
+        <Text style={styles.emptyIcon}>♥</Text>
       </View>
 
       <Text style={styles.emptyTitle}>Nothing here yet</Text>
 
       <Text style={styles.emptyDescription}>
         {activeTab === 'live'
-          ? 'Your recently watched channels will appear here.'
+          ? 'Your favorited channels will appear here.'
           : activeTab === 'movies'
-            ? 'Movies you watch will show up here.'
-            : 'Your recently watched series will appear here.'}
+            ? 'Your favorite movies will appear here.'
+            : 'Your favorited series will appear here.'}
       </Text>
 
       <Text style={styles.emptyHint}>
-        Start watching to build your history.
+        Add channels, movies, and series to your favorites.
       </Text>
     </View>
   );
@@ -425,6 +415,7 @@ const RecentScreen: React.FC = () => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}>
             {/* Header */}
+
             <View
               style={[
                 styles.header,
@@ -440,21 +431,14 @@ const RecentScreen: React.FC = () => {
                 ]}>
                 <BackButton />
                 <View style={styles.headerTextContainer}>
-                  <Text style={styles.eyebrow}>YOUR LIBRARY</Text>
-                  <Text style={styles.title}>Recently Watched</Text>
+                  <Text style={styles.eyebrow}>YOUR COLLECTION</Text>
+                  <Text style={styles.title}>Favorites</Text>
                   <Text style={styles.subtitle}>
-                    Pick up where you left off.
+                    Your favorite entertainment, all in one place.
                   </Text>
                 </View>
-                <View style={styles.historyIconContainer}>
-                  <Text
-                    style={{
-                      color: colors.accent,
-                      fontSize: layout.isTV ? 36 : 29,
-                      margin: 'auto',
-                    }}>
-                    ◷
-                  </Text>
+                <View style={styles.favoriteIconContainer}>
+                  <Text style={styles.favoriteIcon}>♥</Text>
                 </View>
               </View>
             </View>
@@ -514,10 +498,10 @@ const RecentScreen: React.FC = () => {
                 <View style={styles.sectionAccent} />
                 <Text style={styles.sectionTitle}>
                   {activeTab === 'live'
-                    ? 'Recent Channels'
+                    ? 'Favorite Channels'
                     : activeTab === 'movies'
-                      ? 'Recent Movies'
-                      : 'Recent Series'}
+                      ? 'Favorite Movies'
+                      : 'Favorite Series'}
                 </Text>
               </View>
 
@@ -607,16 +591,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
   },
-  historyIconContainer: {
+  favoriteIconContainer: {
     width: 52,
     height: 52,
     borderRadius: 18,
-    backgroundColor: colors.backgroundCard,
+    backgroundColor: 'rgba(124, 108, 246, 0.14)',
     borderWidth: 1,
-    borderColor: colors.border,
-    display: 'flex',
+    borderColor: 'rgba(124, 108, 246, 0.28)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  favoriteIcon: {
+    fontSize: 29,
+    color: '#A99CFF',
   },
 
   // Tabs
@@ -856,4 +843,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RecentScreen;
+export default FavoriteScreen;

@@ -14,14 +14,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { useGlobalContext } from '../context/GlobalContext';
-import { generateurl, selectall, selectrecentAll } from '../utils/constants';
-import { fetchJson, normalizeCategories, normalizeStreams } from '../utils/api';
-import type { Stream } from '../models/model';
-import { colors } from '../theme/colors';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { useTVEventHandler } from '../hooks/useTVEventHandler';
-import Logo from '../components/Logo';
+import { useGlobalContext } from '../../context/GlobalContext';
+import { generateurl, selectall, selectrecentAll } from '../../utils/constants';
+import { fetchJson, normalizeCategories, normalizeStreams } from '../../utils/api';
+import type { Stream } from '../../models/model';
+import { colors } from '../../theme/colors';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { useTVEventHandler } from '../../hooks/useTVEventHandler';
+import Logo from '../../components/Logo';
 import { Pressable } from 'react-native';
 
 type MainScreenNavigationProp = NativeStackNavigationProp<

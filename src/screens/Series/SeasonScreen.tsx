@@ -21,19 +21,19 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import LinearGradient from 'react-native-linear-gradient';
 
-import { useGlobalContext } from '../context/GlobalContext';
-import { generateurlplayer } from '../utils/constants';
+import { useGlobalContext } from '../../context/GlobalContext';
+import { generateurlplayer } from '../../utils/constants';
 
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
-import { typography } from '../theme/typography';
+import { colors } from '../../theme/colors';
+import { spacing } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
 
-import Card from '../components/Card';
+import Card from '../../components/Card';
 
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { Episode } from '../models/model';
-import BackButton from '../components/BackButton';
-import { useLandscapeLayout } from '../utils/layout';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { Episode } from '../../models/model';
+import BackButton from '../../components/BackButton';
+import { useLandscapeLayout } from '../../utils/layout';
 
 type SeasonScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -200,7 +200,7 @@ const SeasonScreen: React.FC = () => {
         profile,
       );
 
-      console.log("urlllllllllll", url)
+      console.log('urlllllllllll', url);
       // Save current episode for next/previous navigation.
       if (serie) {
         changeSerie({
@@ -220,7 +220,7 @@ const SeasonScreen: React.FC = () => {
         seriesId: routeSeriesId,
       });
 
-      console.log('[NAV TEST] AFTER NAVIGATE')
+      console.log('[NAV TEST] AFTER NAVIGATE');
     },
     [profile, contextSerie, routeSerie, changeSerie, navigation, routeSeriesId],
   );

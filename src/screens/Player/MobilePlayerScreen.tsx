@@ -19,19 +19,19 @@ import {
 
 import Video from 'react-native-video';
 
-import { colors } from '../theme/colors';
-import { spacing, borderRadius } from '../theme/spacing';
-import { typography } from '../theme/typography';
-import { useTVEventHandler } from '../hooks/useTVEventHandler';
-import { useGlobalContext } from '../context/GlobalContext';
-import { generateurlplayer, insertDatarecent } from '../utils/constants';
-import { Episode } from '../models/model';
+import { colors } from '../../theme/colors';
+import { spacing, borderRadius } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
+import { useTVEventHandler } from '../../hooks/useTVEventHandler';
+import { useGlobalContext } from '../../context/GlobalContext';
+import { generateurlplayer, insertDatarecent } from '../../utils/constants';
+import { Episode } from '../../models/model';
 import {
   getSeriePositions,
   getVideoPositions,
   storeSeriePositions,
   storeVideoPositions,
-} from '../utils/storage';
+} from '../../utils/storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -139,7 +139,7 @@ const PlayerScreen: React.FC = () => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
-                console.log(" [BACK TEST] from PlayerScreen")
+        console.log(' [BACK TEST] from PlayerScreen');
 
         navigation.goBack();
         return true;
@@ -723,9 +723,9 @@ const PlayerScreen: React.FC = () => {
 
   const videoSource = isLive
     ? {
-      // TODO: update me 
+        // TODO: update me
         // uri: url,
-        uri: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+        uri: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
         type: 'm3u8' as const,
       }
     : {
@@ -1082,8 +1082,7 @@ const PlayerScreen: React.FC = () => {
                     updateSeekFromTouch(event.nativeEvent.locationX);
                     commitSeek();
                   }}
-                  onResponderTerminate={() => commitSeek()}
-                >
+                  onResponderTerminate={() => commitSeek()}>
                   <View style={styles.progressTrack}>
                     <View
                       style={[

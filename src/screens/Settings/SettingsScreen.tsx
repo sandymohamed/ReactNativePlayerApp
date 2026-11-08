@@ -14,16 +14,16 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 
-import { useGlobalContext } from '../context/GlobalContext';
-import { colors } from '../theme/colors';
-import { spacing, borderRadius } from '../theme/spacing';
-import { typography } from '../theme/typography';
-import { getSetting, setSetting, SETTINGS_KEYS } from '../utils/storage';
+import { useGlobalContext } from '../../context/GlobalContext';
+import { colors } from '../../theme/colors';
+import { spacing, borderRadius } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
+import { getSetting, setSetting, SETTINGS_KEYS } from '../../utils/storage';
 
-import { useTVEventHandler } from '../hooks/useTVEventHandler';
-import SettingIcon from '../components/SettingIcon';
-import BackButton from '../components/BackButton';
-import { useLandscapeLayout } from '../utils/layout';
+import { useTVEventHandler } from '../../hooks/useTVEventHandler';
+import SettingIcon from '../../components/SettingIcon';
+import BackButton from '../../components/BackButton';
+import { useLandscapeLayout } from '../../utils/layout';
 
 type SettingId = 'language' | 'parental' | 'stream' | 'time' | 'list';
 

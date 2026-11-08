@@ -10,21 +10,21 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { useGlobalContext } from '../context/GlobalContext';
-import { deleterow, generateurl, insertData } from '../utils/constants';
-import { fetchJson } from '../utils/api';
-import { colors } from '../theme/colors';
-import { spacing, borderRadius } from '../theme/spacing';
-import { typography } from '../theme/typography';
-import Card from '../components/Card';
-import { SerieInfo, Season } from '../models/model';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { useGlobalContext } from '../../context/GlobalContext';
+import { deleterow, generateurl, insertData } from '../../utils/constants';
+import { fetchJson } from '../../utils/api';
+import { colors } from '../../theme/colors';
+import { spacing, borderRadius } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
+import Card from '../../components/Card';
+import { SerieInfo, Season } from '../../models/model';
 import FastImage from 'react-native-fast-image';
-import { useTVEventHandler } from '../hooks/useTVEventHandler';
-import Button from '../components/Button';
+import { useTVEventHandler } from '../../hooks/useTVEventHandler';
+import Button from '../../components/Button';
 import { SvgUri } from 'react-native-svg';
-import BackButton from '../components/BackButton';
-import { useLandscapeLayout } from '../utils/layout';
+import BackButton from '../../components/BackButton';
+import { useLandscapeLayout } from '../../utils/layout';
 
 const SerieDetailScreen: React.FC = () => {
   const navigation =
@@ -61,7 +61,7 @@ const SerieDetailScreen: React.FC = () => {
     const arrayFav = [...listSerieFav];
     if (listSerieFav.includes(streamId)) {
       let arr = arrayFav.filter(el => el !== streamId);
-            profile ? deleterow(streamId, 'serie', profile) : null;
+      profile ? deleterow(streamId, 'serie', profile) : null;
 
       changeListSerieFav(arr);
     } else {

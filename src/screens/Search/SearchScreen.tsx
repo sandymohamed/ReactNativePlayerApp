@@ -23,16 +23,16 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { colors } from '../theme/colors';
-import { spacing, borderRadius } from '../theme/spacing';
-import { typography } from '../theme/typography';
-import { useGlobalContext } from '../context/GlobalContext';
-import { Stream } from '../models/model';
-import Card from '../components/Card';
-import { generateurlplayer } from '../utils/constants';
-import BackButton from '../components/BackButton';
-import { useLandscapeLayout } from '../utils/layout';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { colors } from '../../theme/colors';
+import { spacing, borderRadius } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
+import { useGlobalContext } from '../../context/GlobalContext';
+import { Stream } from '../../models/model';
+import Card from '../../components/Card';
+import { generateurlplayer } from '../../utils/constants';
+import BackButton from '../../components/BackButton';
+import { useLandscapeLayout } from '../../utils/layout';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 
 type SearchCategory = 'all' | 'live' | 'movies' | 'series';

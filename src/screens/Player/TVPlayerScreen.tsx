@@ -16,19 +16,19 @@ import {
 } from '@react-navigation/native';
 import Video from 'react-native-video';
 
-import { colors } from '../theme/colors';
-import { spacing, borderRadius } from '../theme/spacing';
-import { typography } from '../theme/typography';
-import { useTVEventHandler } from '../hooks/useTVEventHandler';
-import { useGlobalContext } from '../context/GlobalContext';
-import { generateurlplayer, insertDatarecent } from '../utils/constants';
-import { Episode } from '../models/model';
+import { colors } from '../../theme/colors';
+import { spacing, borderRadius } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
+import { useTVEventHandler } from '../../hooks/useTVEventHandler';
+import { useGlobalContext } from '../../context/GlobalContext';
+import { generateurlplayer, insertDatarecent } from '../../utils/constants';
+import { Episode } from '../../models/model';
 import {
   getSeriePositions,
   getVideoPositions,
   storeSeriePositions,
   storeVideoPositions,
-} from '../utils/storage';
+} from '../../utils/storage';
 
 const { width, height } = Dimensions.get('window');
 const CONTROLS_HIDE_DELAY = 1000;
