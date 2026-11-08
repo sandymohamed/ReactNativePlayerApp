@@ -80,12 +80,20 @@ const PlayerScreen: React.FC = () => {
 
   const [playbackRate, setPlaybackRate] = useState(1.0);
 
+  // Interactive timeline state (VOD only)
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [previewTime, setPreviewTime] = useState(0);
+  const [seekTrackWidth, setSeekTrackWidth] = useState(0);
+
   const videoRef = useRef<any>(null);
   const resumePositionRef = useRef(0);
   const currentTimeRef = useRef(0);
   const durationRef = useRef(0);
   const resumeHandledRef = useRef(false);
   const lastSaveTimeRef = useRef(0);
+  const previewTimeRef = useRef(0);
+  const isSeekingRef = useRef(false);
+  const seekFocusRef = useRef(false);
 
   const controlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -115,7 +123,7 @@ const PlayerScreen: React.FC = () => {
 
     clearControlsTimeout();
 
-    if (!paused) {
+    if (!paused && !isSeekingRef.current) {
       controlsTimeout.current = setTimeout(() => {
         setShowControls(false);
         controlsTimeout.current = null;
@@ -241,6 +249,71 @@ const PlayerScreen: React.FC = () => {
   };
 
   // ------------------------------------------------------------
+  // Interactive timeline / seeking (VOD only)
+  // ------------------------------------------------------------
+
+  const beginSeeking = () => {
+    if (isLive || durationRef.current <= 0) return;
+
+    clearControlsTimeout();
+    isSeekingRef.current = true;
+    setIsSeeking(true);
+
+    const startAt = currentTimeRef.current;
+    previewTimeRef.current = startAt;
+    setPreviewTime(startAt);
+  };
+
+  const updateSeekPreview = (nextTime: number) => {
+    const total = durationRef.current || duration;
+    if (isLive || total <= 0) return;
+
+    const safeTime = Math.max(0, Math.min(total, nextTime));
+    previewTimeRef.current = safeTime;
+    setPreviewTime(safeTime);
+  };
+
+  const updateSeekFromTouch = (locationX: number) => {
+    if (seekTrackWidth <= 0 || durationRef.current <= 0) return;
+    const ratio = Math.max(0, Math.min(1, locationX / seekTrackWidth));
+    updateSeekPreview(ratio * durationRef.current);
+  };
+
+  const commitSeek = () => {
+    if (!isSeekingRef.current) return;
+
+    const targetTime = Math.max(
+      0,
+      Math.min(durationRef.current || duration, previewTimeRef.current),
+    );
+
+    isSeekingRef.current = false;
+    setIsSeeking(false);
+    seekFocusRef.current = false;
+
+    if (videoRef.current && Number.isFinite(targetTime)) {
+      videoRef.current.seek(targetTime);
+      currentTimeRef.current = targetTime;
+      setCurrentTime(targetTime);
+    }
+
+    showControlsTemporarily();
+  };
+
+  const handleRemoteSeek = (direction: 'left' | 'right') => {
+    if (!seekFocusRef.current || isLive) return;
+
+    if (!isSeekingRef.current) beginSeeking();
+
+    // D-pad navigation moves the preview in small, precise increments.
+    // OK confirms the selected point; it does not seek on every key press.
+    const step = 5;
+    updateSeekPreview(
+      previewTimeRef.current + (direction === 'right' ? step : -step),
+    );
+  };
+
+  // ------------------------------------------------------------
   // Toggle controls
   // ------------------------------------------------------------
 
@@ -320,6 +393,14 @@ const PlayerScreen: React.FC = () => {
     onPlayPause: () => {
       setPaused(prev => !prev);
       showControlsTemporarily();
+    },
+
+    onLeft: () => handleRemoteSeek('left'),
+    onRight: () => handleRemoteSeek('right'),
+    onSelect: () => {
+      if (seekFocusRef.current && isSeekingRef.current) {
+        commitSeek();
+      }
     },
 
     onBack: () => {
@@ -959,24 +1040,92 @@ const PlayerScreen: React.FC = () => {
 
             {!isLive && (
               <View style={styles.progressContainer}>
-                <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+                <Text style={styles.timeText}>
+                  {formatTime(isSeeking ? previewTime : currentTime)}
+                </Text>
 
-                <View style={styles.progressTrack}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${
-                          duration > 0
-                            ? Math.min(
-                                100,
-                                Math.max(0, (currentTime / duration) * 100),
-                              )
-                            : 0
-                        }%`,
-                      },
-                    ]}
-                  />
+                <View
+                  focusable={duration > 0}
+                  accessible
+                  accessibilityRole="adjustable"
+                  accessibilityLabel="Video timeline"
+                  accessibilityValue={{
+                    min: 0,
+                    max: Math.floor(duration),
+                    now: Math.floor(isSeeking ? previewTime : currentTime),
+                  }}
+                  style={[
+                    styles.seekTouchArea,
+                    isSeeking && styles.seekTouchAreaActive,
+                  ]}
+                  onLayout={event => {
+                    setSeekTrackWidth(event.nativeEvent.layout.width);
+                  }}
+                  onFocus={() => {
+                    seekFocusRef.current = true;
+                    beginSeeking();
+                  }}
+                  onBlur={() => {
+                    seekFocusRef.current = false;
+                    if (isSeekingRef.current) commitSeek();
+                  }}
+                  onStartShouldSetResponder={() => !isLive && duration > 0}
+                  onMoveShouldSetResponder={() => !isLive && duration > 0}
+                  onResponderGrant={event => {
+                    beginSeeking();
+                    updateSeekFromTouch(event.nativeEvent.locationX);
+                  }}
+                  onResponderMove={event => {
+                    updateSeekFromTouch(event.nativeEvent.locationX);
+                  }}
+                  onResponderRelease={event => {
+                    updateSeekFromTouch(event.nativeEvent.locationX);
+                    commitSeek();
+                  }}
+                  onResponderTerminate={() => commitSeek()}
+                >
+                  <View style={styles.progressTrack}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        {
+                          width: `${
+                            duration > 0
+                              ? Math.min(
+                                  100,
+                                  Math.max(
+                                    0,
+                                    ((isSeeking ? previewTime : currentTime) /
+                                      duration) *
+                                      100,
+                                  ),
+                                )
+                              : 0
+                          }%`,
+                        },
+                      ]}
+                    />
+                    <View
+                      style={[
+                        styles.progressThumb,
+                        {
+                          left: `${
+                            duration > 0
+                              ? Math.min(
+                                  100,
+                                  Math.max(
+                                    0,
+                                    ((isSeeking ? previewTime : currentTime) /
+                                      duration) *
+                                      100,
+                                  ),
+                                )
+                              : 0
+                          }%`,
+                        },
+                      ]}
+                    />
+                  </View>
                 </View>
 
                 <Text style={styles.timeText}>{formatTime(duration)}</Text>
@@ -1291,12 +1440,26 @@ const styles = StyleSheet.create({
   // ----------------------------------------------------------
 
   progressContainer: {
-    height: 22,
+    minHeight: 34,
 
     flexDirection: 'row',
     alignItems: 'center',
 
     marginBottom: 5,
+  },
+
+  seekTouchArea: {
+    flex: 1,
+    height: 34,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+
+  seekTouchAreaActive: {
+    borderColor: colors.primary,
   },
 
   timeText: {
@@ -1312,23 +1475,33 @@ const styles = StyleSheet.create({
   },
 
   progressTrack: {
-    flex: 1,
-
-    height: 3,
-
-    marginHorizontal: 5,
-
-    borderRadius: 2,
-
-    backgroundColor: 'rgba(255,255,255,0.28)',
-
-    overflow: 'hidden',
+    width: '100%',
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.30)',
+    justifyContent: 'center',
   },
 
   progressFill: {
-    height: '100%',
-
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 3,
     backgroundColor: colors.primary,
+  },
+
+  progressThumb: {
+    position: 'absolute',
+    top: '50%',
+    width: 13,
+    height: 13,
+    marginLeft: -6.5,
+    marginTop: -6.5,
+    borderRadius: 7,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
 
   // ----------------------------------------------------------

@@ -83,6 +83,7 @@ export function generateurl(action: string, playlist: Playlist): string {
   } else {
     url = profile.host;;
   }
+  console.log("URL:", url)
   return url;
 }
 

@@ -56,13 +56,13 @@ const TEST_MODE = true;
 // Keep "mac" unless the distributor confirms uniqueId support.
 const DEVICE_IDENTIFIER_MODE: IdentifierType = 'mac';
 
-// const DEF_MAC = 'b8:b4:09:45:24:f6';
 // const DEF_MAC = '52:53:62:52:36';
 const DEF_MAC = 'b8:b4:09:45:24:f6';
 const DEF_VERSION = '1.0.2';
-const DEF_TYPE = 3;
+const DEF_TYPE = 1;
 
-const LOGIN_URL = 'https://api.uiplayer.com/api/apps/devices/login';
+// const LOGIN_URL = 'https://api.uiplayer.com/api/apps/devices/login';
+const LOGIN_URL = 'http://192.168.1.19:5000/api/apps/devices/login';
 
 const DEVICE_IDENTITY_KEY = '@iptv/device_identity_v1';
 const LOGIN_CACHE_PREFIX = '@iptv/device_login_v1:';
@@ -73,7 +73,7 @@ const HomeScreen: React.FC = () => {
   const { width, height } = useWindowDimensions();
   const layout = useLandscapeLayout();
 
-  const PROFILE_SIZE = layout.isTV ? height / 2 - 100 : height / 2 -50;
+  const PROFILE_SIZE = layout.isTV ? height / 2 - 100 : height / 2 - 50;
 
   const { deviceInfo, changeDeviceInfo, changeProfile } = useGlobalContext();
 
@@ -365,94 +365,97 @@ const HomeScreen: React.FC = () => {
       setDeviceInfoShow('-2');
 
       try {
-        // const response = await fetch(LOGIN_URL, {
-        //   method: 'POST',
-        //   headers: {
-        //     'Content-Type': 'application/json',
-        //   },
-        //   body: JSON.stringify({
-        //     // The current API expects `mac`.
-        //     // uniqueId mode is usable only if the backend/distributor
-        //     // explicitly supports that identifier in this field.
-        //     mac: identifier,
-        //     password: getPassword(identifier),
-        //     type: String(type),
-        //     version,
-        //   }),
-        // });
-
-        // console.log('ressss', response);
-        // if (!response.ok) {
-        //   throw new Error(`Login request failed with HTTP ${response.status}.`);
-        // }
-
-        // const data: LoginModel = await response.json();
-        // console.log('data:', data);
-        // if (typeof data.status !== 'number') {
-        //   throw new Error('The login API returned an unexpected response.');
-        // }
-
-        // console.log(
-        //   'Login response received for device identifier type:',
-        //   identifierType,
-        // );
-
-        // if (data.status === -1) {
-        //   const cacheKey = getLoginCacheKey(identifierType, identifier);
-
-        //   await AsyncStorage.removeItem(cacheKey);
-        //   applyLoginData(data);
-        //   return;
-        // }
-
-        const data: LoginModel = {
-          id: 1,
-          mac: 'b8:b4:09:45:24:f6',
-          password: '',
-          startPackage: '',
-          ExipiredAt: '',
-          status: 1,
-          type: 3,
-          city: {
-            city: '',
-            lat: '',
-            lng: '',
-            iso2: '',
+        const response = await fetch(LOGIN_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-          country: '',
-          created_at: '',
-          updated_at: '',
-          version: '1.0.2',
-          is_terial: false,
-          playlist: [
-            {
-              id: 1,
-              profile_name: 'demo',
-              xml_epg: '',
-              username: 'demo',
-              password: 'demo',
-              host: 'https://spannable.com/mock/xtream',
-              pin: '',
-              isXS: 1,
-              created_at: '',
-              updated_at: '',
-              allowed_output_formats: ['m3u'],
-            },
-            {
-              id: 2,
-              profile_name: 'demo2',
-              xml_epg: '',
-              username: 'demo',
-              password: 'demo',
-              host: 'https://spannable.com/mock/xtream',
-              pin: '',
-              isXS: 1,
-              created_at: '',
-              updated_at: '',
-              allowed_output_formats: ['m3u'],
-            },
-          ],
-        };
+          body: JSON.stringify({
+            mac: identifier,
+            password: getPassword(identifier),
+            type: String(type),
+            version,
+          }),
+        });
+
+        console.log('ressss', response);
+        if (!response.ok) {
+          throw new Error(`Login request failed with HTTP ${response.status}.`);
+        }
+
+        const data: LoginModel = await response.json();
+        console.log('data:', data);
+        if (typeof data.status !== 'number') {
+          throw new Error('The login API returned an unexpected response.');
+        }
+
+        data.playlist?.map(i => (i.allowed_output_formats = ['m3u']));
+        console.log(
+          'Login response received for device identifier type:',
+          identifierType,
+          data,
+        );
+
+        if (data.status === -1) {
+          const cacheKey = getLoginCacheKey(identifierType, identifier);
+
+          await AsyncStorage.removeItem(cacheKey);
+          applyLoginData(data);
+          return;
+        }
+
+        // const data: LoginModel = {
+        //   id: 1,
+        //   mac: 'b8:b4:09:45:24:f6',
+        //   password: '',
+        //   startPackage: '',
+        //   ExipiredAt: '',
+        //   status: 1,
+        //   type: 3,
+        //   city: {
+        //     city: '',
+        //     lat: '',
+        //     lng: '',
+        //     iso2: '',
+        //   },
+        //   country: '',
+        //   created_at: '',
+        //   updated_at: '',
+        //   version: '1.0.2',
+        //   is_terial: false,
+        //   playlist: [
+        //     {
+        //       id: 1,
+        //       profile_name: 'demo',
+        //       xml_epg: '',
+        //       username: 'demo',
+        //       password: 'demo',
+        //       host: 'https://spannable.com/mock/xtream',
+        //       pin: '',
+        //       isXS: 1,
+        //       created_at: '',
+        //       updated_at: '',
+        //       allowed_output_formats: ['m3u'],
+        //     },
+        //     {
+        //       id: 2,
+        //       profile_name: 'demo2',
+        //       xml_epg: '',
+        //       username: 'demo',
+        //       password: 'demo',
+        //       host: 'https://spannable.com/mock/xtream',
+        //       pin: '',
+        //       isXS: 1,
+        //       created_at: '',
+        //       updated_at: '',
+        //       allowed_output_formats: ['m3u'],
+        //     },
+        //   ],
+        // };
+
+        setLoading(false);
+        setDeviceInfoShow('1');
+        setDeviceInfoShowForce(false);
 
         await saveLoginCache(identifierType, identifier, data);
 
@@ -610,7 +613,7 @@ const HomeScreen: React.FC = () => {
     item: Playlist;
     index: number;
   }) => {
-    const logoSize = layout.isTV ? PROFILE_SIZE - 80 : PROFILE_SIZE - 40 ;
+    const logoSize = layout.isTV ? PROFILE_SIZE - 80 : PROFILE_SIZE - 40;
 
     const profileNameStyle =
       PROFILE_SIZE > 120
@@ -963,9 +966,10 @@ const styles = StyleSheet.create({
 
   badgeWrapper: {
     position: 'absolute',
-    top: -spacing.xl,
-    right: -spacing.xl,
+    top: -spacing.lg,
+    right: -spacing.lg,
   },
+
   badge: {
     paddingHorizontal: spacing.xxl,
     paddingVertical: spacing.xxl,
@@ -1042,7 +1046,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: spacing.md,
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
   },
 
   actionsWide: {

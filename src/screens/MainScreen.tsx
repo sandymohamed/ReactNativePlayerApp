@@ -294,6 +294,7 @@ const MainScreen: React.FC = () => {
       try {
         const raw = await fetchJson<unknown>(generateurl(action, profile));
 
+        console.log("raw.l", raw)
         if (!isCurrentRequest()) return;
 
         const items = normalizeStreams(raw).map(mapStream) as Stream[];
@@ -323,6 +324,8 @@ const MainScreen: React.FC = () => {
       loadStreamList('series', 'get_series', changeListSerie, 'series'),
     ];
 
+    console.log('streamsTasks', streamsTasks.length);
+    console.log('streamsTasks', streamsTasks);
     const favoritesTask = (async () => {
       try {
         const [favLive, favVod, favSerie] = await Promise.all([
