@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useContext,
@@ -8,6 +9,7 @@ import React, {
 } from 'react';
 
 import {
+  LoginModel,
   Playlist,
   Stream,
   MovieInfo,
@@ -15,7 +17,6 @@ import {
   SeriesWithInfo,
 } from '../models/model';
 
-// Change this path to the actual location of your storage file.
 import {
   getSelectedProfile,
   getMainData,
@@ -25,6 +26,8 @@ import {
 
 interface GlobalContextProps {
   deviceInfo: any;
+  providerLogin: LoginModel | null;
+
   parentalEnable: boolean;
   profile: Playlist | null;
   profileShow: boolean;
@@ -48,13 +51,12 @@ interface GlobalContextProps {
   listLiveRecent: string[];
   listSerieRecent: string[];
 
-  // New: tells navigation when storage restoration is finished.
   isAppReady: boolean;
-
-  // New: tells navigation whether a saved catalog exists.
   hasCachedData: boolean;
 
   changeDeviceInfo: (item: any) => void;
+  changeProviderLogin: (item: LoginModel | null) => void;
+
   changeProfile: (item: Playlist | null) => void;
   changeProfileShow: (item: boolean) => void;
   changeSettings: (item: any) => void;
@@ -66,7 +68,7 @@ interface GlobalContextProps {
   changeListVod: (item: Stream[]) => void;
 
   changeCatSerie: (item: any[]) => void;
-  changeListSerie: (item: Stream[]) => void;
+  changeListSerie: (item: SeriesWithInfo[]) => void;
 
   changeSerie: (item: SerieInfo | null) => void;
   changeMovie: (item: MovieInfo | null) => void;
@@ -82,13 +84,17 @@ interface GlobalContextProps {
   changeParental: (item: boolean) => void;
 }
 
-const GlobalContext = createContext<GlobalContextProps | undefined>(undefined);
+const GlobalContext = createContext<GlobalContextProps | undefined>(
+  undefined,
+);
 
 export const useGlobalContext = () => {
   const context = useContext(GlobalContext);
 
   if (!context) {
-    throw new Error('useGlobalContext must be used within a GlobalProvider');
+    throw new Error(
+      'useGlobalContext must be used within a GlobalProvider',
+    );
   }
 
   return context;
@@ -98,12 +104,22 @@ interface GlobalProviderProps {
   children: ReactNode;
 }
 
-export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
+export const GlobalProvider: FC<GlobalProviderProps> = ({
+  children,
+}) => {
+  // Device identity
   const [deviceInfo, setDeviceInfo] = useState<any>({});
-  const [parentalEnable, setParentalEnable] = useState<boolean>(false);
+
+  // Provider login response - separate from device identity
+  const [providerLogin, setProviderLogin] =
+    useState<LoginModel | null>(null);
+
+  const [parentalEnable, setParentalEnable] =
+    useState<boolean>(false);
 
   const [profile, setProfile] = useState<Playlist | null>(null);
   const [profileShow, setProfileShow] = useState<boolean>(false);
+
   const [settings, setSettings] = useState<any>({
     position: 0,
   });
@@ -128,7 +144,6 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
   const [listVodRecent, setlistVodRecent] = useState<any[]>([]);
   const [listLiveRecent, setlistLiveRecent] = useState<any[]>([]);
 
-  // New states
   const [isAppReady, setIsAppReady] = useState(false);
   const [hasCachedData, setHasCachedData] = useState(false);
 
@@ -151,6 +166,7 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
 
         console.log('Restored saved profile:', savedProfile);
         console.log('Restored cached data:', cachedData);
+
         if (cancelled) return;
 
         if (savedProfile) {
@@ -165,7 +181,9 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
           setlistVod(cachedData.listVod);
 
           setcatSerie(cachedData.catSerie);
-          setlistSerie(cachedData.listSerie as SeriesWithInfo[]);
+          setlistSerie(
+            cachedData.listSerie as SeriesWithInfo[],
+          );
 
           setlistLiveFav(cachedData.listLiveFav ?? []);
           setlistVodFav(cachedData.listVodFav ?? []);
@@ -200,6 +218,7 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
 
   useEffect(() => {
     if (!isRestored) return;
+
     saveSelectedProfile(profile);
   }, [isRestored, profile]);
 
@@ -263,15 +282,27 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
   ]);
 
   // --------------------------------------------------
+  // DEVICE IDENTITY
+  // --------------------------------------------------
+
+  const changeDeviceInfo = (item: any) => {
+    setDeviceInfo(item);
+  };
+
+  // --------------------------------------------------
+  // PROVIDER LOGIN RESPONSE
+  // --------------------------------------------------
+
+  const changeProviderLogin = (item: LoginModel | null) => {
+    setProviderLogin(item);
+  };
+
+  // --------------------------------------------------
   // EXISTING CONTEXT FUNCTIONS
   // --------------------------------------------------
 
   const changeParental = (item: boolean) => {
     setParentalEnable(item);
-  };
-
-  const changeDeviceInfo = (item: any) => {
-    setDeviceInfo(item);
   };
 
   const changeProfile = (item: Playlist | null) => {
@@ -315,8 +346,8 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
     setcatSerie(item);
   };
 
-  const changeListSerie = (item: Stream[]) => {
-    setlistSerie(item as SeriesWithInfo[]);
+  const changeListSerie = (item: SeriesWithInfo[]) => {
+    setlistSerie(item);
   };
 
   const changeListSerieFav = (item: any[]) => {
@@ -343,10 +374,16 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
     setlistLiveRecent(item);
   };
 
+  // --------------------------------------------------
+  // CONTEXT PROVIDER
+  // --------------------------------------------------
+
   return (
     <GlobalContext.Provider
       value={{
         deviceInfo,
+        providerLogin,
+
         parentalEnable,
         profile,
         profileShow,
@@ -374,6 +411,8 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({ children }) => {
         hasCachedData,
 
         changeDeviceInfo,
+        changeProviderLogin,
+
         changeProfile,
         changeProfileShow,
         changeSettings,

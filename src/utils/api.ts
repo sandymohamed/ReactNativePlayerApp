@@ -1,3 +1,5 @@
+// src/utils/api.ts
+
 /**
  * Fetch URL and parse JSON. Uses response.text() then JSON.parse because:
  * - Hermes has incomplete URLSearchParams; we avoid any polyfill scope.

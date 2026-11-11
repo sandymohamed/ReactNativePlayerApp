@@ -14,13 +14,18 @@ import LiveScreen from '../screens/Live/LiveScreen';
 import PlayerScreen from '../screens/Player/PlayerScreen';
 
 import SeasonScreen from '../screens/Series/SeasonScreen';
-import { SerieInfo } from '../models/model';
+import { SerieInfo, StandalonePlaylist } from '../models/model';
 import { useGlobalContext } from '../context/GlobalContext';
 import { Text } from 'react-native-svg';
 import SearchScreen from '../screens/Search/SearchScreen';
 import FavoriteScreen from '../screens/Favorites/FavoriteScreen';
 import RecentScreen from '../screens/Recent/RecentScreen';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
+import PlaylistManagerScreen from '../screens/Playlists/PlaylistManagerScreen';
+import AddPlaylistScreen from '../screens/Playlists/AddPlaylistScreen';
+import EditPlaylistScreen from '../screens/Playlists/EditPlaylistScreen';
+import DeviceInfoScreen from '../screens/DeviceInfo/DeviceInfoScreen';
+
 
 export type RootStackParamList = {
   Home: undefined;
@@ -41,12 +46,16 @@ export type RootStackParamList = {
   Favorite: undefined;
   Recent: undefined;
   Settings: undefined;
-  Category: { type: 'live' | 'movie' | 'serie'; categoryId: string };
+  DeviceInfo: undefined;
   Season: {
     serie: SerieInfo;
     season: { season_number: number; id: string };
     seriesId: string;
   };
+
+  PlaylistManager: undefined;
+  AddPlaylist: undefined;
+  EditPlaylist: { playlist: StandalonePlaylist };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -122,7 +131,7 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        key={profile && hasCachedData ? 'main' : 'home'}
+        key={profile && hasCachedData ? 'Main' : 'home'}
         initialRouteName={profile && hasCachedData ? 'Main' : 'Home'}
         screenOptions={{
           headerShown: false,
@@ -130,6 +139,24 @@ const AppNavigator = () => {
         }}>
         <Stack.Screen name="Home" component={HomeScreenWithBackBlock} />
         <Stack.Screen name="Main" component={MainScreenWithBackBlock} />
+        <Stack.Screen
+          name="DeviceInfo"
+          component={DeviceInfoScreen}
+        />
+        <Stack.Screen
+          name="PlaylistManager"
+          component={PlaylistManagerScreen}
+        />
+        <Stack.Screen
+          name="AddPlaylist"
+          component={AddPlaylistScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+  name="EditPlaylist"
+  component={EditPlaylistScreen}
+  options={{ headerShown: false }}
+/>
         <Stack.Screen name="Movies" component={MoviesScreen} />
         <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />
         <Stack.Screen name="Series" component={SeriesScreen} />

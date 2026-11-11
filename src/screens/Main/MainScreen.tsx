@@ -1,9 +1,10 @@
+// src/screens/Main/MainScreen.tsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   ImageBackground,
   useWindowDimensions,
   BackHandler,
@@ -22,7 +23,6 @@ import { colors } from '../../theme/colors';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTVEventHandler } from '../../hooks/useTVEventHandler';
 import Logo from '../../components/Logo';
-import { Pressable } from 'react-native';
 
 type MainScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -534,6 +534,10 @@ const MainScreen: React.FC = () => {
     navigation.navigate('Home' as never);
   }, [navigation]);
 
+  const handleOpenDeviceInfo = useCallback(() => {
+    navigation.navigate('DeviceInfo');
+  }, [navigation]);
+
   const profileLabel = (() => {
     const p = profile as any;
 
@@ -578,6 +582,19 @@ const MainScreen: React.FC = () => {
               </View>
             </Pressable>
           </View>
+
+          <Pressable
+            focusable
+            onPress={handleOpenDeviceInfo}
+            style={({ focused }) => [
+              styles.deviceInfoButton,
+              focused && styles.focusedButton,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Device information">
+            <Text style={styles.deviceInfoIcon}>ⓘ</Text>
+            <Text style={styles.deviceInfoText}>Device Info</Text>
+          </Pressable>
 
           <Pressable
             focusable
@@ -785,6 +802,28 @@ const styles = StyleSheet.create({
     color: '#B9ADFF',
     fontSize: 10,
     marginTop: 2,
+  },
+  deviceInfoButton: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  deviceInfoIcon: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  deviceInfoText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   refreshButton: {
     minHeight: 48,

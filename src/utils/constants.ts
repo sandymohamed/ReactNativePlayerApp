@@ -1,3 +1,4 @@
+// src/utils/constants.ts
 import type { Playlist } from '../models/model';
 
 /**

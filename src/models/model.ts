@@ -152,3 +152,25 @@ export interface Episode {
     duration?: string;
   };
 }
+
+
+
+export type StandalonePlaylistType = 'xtream' | 'm3u';
+
+export interface StandalonePlaylist {
+  id: string;
+  name: string;
+  type: StandalonePlaylistType;
+
+  // Xtream Codes
+  host?: string;
+  username?: string;
+  password?: string;
+
+  // M3U
+  m3uUrl?: string;
+
+  createdAt: number;
+  updatedAt: number;
+  isActive: boolean;
+}
