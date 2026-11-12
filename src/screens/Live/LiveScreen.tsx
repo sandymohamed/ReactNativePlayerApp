@@ -37,6 +37,7 @@ import CategorySidebar, {
 } from '../../components/CategorySidebar';
 
 import LiveEmbeddedPlayer from '../../components/LiveEmbeddedPlayer';
+import { useAppAlert } from '../../components/AppAlert';
 import BackButton from '../../components/BackButton';
 import { useLandscapeLayout } from '../../utils/layout';
 
@@ -165,7 +166,9 @@ const LiveScreen: React.FC = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList, 'Live'>>();
 
+  const { showAlert } = useAppAlert();
   const {
+    access,
     profile,
     listLive,
     listLiveFav,
@@ -310,7 +313,18 @@ const LiveScreen: React.FC = () => {
   const handleChannelSelect = useCallback(
     (channel: Stream) => {
       if (layoutType === 'grid') {
-        console.log('Grid layout: selecting channel', channel);
+        if (!access?.hasAccess) {
+          showAlert({
+            title: 'Playback Access Required',
+            message: 'Activate this device with your provider or use an active Google Play subscription to watch.',
+            buttons: [
+              { text: 'Back', style: 'secondary' },
+              { text: 'Device Info', style: 'primary', onPress: () => navigation.navigate('DeviceInfo') },
+            ],
+          });
+          return;
+        }
+
         setSelectedChannel(channel);
         return;
       }
@@ -328,7 +342,7 @@ const LiveScreen: React.FC = () => {
         streamId: String(channel.stream_id),
       });
     },
-    [layoutType, profile, navigation],
+    [access?.hasAccess, layoutType, profile, navigation, showAlert],
   );
 
   // Toggle favorite

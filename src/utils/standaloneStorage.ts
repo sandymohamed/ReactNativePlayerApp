@@ -1,4 +1,5 @@
 import { StandalonePlaylist } from '../models/model';
+import { clearStandalonePositions } from './storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   clearStandalonePlaylistActivity,
@@ -78,11 +79,6 @@ export const addStandalonePlaylist = async (
       return null;
     }
 
-    // Automatically select the first playlist
-    if (playlists.length === 0) {
-      await setActiveStandalonePlaylist(newPlaylist.id);
-    }
-
     return newPlaylist;
   } catch (error) {
     console.error('[Standalone Storage] Failed to add playlist:', error);
@@ -155,6 +151,7 @@ export const deleteStandalonePlaylist = async (
 
     // Remove local Favorites and Recent for the deleted playlist.
     await clearStandalonePlaylistActivity(id);
+    await clearStandalonePositions(id).catch(() => undefined);
 
     return true;
   } catch (error) {

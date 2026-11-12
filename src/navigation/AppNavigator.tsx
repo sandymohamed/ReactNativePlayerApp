@@ -1,10 +1,9 @@
 import React, { useCallback } from 'react';
-import { BackHandler, View } from 'react-native';
+import { ActivityIndicator, BackHandler, View } from 'react-native';
 import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import HomeScreen from '../screens/HomeScreen';
 import MainScreen from '../screens/Main/MainScreen';
 import MoviesScreen from '../screens/Movies/MoviesScreen';
 import MovieDetailScreen from '../screens/Movies/MovieDetailScreen';
@@ -16,7 +15,8 @@ import PlayerScreen from '../screens/Player/PlayerScreen';
 import SeasonScreen from '../screens/Series/SeasonScreen';
 import { SerieInfo, StandalonePlaylist } from '../models/model';
 import { useGlobalContext } from '../context/GlobalContext';
-import { Text } from 'react-native-svg';
+import { colors } from '../theme';
+import { playlistKey } from '../services/playlistCatalog';
 import SearchScreen from '../screens/Search/SearchScreen';
 import FavoriteScreen from '../screens/Favorites/FavoriteScreen';
 import RecentScreen from '../screens/Recent/RecentScreen';
@@ -28,7 +28,6 @@ import DeviceInfoScreen from '../screens/DeviceInfo/DeviceInfoScreen';
 
 
 export type RootStackParamList = {
-  Home: undefined;
   Main: undefined;
   Movies: { categoryId?: string };
   MovieDetail: { movie: any };
@@ -60,54 +59,12 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// const HomeScreenWithBackBlock = () => {
-//   useFocusEffect(
-//     useCallback(() => {
-//       const subscription = BackHandler.addEventListener(
-//         'hardwareBackPress',
-//         () => true,
-//       );
-
-//       console.log( 'hardwareBackPress')
-//       return () => subscription.remove();
-//     }, []),
-//   );
-
-//   return <HomeScreen />;
-// };
-
-const HomeScreenWithBackBlock = () => {
-  useFocusEffect(
-    useCallback(() => {
-      console.log('[BACK TEST] Home screen focused');
-
-      const subscription = BackHandler.addEventListener(
-        'hardwareBackPress',
-        () => {
-          console.log('[BACK TEST] Back event received on Home');
-          return true;
-        },
-      );
-
-      return () => {
-        console.log('[BACK TEST] Home screen blurred');
-        subscription.remove();
-      };
-    }, []),
-  );
-
-  return <HomeScreen />;
-};
-
 const MainScreenWithBackBlock = () => {
   useFocusEffect(
     useCallback(() => {
       const subscription = BackHandler.addEventListener(
         'hardwareBackPress',
-        () => {
-          console.log('Back pressed on Main - blocked');
-          return true;
-        },
+        () => true,
       );
 
       return () => subscription.remove();
@@ -118,12 +75,12 @@ const MainScreenWithBackBlock = () => {
 };
 
 const AppNavigator = () => {
-  const { isAppReady, hasCachedData, profile } = useGlobalContext();
+  const { isAppReady, profile } = useGlobalContext();
 
   if (!isAppReady) {
     return (
-      <View>
-        <Text>SplashScreen</Text>
+      <View style={{ flex: 1, justifyContent: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -131,43 +88,31 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        key={profile && hasCachedData ? 'Main' : 'home'}
-        initialRouteName={profile && hasCachedData ? 'Main' : 'Home'}
+        initialRouteName="Main"
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
         }}>
-        <Stack.Screen name="Home" component={HomeScreenWithBackBlock} />
         <Stack.Screen name="Main" component={MainScreenWithBackBlock} />
-        <Stack.Screen
-          name="DeviceInfo"
-          component={DeviceInfoScreen}
-        />
-        <Stack.Screen
-          name="PlaylistManager"
-          component={PlaylistManagerScreen}
-        />
-        <Stack.Screen
-          name="AddPlaylist"
-          component={AddPlaylistScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-  name="EditPlaylist"
-  component={EditPlaylistScreen}
-  options={{ headerShown: false }}
-/>
-        <Stack.Screen name="Movies" component={MoviesScreen} />
-        <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />
-        <Stack.Screen name="Series" component={SeriesScreen} />
-        <Stack.Screen name="SerieDetail" component={SerieDetailScreen} />
-        <Stack.Screen name="Live" component={LiveScreen} />
-        <Stack.Screen name="Player" component={PlayerScreen} />
-        <Stack.Screen name="Search" component={SearchScreen} />
-        <Stack.Screen name="Favorite" component={FavoriteScreen} />
-        <Stack.Screen name="Recent" component={RecentScreen} />
+        <Stack.Screen name="DeviceInfo" component={DeviceInfoScreen} />
+        <Stack.Screen name="PlaylistManager" component={PlaylistManagerScreen} />
+        <Stack.Screen name="AddPlaylist" component={AddPlaylistScreen} />
+        <Stack.Screen name="EditPlaylist" component={EditPlaylistScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
-        <Stack.Screen name="Season" component={SeasonScreen} />
+        {profile && (
+          <Stack.Group navigationKey={playlistKey(profile)}>
+            <Stack.Screen name="Movies" component={MoviesScreen} />
+            <Stack.Screen name="MovieDetail" component={MovieDetailScreen} />
+            <Stack.Screen name="Series" component={SeriesScreen} />
+            <Stack.Screen name="SerieDetail" component={SerieDetailScreen} />
+            <Stack.Screen name="Live" component={LiveScreen} />
+            <Stack.Screen name="Player" component={PlayerScreen} />
+            <Stack.Screen name="Search" component={SearchScreen} />
+            <Stack.Screen name="Favorite" component={FavoriteScreen} />
+            <Stack.Screen name="Recent" component={RecentScreen} />
+            <Stack.Screen name="Season" component={SeasonScreen} />
+          </Stack.Group>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );

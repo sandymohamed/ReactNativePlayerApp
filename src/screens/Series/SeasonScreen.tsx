@@ -171,7 +171,6 @@ const SeasonScreen: React.FC = () => {
   // Open the selected episode.
   const handleEpisodePress = useCallback(
     (episode: Episode) => {
-      console.log('handleEpisodePress epssss', episode, profile);
       if (!profile || !episode) {
         return;
       }
@@ -200,7 +199,6 @@ const SeasonScreen: React.FC = () => {
         profile,
       );
 
-      console.log('urlllllllllll', url);
       // Save current episode for next/previous navigation.
       if (serie) {
         changeSerie({

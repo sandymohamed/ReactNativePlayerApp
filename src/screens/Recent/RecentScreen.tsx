@@ -94,8 +94,8 @@ const RecentScreen: React.FC = () => {
     const loadPositions = async () => {
       try {
         const [savedSeries, savedVideos] = await Promise.all([
-          getSeriePositions(),
-          getVideoPositions(),
+          getSeriePositions(profile),
+          getVideoPositions(profile),
         ]);
 
         if (!mounted) {
@@ -117,7 +117,7 @@ const RecentScreen: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [profile]);
 
   // Resolve recent IDs to the matching items while preserving recent order.
   const resolveRecent = (
@@ -244,7 +244,7 @@ const RecentScreen: React.FC = () => {
         );
 
         if (!seriesId) {
-          navigation.navigate('SeriesDetail', { serie: item });
+          navigation.navigate('SerieDetail', { serie: item });
           return;
         }
 
@@ -255,7 +255,7 @@ const RecentScreen: React.FC = () => {
 
         // If no episode has been saved, open the series details as usual.
         if (!episodeId) {
-          navigation.navigate('SeriesDetail', { serie: item });
+          navigation.navigate('SerieDetail', { serie: item });
           return;
         }
 

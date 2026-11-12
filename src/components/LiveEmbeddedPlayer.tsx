@@ -11,12 +11,13 @@ import {
 import Video from 'react-native-video';
 
 import { Stream, Playlist } from '../models/model';
-import { generateurlplayer } from '../utils/constants';
+import { generateurlplayer, insertDatarecent } from '../utils/constants';
 
 import { colors } from '../theme/colors';
 import { spacing, borderRadius } from '../theme/spacing';
 import { typography } from '../theme/typography';
 
+import { useGlobalContext } from '../context/GlobalContext';
 import { useTVEventHandler } from '../hooks/useTVEventHandler';
 
 interface Props {
@@ -36,6 +37,7 @@ const LiveEmbeddedPlayer: React.FC<Props> = ({
   isFavorite = false,
   onToggleFavorite,
 }) => {
+  const { access, listLiveRecent, changeListLiveRecent } = useGlobalContext();
   const [paused, setPaused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [buffering, setBuffering] = useState(false);
@@ -43,12 +45,12 @@ const LiveEmbeddedPlayer: React.FC<Props> = ({
   const [focusedControl, setFocusedControl] = useState<string | null>(null);
 
   const videoUrl = useMemo(() => {
-    if (!channel || !profile) {
+    if (!access?.hasAccess || !channel || !profile) {
       return null;
     }
 
     return generateurlplayer('live', channel.stream_id, 'm3u8', profile);
-  }, [channel, profile]);
+  }, [access?.hasAccess, channel, profile]);
 
   useEffect(() => {
     setPaused(false);
@@ -126,7 +128,7 @@ const LiveEmbeddedPlayer: React.FC<Props> = ({
         <Text style={styles.emptyTitle}>Live Preview</Text>
 
         <Text style={styles.emptyDescription}>
-          Select a channel to start watching
+          {channel ? 'Playback access is required.' : 'Select a channel to start watching'}
         </Text>
       </View>
     );
@@ -139,10 +141,8 @@ const LiveEmbeddedPlayer: React.FC<Props> = ({
         <Video
           key={String(channel.stream_id)}
           source={{
-            // TODO: Update uri
-            // uri:videoUrl ,
-            uri: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-            type: 'm3u8',
+            uri: videoUrl,
+            ...(/\.m3u8(?:[?#]|$)/i.test(videoUrl) ? { type: 'm3u8' } : {}),
           }}
           style={styles.video}
           resizeMode="contain"
@@ -150,15 +150,19 @@ const LiveEmbeddedPlayer: React.FC<Props> = ({
           playInBackground={false}
           playWhenInactive={false}
           onLoad={() => {
+            if (profile.standalone) {
+              const id = String(channel.stream_id);
+              void insertDatarecent(id, 'live', profile);
+              changeListLiveRecent([id, ...listLiveRecent.filter(item => item !== id)].slice(0, 50));
+            }
             setLoading(false);
             setBuffering(false);
             setError(false);
           }}
-          onBuffer={({ isBuffering }) => {
+          onBuffer={({ isBuffering }: { isBuffering: boolean }) => {
             setBuffering(isBuffering);
           }}
-          onError={(videoError: any) => {
-            console.warn('Embedded live player error:', videoError);
+          onError={() => {
 
             setLoading(false);
             setBuffering(false);

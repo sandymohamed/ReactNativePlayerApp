@@ -1,5 +1,11 @@
+import { withRequestTimeout } from './requestTimeout';
 // src/utils/constants.ts
 import type { Playlist } from '../models/model';
+import { buildXtreamPlaybackUrl } from '../services/xtreamService';
+import { updateStandaloneActivity, type ContentType } from './standaloneActivityStorage';
+
+const contentType = (type: string): ContentType =>
+  type === 'live' || type === 'movie' ? type : 'series';
 
 /**
  * Override player API base URL when the login API returns the wrong host.
@@ -75,16 +81,15 @@ export function generateurl(action: string, playlist: Playlist): string {
     url =
       profile.host +
       '/player_api.php?username=' +
-      profile.username +
+      encodeURIComponent(profile.username) +
       '&password=' +
-      profile.password;
+      encodeURIComponent(profile.password);
     if (action !== '') {
       url += '&action=' + action;
     }
   } else {
     url = profile.host;;
   }
-  console.log("URL:", url)
   return url;
 }
 
@@ -94,6 +99,9 @@ export function generateurlplayer(
   ext: string,
   playlist: Playlist,
 ): string {
+  const standalone = playlist.standalone;
+  if (standalone?.type === 'm3u') return streamid;
+  if (standalone) return buildXtreamPlaybackUrl(standalone, type as 'live' | 'movie' | 'series', streamid, ext);
   let profile = getetprofile(playlist);
 
   var url =
@@ -138,7 +146,6 @@ export function getetprofile(profile: Playlist) {
     prof.host = host;
   }
 
-  console.log('prof.host', prof.host);
   if (!prof.host) {
     if (PLAYER_HOST_OVERRIDE && PLAYER_HOST_OVERRIDE.trim()) {
       let override = PLAYER_HOST_OVERRIDE.trim();
@@ -154,6 +161,10 @@ export async function deleterow(
   type: string,
   profile: Playlist,
 ): Promise<void> {
+  if (profile.standalone) {
+    await updateStandaloneActivity(profile.standalone.id, 'favorites', contentType(type), streamid, false);
+    return;
+  }
   var myHeaders = new Headers();
   myHeaders.append('Content-Type', 'application/json');
 
@@ -178,8 +189,7 @@ export async function deleterow(
     requestOptions,
   )
     .then(response => response.text())
-    .then(result => console.log(result))
-    .catch(error => console.log('error', error));
+    .catch(() => undefined);
 }
 
 export async function insertData(
@@ -187,6 +197,10 @@ export async function insertData(
   type: string,
   profile: Playlist,
 ): Promise<void> {
+  if (profile.standalone) {
+    await updateStandaloneActivity(profile.standalone.id, 'favorites', contentType(type), streamid, true);
+    return;
+  }
   var myHeaders = new Headers();
   myHeaders.append('Content-Type', 'application/json');
 
@@ -211,8 +225,7 @@ export async function insertData(
     requestOptions,
   )
     .then(response => response.text())
-    .then(result => console.log(result))
-    .catch(error => console.log('error', error));
+    .catch(() => undefined);
 }
 
 export async function insertDatarecent(
@@ -220,6 +233,10 @@ export async function insertDatarecent(
   type: string,
   profile: Playlist,
 ): Promise<void> {
+  if (profile.standalone) {
+    await updateStandaloneActivity(profile.standalone.id, 'recents', contentType(type), streamid, true);
+    return;
+  }
   var myHeaders = new Headers();
   myHeaders.append('Content-Type', 'application/json');
 
@@ -229,7 +246,6 @@ export async function insertDatarecent(
     profileid: profile.id,
   });
 
-  console.log('raw:', raw);
 
   var requestOptions: RequestInit = {
     method: 'POST',
@@ -243,59 +259,31 @@ export async function insertDatarecent(
     requestOptions,
   )
     .then(response => response.text())
-    .then(result => console.log(result))
-    .catch(error => console.log('error', error));
+    .catch(() => undefined);
 }
 
-export function selectall(type: string, profile: Playlist): Promise<any[]> {
-  return new Promise(function (resolve) {
-    var myHeaders = new Headers();
-    myHeaders.append('Content-Type', 'application/json');
-
-    var raw = JSON.stringify({
-      profileid: profile.id,
-      type: type,
-    });
-
-    var requestOptions: RequestInit = {
+async function readProviderActivity(endpoint: string, body: object): Promise<unknown> {
+  return withRequestTimeout(async signal => {
+    const response = await fetch(`https://api.uiplayer.com/api/v2/${endpoint}`, {
       method: 'POST',
-      headers: myHeaders,
-      body: raw,
-    };
-
-    fetch(
-      'https://api.uiplayer.com/api/v2/favorites/selectall',
-      // 'http://192.168.1.16:5000/api/v2/favorites/selectall',
-      requestOptions,
-    )
-      .then(response => response.json())
-      .then(result => resolve(result.data))
-      .catch(error => resolve([]));
+      signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error('Could not load provider activity.');
+    const result = await response.json();
+    if (!result || !('data' in result)) throw new Error('Invalid provider activity response.');
+    return result.data;
   });
 }
 
-export function selectrecentAll(profile: Playlist): Promise<any[]> {
-  return new Promise(function (resolve) {
-    var myHeaders = new Headers();
-    myHeaders.append('Content-Type', 'application/json');
+export async function selectall(type: string, profile: Playlist): Promise<unknown> {
+  return readProviderActivity('favorites/selectall', { profileid: profile.id, type });
+}
 
-    var raw = JSON.stringify({
-      profileid: profile.id,
-    });
-
-    var requestOptions: RequestInit = {
-      method: 'POST',
-      headers: myHeaders,
-      body: raw,
-    };
-
-    fetch(
-      'https://api.uiplayer.com/api/v2/recents/selectrecentAll',
-      // 'http://192.168.1.16:5000/api/v2/recents/selectrecentAll',
-      requestOptions,
-    )
-      .then(response => response.json())
-      .then(result => resolve(result.data))
-      .catch(error => resolve([]));
-  });
+export async function selectrecentAll(profile: Playlist): Promise<{
+  live?: unknown; movie?: unknown; serie?: unknown;
+} | null> {
+  const data = await readProviderActivity('recents/selectrecentAll', { profileid: profile.id });
+  return data && typeof data === 'object' ? data : null;
 }

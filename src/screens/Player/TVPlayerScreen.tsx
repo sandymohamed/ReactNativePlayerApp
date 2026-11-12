@@ -80,7 +80,7 @@ const PlayerScreen: React.FC = () => {
   const durationRef = useRef(0);
   const resumeHandledRef = useRef(false);
   const lastSaveTimeRef = useRef(0);
-  const recentRecorded = useRef(false);
+  const recentRecorded = useRef<string | null>(null);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backResetTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backInProgressRef = useRef(false);
@@ -229,11 +229,11 @@ const PlayerScreen: React.FC = () => {
 
   // Recent playback tracking.
   useEffect(() => {
-    if (!profile || !streamId || !type || recentRecorded.current) {
+    if (!profile || !streamId || !type || recentRecorded.current === String(streamId)) {
       return;
     }
 
-    recentRecorded.current = true;
+    recentRecorded.current = String(streamId);
 
     const currentID = type === 'serie' ? seriesId : streamId;
 
@@ -247,7 +247,7 @@ const PlayerScreen: React.FC = () => {
       },
     );
 
-    const add = (items: string[]) => Array.from(new Set([...items, currentID]));
+    const add = (items: string[]) => Array.from(new Set([currentID, ...items]));
 
     if (type === 'live') {
       changeListLiveRecent(add(listLiveRecent || []));
@@ -435,14 +435,14 @@ const PlayerScreen: React.FC = () => {
 
     try {
       if (type === 'movie') {
-        const positions = await getVideoPositions();
+        const positions = await getVideoPositions(profile);
         const saved = positions[String(streamId)];
 
         if (saved && Number.isFinite(saved.position)) {
           resumePositionRef.current = saved.position;
         }
       } else if (type === 'serie' && seriesId) {
-        const positions = await getSeriePositions();
+        const positions = await getSeriePositions(profile);
         const saved = positions[String(seriesId)];
 
         if (
@@ -473,7 +473,7 @@ const PlayerScreen: React.FC = () => {
       const savedDuration = durationRef.current;
 
       if (type === 'movie') {
-        const positions = await getVideoPositions();
+        const positions = await getVideoPositions(profile);
 
         await storeVideoPositions({
           ...positions,
@@ -482,9 +482,9 @@ const PlayerScreen: React.FC = () => {
             duration: savedDuration,
             title,
           },
-        });
+        }, profile);
       } else if (type === 'serie' && seriesId) {
-        const positions = await getSeriePositions();
+        const positions = await getSeriePositions(profile);
 
         await storeSeriePositions({
           ...positions,
@@ -494,27 +494,17 @@ const PlayerScreen: React.FC = () => {
             duration: savedDuration,
             title,
           },
-        });
+        }, profile);
       }
     } catch (err) {
       console.warn('[PlayerScreen] Could not save position:', err);
     }
   }
 
-  // const videoSource = isLive
-  //   ? { uri: url, type: 'm3u8' as const }
-  //   : { uri: url };
-
-  const videoSource = isLive
-    ? {
-        // TODO: update me but not now as live m3u  in this playlist doesn't work
-        // uri: url,
-        uri: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        type: 'm3u8' as const,
-      }
-    : {
-        uri: url,
-      };
+  const videoSource = {
+    uri: url,
+    ...(/\.m3u8(?:[?#]|$)/i.test(url) ? { type: 'm3u8' } : {}),
+  };
 
   return (
     <View style={styles.container}>
@@ -579,7 +569,7 @@ const PlayerScreen: React.FC = () => {
           setBuffering(true);
           setError(null);
         }}
-        onBuffer={({ isBuffering }) => {
+        onBuffer={({ isBuffering }: { isBuffering: boolean }) => {
           setBuffering(isBuffering);
 
           if (!isBuffering) {
@@ -593,7 +583,6 @@ const PlayerScreen: React.FC = () => {
             videoError?.code ||
             'Failed to load video';
 
-          console.error('[PlayerScreen] Video error:', err);
 
           setLoading(false);
           setBuffering(false);

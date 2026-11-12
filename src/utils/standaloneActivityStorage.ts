@@ -230,6 +230,7 @@ export const clearStandalonePlaylistActivity = async (
   playlistId: string,
 ): Promise<boolean> => {
   try {
+    await pendingChanges.get(playlistId);
     await AsyncStorage.removeItem(getStorageKey(playlistId));
     return true;
   } catch (error) {
@@ -237,3 +238,30 @@ export const clearStandalonePlaylistActivity = async (
     return false;
   }
 };
+
+const pendingChanges = new Map<string, Promise<boolean>>();
+
+export function updateStandaloneActivity(
+  playlistId: string,
+  kind: 'favorites' | 'recents',
+  type: ContentType,
+  streamId: string,
+  add: boolean,
+): Promise<boolean> {
+  const previous = pendingChanges.get(playlistId) ?? Promise.resolve(true);
+  const next = previous.then(async () => {
+    const activity = await getStandaloneActivity(playlistId);
+    const remaining = activity[kind][type].filter(id => id !== streamId);
+    activity[kind][type] = add ? [streamId, ...remaining] : remaining;
+    if (kind === 'recents') {
+      activity.recents[type] = activity.recents[type].slice(0, DEFAULT_RECENT_LIMIT);
+    }
+    return saveStandaloneActivity(playlistId, activity);
+  });
+  pendingChanges.set(playlistId, next);
+  const clear = () => {
+    if (pendingChanges.get(playlistId) === next) pendingChanges.delete(playlistId);
+  };
+  void next.then(clear, clear);
+  return next;
+}

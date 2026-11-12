@@ -1,6 +1,6 @@
 // src/screens/Playlists/EditPlaylistScreen.tsx
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 
 import {
   View,
@@ -21,7 +21,9 @@ import type {
   StandalonePlaylistType,
 } from '../../models/model';
 
-import { updateStandalonePlaylist } from '../../utils/standaloneStorage';
+import { useGlobalContext } from '../../context/GlobalContext';
+import { asPlaylist } from '../../services/playlistCatalog';
+import { getStandalonePlaylists, updateStandalonePlaylist } from '../../utils/standaloneStorage';
 
 import { useAppAlert } from '../../components/AppAlert';
 import { testXtreamConnection } from '../../services/xtreamService';
@@ -47,6 +49,20 @@ export default function EditPlaylistScreen() {
   const route = useRoute<any>();
 
   const { showAlert } = useAppAlert();
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [returnFocusTo, setReturnFocusTo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isTV || editingField === null) return;
+
+    const subscription = Keyboard.addListener('keyboardDidHide', () => {
+      setReturnFocusTo(editingField);
+      setEditingField(current => current === editingField ? null : current);
+    });
+    return () => subscription.remove();
+  }, [editingField]);
+
+  const { profile, selectPlaylist } = useGlobalContext();
 
   const playlist = route.params?.playlist as StandalonePlaylist | undefined;
 
@@ -276,7 +292,7 @@ export default function EditPlaylistScreen() {
   // ==========================================
 
   const handleSave = useCallback(async () => {
-if (loading || testingConnection) return;
+    if (loading || testingConnection) return;
 
     if (!playlist) {
       showAlert({
@@ -371,6 +387,8 @@ if (loading || testingConnection) return;
     try {
       setLoading(true);
 
+      const draft = { ...playlist, ...updates };
+      await (draft.type === 'm3u' ? testM3uConnection(draft) : testXtreamConnection(draft));
       const success = await updateStandalonePlaylist(playlist.id, updates);
 
       if (!success) {
@@ -380,6 +398,11 @@ if (loading || testingConnection) return;
           message: 'Could not update this playlist. Please try again.',
         });
         return;
+      }
+
+      if (profile?.standalone?.id === playlist.id) {
+        const updated = (await getStandalonePlaylists()).find(item => item.id === playlist.id);
+        if (updated) await selectPlaylist(asPlaylist(updated));
       }
 
       showAlert({
@@ -400,12 +423,14 @@ if (loading || testingConnection) return;
       showAlert({
         type: 'error',
         title: 'Something Went Wrong',
-        message: 'An unexpected error occurred while updating this playlist.',
+        message: error instanceof Error ? error.message : 'Could not update the playlist.',
       });
     } finally {
       setLoading(false);
     }
   }, [
+    profile,
+    selectPlaylist,
     loading,
     playlist,
     name,
@@ -466,22 +491,61 @@ if (loading || testingConnection) return;
       autoCorrect?: boolean;
     },
   ) => {
+    const isEditing = isTV && editingField === label;
+    const input = !isTV || isEditing ? (
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        accessibilityLabel={label}
+        placeholder={placeholder}
+        placeholderTextColor={COLORS.muted}
+        secureTextEntry={options?.secureTextEntry}
+        keyboardType={options?.keyboardType || 'default'}
+        autoCapitalize={options?.autoCapitalize || 'none'}
+        autoCorrect={options?.autoCorrect ?? false}
+        selectionColor={COLORS.primary}
+        autoFocus={isEditing}
+        returnKeyType={isTV ? 'done' : undefined}
+        onSubmitEditing={isEditing ? () => {
+          setReturnFocusTo(label);
+          setEditingField(null);
+          Keyboard.dismiss();
+        } : undefined}
+        onBlur={isEditing ? () => {
+          setEditingField(current => current === label ? null : current);
+        } : undefined}
+        style={isTV ? styles.tvInput : styles.input}
+      />
+    ) : null;
+
     return (
       <View style={styles.field}>
         <Text style={styles.label}>{label}</Text>
 
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={COLORS.muted}
-          secureTextEntry={options?.secureTextEntry}
-          keyboardType={options?.keyboardType || 'default'}
-          autoCapitalize={options?.autoCapitalize || 'none'}
-          autoCorrect={options?.autoCorrect ?? false}
-          selectionColor={COLORS.primary}
-          style={styles.input}
-        />
+        {isTV ? (
+          <Pressable
+            focusable={!isEditing}
+            accessible={!isEditing}
+            hasTVPreferredFocus={!isEditing && returnFocusTo === label}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            accessibilityHint="Press OK to edit"
+            onFocus={() => setReturnFocusTo(null)}
+            onPress={isEditing ? undefined : () => setEditingField(label)}
+            style={({ focused }) => [
+              styles.input,
+              styles.tvInputFrame,
+              (focused || isEditing) && styles.tvInputFocused,
+            ]}>
+            {input ?? (
+              <Text
+                numberOfLines={1}
+                style={[styles.tvInputValue, !value && styles.tvInputPlaceholder]}>
+                {value && options?.secureTextEntry ? '•'.repeat(value.length) : value || placeholder}
+              </Text>
+            )}
+          </Pressable>
+        ) : input}
       </View>
     );
   };
@@ -810,6 +874,34 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     paddingHorizontal: 15,
     fontSize: 15,
+  },
+
+  tvInputFrame: {
+    justifyContent: 'center',
+    paddingHorizontal: 0,
+  },
+
+  tvInputFocused: {
+    borderColor: COLORS.focus,
+    borderWidth: 2,
+  },
+
+  tvInput: {
+    height: '100%',
+    paddingHorizontal: 14,
+    paddingVertical: 0,
+    color: COLORS.text,
+    fontSize: 15,
+  },
+
+  tvInputValue: {
+    paddingHorizontal: 14,
+    color: COLORS.text,
+    fontSize: 15,
+  },
+
+  tvInputPlaceholder: {
+    color: COLORS.muted,
   },
 
   divider: {

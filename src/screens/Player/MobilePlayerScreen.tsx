@@ -35,21 +35,17 @@ import {
 
 const { width, height } = Dimensions.get('window');
 
+// Android TV's native View dispatches focus events, which the base ViewProps omit.
+const FocusableTimeline = View as React.ComponentType<
+  React.ComponentProps<typeof View> & { onFocus?: () => void; onBlur?: () => void }
+>;
+
 const PlayerScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
-  const { url, title, type, streamId, seriesId } = route.params as any;
-  console.log(
-    'PlayerScreen: url =',
-    url,
-    'title =',
-    title,
-    'type =',
-    type,
-    'streamId =',
-    streamId,
-  );
+  const { url, title, type, streamId, seriesId, resumeFromSaved } = route.params as any;
+
 
   const {
     profile,
@@ -173,12 +169,6 @@ const PlayerScreen: React.FC = () => {
         tapTimeout.current = null;
       }
 
-      console.log(
-        'PlayerScreen unmounting, saving final playback position for streamId:',
-        streamId,
-        'currentTime:',
-        currentTimeRef.current,
-      );
       saveCurrentPlaybackPosition(); //* ****************** */
     };
   }, []);
@@ -186,20 +176,20 @@ const PlayerScreen: React.FC = () => {
   // Recent tracking
   // ------------------------------------------------------------
 
-  const recentRecorded = useRef(false);
+  const recentRecorded = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!profile || !streamId || !type || recentRecorded.current) {
+    if (!profile || !streamId || !type || recentRecorded.current === String(streamId)) {
       return;
     }
 
     const currentID = type === 'serie' ? seriesId : streamId;
-    recentRecorded.current = true;
+    recentRecorded.current = String(streamId);
 
-    // this is an API request
-    insertDatarecent(currentID, type, profile);
+    if (!currentID) return;
+    void insertDatarecent(currentID, type, profile);
 
-    const add = (arr: string[]) => Array.from(new Set([...arr, currentID]));
+    const add = (arr: string[]) => Array.from(new Set([currentID, ...arr]));
     if (type === 'live') {
       changeListLiveRecent(add(listLiveRecent || []));
     } else if (type === 'movie') {
@@ -637,16 +627,18 @@ const PlayerScreen: React.FC = () => {
 
     resumeHandledRef.current = true;
 
+    if (resumeFromSaved === false) return;
+
     try {
       if (type === 'movie') {
-        const positions = await getVideoPositions();
+        const positions = await getVideoPositions(profile);
         const saved = positions[String(streamId)];
 
         if (saved && Number.isFinite(saved.position)) {
           resumePositionRef.current = saved.position;
         }
       } else if (type === 'serie' && seriesId) {
-        const positions = await getSeriePositions();
+        const positions = await getSeriePositions(profile);
         const saved = positions[String(seriesId)];
 
         // Restore only when the saved episode matches this episode.
@@ -659,7 +651,7 @@ const PlayerScreen: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Error restoring playback position:', error);
+
     }
   };
 
@@ -677,19 +669,13 @@ const PlayerScreen: React.FC = () => {
       return;
     }
 
-    console.log(
-      'Saving final playback position for streamId:',
-      streamId,
-      'currentTime:',
-      currentTimeRef.current,
-    );
     try {
       const position = currentTimeRef.current;
       const duration = durationRef.current;
 
       if (type === 'movie') {
-        const positions = await getVideoPositions();
-        console.log('Saving final playback position for movie:', positions);
+        const positions = await getVideoPositions(profile);
+
 
         await storeVideoPositions({
           ...positions,
@@ -698,9 +684,9 @@ const PlayerScreen: React.FC = () => {
             duration,
             title,
           },
-        });
+        }, profile);
       } else if (type === 'serie' && seriesId) {
-        const positions = await getSeriePositions();
+        const positions = await getSeriePositions(profile);
 
         await storeSeriePositions({
           ...positions,
@@ -710,10 +696,10 @@ const PlayerScreen: React.FC = () => {
             duration,
             title,
           },
-        });
+        }, profile);
       }
     } catch (error) {
-      console.error('Error saving final playback position:', error);
+
     }
   };
 
@@ -721,16 +707,10 @@ const PlayerScreen: React.FC = () => {
   // Video source
   // ------------------------------------------------------------
 
-  const videoSource = isLive
-    ? {
-        // TODO: update me
-        // uri: url,
-        uri: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        type: 'm3u8' as const,
-      }
-    : {
-        uri: url,
-      };
+  const videoSource = {
+    uri: url,
+    ...(/\.m3u8(?:[?#]|$)/i.test(url) ? { type: 'm3u8' } : {}),
+  };
 
   // ------------------------------------------------------------
   // Render
@@ -826,7 +806,6 @@ const PlayerScreen: React.FC = () => {
               ? `Playback error${code}. Try Retry.`
               : 'Failed to load video');
 
-          console.error('Video player error:', err);
 
           setLoading(false);
           setBuffering(false);
@@ -872,7 +851,7 @@ const PlayerScreen: React.FC = () => {
           const savePosition = async () => {
             try {
               if (type === 'movie') {
-                const positions = await getVideoPositions();
+                const positions = await getVideoPositions(profile);
 
                 await storeVideoPositions({
                   ...positions,
@@ -881,9 +860,9 @@ const PlayerScreen: React.FC = () => {
                     duration: savedDuration,
                     title,
                   },
-                });
+                }, profile);
               } else if (type === 'serie' && seriesId) {
-                const positions = await getSeriePositions();
+                const positions = await getSeriePositions(profile);
 
                 await storeSeriePositions({
                   ...positions,
@@ -893,10 +872,10 @@ const PlayerScreen: React.FC = () => {
                     duration: savedDuration,
                     title,
                   },
-                });
+                }, profile);
               }
             } catch (error) {
-              console.error('Error saving playback position:', error);
+
             }
           };
 
@@ -1044,7 +1023,7 @@ const PlayerScreen: React.FC = () => {
                   {formatTime(isSeeking ? previewTime : currentTime)}
                 </Text>
 
-                <View
+                <FocusableTimeline
                   focusable={duration > 0}
                   accessible
                   accessibilityRole="adjustable"
@@ -1125,7 +1104,7 @@ const PlayerScreen: React.FC = () => {
                       ]}
                     />
                   </View>
-                </View>
+                </FocusableTimeline>
 
                 <Text style={styles.timeText}>{formatTime(duration)}</Text>
               </View>

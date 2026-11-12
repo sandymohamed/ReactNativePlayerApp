@@ -91,8 +91,8 @@ const FavoriteScreen: React.FC = () => {
     const loadPositions = async () => {
       try {
         const [savedSeries, savedVideos] = await Promise.all([
-          getSeriePositions(),
-          getVideoPositions(),
+          getSeriePositions(profile),
+          getVideoPositions(profile),
         ]);
 
         if (!mounted) {
@@ -114,7 +114,7 @@ const FavoriteScreen: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [profile]);
 
   // Resolve favorite IDs to the matching items.
   const resolveFavorites = (
@@ -234,7 +234,7 @@ const FavoriteScreen: React.FC = () => {
         );
 
         if (!seriesId) {
-          navigation.navigate('SeriesDetail', { serie: item });
+          navigation.navigate('SerieDetail', { serie: item });
           return;
         }
 
@@ -245,7 +245,7 @@ const FavoriteScreen: React.FC = () => {
 
         // If no episode has been saved, open the series details as usual.
         if (!episodeId) {
-          navigation.navigate('SeriesDetail', { serie: item });
+          navigation.navigate('SerieDetail', { serie: item });
           return;
         }
 

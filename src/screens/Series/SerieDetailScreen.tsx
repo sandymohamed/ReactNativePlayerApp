@@ -13,6 +13,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useGlobalContext } from '../../context/GlobalContext';
 import { deleterow, generateurl, insertData } from '../../utils/constants';
+import { getSeriesInfo } from '../../services/xtreamService';
 import { fetchJson } from '../../utils/api';
 import { colors } from '../../theme/colors';
 import { spacing, borderRadius } from '../../theme/spacing';
@@ -56,8 +57,10 @@ const SerieDetailScreen: React.FC = () => {
     id: string;
   }>(null);
 
+  const seriesId = String(routeSerie.series_id ?? routeSerie.stream_id);
+  const directUrl = profile?.standalone?.type === 'm3u' ? routeSerie.direct_source : undefined;
   const handlePressFav = () => {
-    var streamId = String(routeSerie.series_id);
+    var streamId = seriesId;
     const arrayFav = [...listSerieFav];
     if (listSerieFav.includes(streamId)) {
       let arr = arrayFav.filter(el => el !== streamId);
@@ -73,8 +76,8 @@ const SerieDetailScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    setIsFav(listSerieFav.includes(String(routeSerie.series_id)));
-  }, [listSerieFav]);
+    setIsFav(listSerieFav.includes(seriesId));
+  }, [listSerieFav, seriesId]);
 
   useEffect(() => {
     loadSerieDetails();
@@ -103,13 +106,19 @@ const SerieDetailScreen: React.FC = () => {
   const loadSerieDetails = async () => {
     if (!profile || !routeSerie) return;
 
+    if (directUrl) {
+      setSerie({ info: { name: routeSerie.name, cover: routeSerie.stream_icon } });
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const url = generateurl(
-        `get_series_info&series_id=${routeSerie.series_id || routeSerie.stream_id}`,
-        profile,
-      );
-      const data = await fetchJson<SerieInfo>(url);
+      const data = profile.standalone?.type === 'xtream'
+        ? await getSeriesInfo(profile.standalone, seriesId)
+        : await fetchJson<SerieInfo>(generateurl(
+            `get_series_info&series_id=${encodeURIComponent(seriesId)}`, profile,
+          ));
 
       if (data.info) {
         // Extract season numbers from episodes object (web app pattern)
@@ -170,6 +179,15 @@ const SerieDetailScreen: React.FC = () => {
           )}
         </View>
 
+        {directUrl && (
+          <Button title="Play" onPress={() => {
+            changeSerie(null);
+            navigation.navigate('Player', {
+              url: directUrl, title: routeSerie.name, type: 'serie',
+              streamId: seriesId, seriesId,
+            });
+          }} />
+        )}
         <Button
           title={isFav ? '❤ ' : '🤍'}
           onPress={handlePressFav}

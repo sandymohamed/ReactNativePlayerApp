@@ -6,6 +6,8 @@ import React, {
   ReactNode,
   useState,
   useEffect,
+  useCallback,
+  useRef,
 } from 'react';
 
 import {
@@ -17,12 +19,18 @@ import {
   SeriesWithInfo,
 } from '../models/model';
 
-import {
-  getSelectedProfile,
-  getMainData,
-  saveSelectedProfile,
-  saveMainData,
-} from '../utils/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState } from 'react-native';
+import type { AccessSnapshot } from '../models/access';
+import { getMainData, getSelectedProfile, MainDataCache } from '../utils/storage';
+import { getActiveStandalonePlaylist, getStandalonePlaylists } from '../utils/standaloneStorage';
+import { asPlaylist, emptyCatalog, loadActivity, loadCatalog, playlistKey } from '../services/playlistCatalog';
+import { readPlaylistCache, writePlaylistCache } from '../utils/playlistCache';
+import { loadProviderIdentity, restoreProviderLogin, verifyProviderLogin } from '../services/providerLogin';
+import { evaluateAccess } from '../services/access/appAccess';
+
+const sessionKey = '@velotv/active_playlist_v1';
+const legacyCatalogKey = '@uiplayer_main_data_profile_key';
 
 interface GlobalContextProps {
   deviceInfo: any;
@@ -53,6 +61,12 @@ interface GlobalContextProps {
 
   isAppReady: boolean;
   hasCachedData: boolean;
+  catalogLoading: boolean;
+  catalogError: boolean;
+  access: AccessSnapshot | null;
+  refreshProvider: () => Promise<LoginModel>;
+  refreshCatalog: () => Promise<void>;
+  selectPlaylist: (item: Playlist | null) => Promise<void>;
 
   changeDeviceInfo: (item: any) => void;
   changeProviderLogin: (item: LoginModel | null) => void;
@@ -147,139 +161,214 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({
   const [isAppReady, setIsAppReady] = useState(false);
   const [hasCachedData, setHasCachedData] = useState(false);
 
-  // Prevent persistence until the initial restoration is complete.
-  const [isRestored, setIsRestored] = useState(false);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState(false);
+  const [access, setAccess] = useState<AccessSnapshot | null>(null);
+  const activeProfile = useRef<Playlist | null>(null);
+  const activeKey = useRef('');
+  const catalogSnapshot = useRef<MainDataCache | null>(null);
+  const loadSequence = useRef(0);
+  const lastVerification = useRef(0);
+  const refreshInFlight = useRef<Promise<LoginModel> | null>(null);
+  const selectionInFlight = useRef<Promise<void>>(Promise.resolve());
+  const cacheWrite = useRef<Promise<void>>(Promise.resolve());
 
-  // --------------------------------------------------
-  // RESTORE SAVED PROFILE AND CATALOG AT APP START
-  // --------------------------------------------------
+  const applyCatalog = useCallback((data: MainDataCache) => {
+    catalogSnapshot.current = data.updatedAt ? data : null;
+    setcatLive(data.catLive);
+    setlistLive(data.listLive);
+    setcatVod(data.catVod);
+    setlistVod(data.listVod);
+    setcatSerie(data.catSerie);
+    setlistSerie(data.listSerie as SeriesWithInfo[]);
+    setlistLiveFav(data.listLiveFav);
+    setlistVodFav(data.listVodFav);
+    setlistSerieFav(data.listSerieFav);
+    setlistLiveRecent(data.listLiveRecent);
+    setlistVodRecent(data.listVodRecent);
+    setlistSerieRecent(data.listSerieRecent);
+    setHasCachedData(data.updatedAt > 0);
+  }, []);
+
+  const loadPlaylist = useCallback(async (item: Playlist, restore: boolean) => {
+    const sequence = ++loadSequence.current;
+    const key = playlistKey(item);
+    const revision = item.updated_at || '';
+    const current = () => sequence === loadSequence.current;
+    setCatalogLoading(true);
+    setCatalogError(false);
+    let cached = restore ? null : catalogSnapshot.current;
+    try {
+      if (restore) {
+        cached = await readPlaylistCache(key, revision);
+        if (!cached && !item.standalone && await AsyncStorage.getItem(legacyCatalogKey) === String(item.id)) {
+          cached = await getMainData();
+        }
+        if (cached && current()) {
+          const activity = item.standalone ? await loadActivity(item) : null;
+          if (current()) applyCatalog({ ...cached, ...activity });
+        }
+      }
+      if (!current()) return;
+      const catalog = await loadCatalog(item);
+      const activity = await loadActivity(item).catch(() => null);
+      if (!current()) return;
+      const data = {
+        ...catalog,
+        ...(activity ?? (cached && {
+          listLiveFav: cached.listLiveFav, listVodFav: cached.listVodFav, listSerieFav: cached.listSerieFav,
+          listLiveRecent: cached.listLiveRecent, listVodRecent: cached.listVodRecent,
+          listSerieRecent: cached.listSerieRecent,
+        })),
+      };
+      applyCatalog(data);
+      cacheWrite.current = cacheWrite.current.then(() => current()
+        ? writePlaylistCache(key, revision, item.standalone ? catalog : data)
+        : undefined).catch(() => undefined);
+    } catch {
+      if (current()) setCatalogError(true);
+    } finally {
+      if (current()) setCatalogLoading(false);
+    }
+  }, [applyCatalog]);
+
+  const selectPlaylist = useCallback((item: Playlist | null) => {
+    const work = selectionInFlight.current.then(async () => {
+      const key = item ? playlistKey(item) : '';
+      await AsyncStorage.setItem(sessionKey, key);
+      activeKey.current = key;
+      ++loadSequence.current;
+      activeProfile.current = item;
+      applyCatalog(emptyCatalog());
+      setMovie(null);
+      setSerie(null);
+      setCatalogError(false);
+      setCatalogLoading(false);
+      setProfile(item);
+    });
+    selectionInFlight.current = work.catch(() => undefined);
+    return work;
+  }, [applyCatalog]);
+
+  const refreshCatalog = useCallback(async () => {
+    if (activeProfile.current) await loadPlaylist(activeProfile.current, false);
+  }, [loadPlaylist]);
+
+  const refreshProvider = useCallback(() => {
+    if (refreshInFlight.current) return refreshInFlight.current;
+    const work = (async () => {
+      const identity = await loadProviderIdentity();
+      setDeviceInfo(identity);
+      const result = await verifyProviderLogin(identity);
+      const updatedAccess = await evaluateAccess(result.login, result.checkedAt);
+      lastVerification.current = result.checkedAt;
+      setProviderLogin(result.login);
+      setAccess(updatedAccess);
+      if (activeKey.current.startsWith('provider:')) {
+        const updated = result.login.playlist.find(item => playlistKey(item) === activeKey.current);
+        const current = activeProfile.current;
+        if (updated && JSON.stringify(updated) !== JSON.stringify(current)) {
+          const key = activeKey.current;
+          const previousSelection = selectionInFlight.current;
+          void previousSelection.then(() => {
+            if (activeKey.current === key) return selectPlaylist(updated);
+          }).catch(() => undefined);
+        } else if (!updated && result.login.status === 1 && current) {
+          // Keep the selected ID for restoration if the provider adds it again.
+          ++loadSequence.current;
+          activeProfile.current = null;
+          applyCatalog(emptyCatalog());
+          setProfile(null);
+        }
+      }
+      return result.login;
+    })();
+    refreshInFlight.current = work;
+    const clear = () => { refreshInFlight.current = null; };
+    void work.then(clear, clear);
+    return work;
+  }, [applyCatalog, selectPlaylist]);
 
   useEffect(() => {
     let cancelled = false;
-
-    const restoreApp = async () => {
+    const restore = async () => {
       try {
-        const [savedProfile, cachedData] = await Promise.all([
+        const [key, legacyProfile, legacyStandalone, identity] = await Promise.all([
+          AsyncStorage.getItem(sessionKey),
           getSelectedProfile(),
-          getMainData(),
+          getActiveStandalonePlaylist(),
+          loadProviderIdentity().catch(() => null),
         ]);
-
-        console.log('Restored saved profile:', savedProfile);
-        console.log('Restored cached data:', cachedData);
-
+        const verified = identity ? await restoreProviderLogin(identity) : null;
+        const list = await getStandalonePlaylists();
         if (cancelled) return;
-
-        if (savedProfile) {
-          setProfile(savedProfile);
+        const provider = verified?.login ?? null;
+        if (identity) setDeviceInfo(identity);
+        setProviderLogin(provider);
+        lastVerification.current = verified?.checkedAt ?? 0;
+        const initialAccess = await evaluateAccess(provider, lastVerification.current);
+        if (cancelled) return;
+        setAccess(initialAccess);
+        let item: Playlist | null = null;
+        if (key?.startsWith('standalone:')) {
+          const standalone = list.find(candidate => `standalone:${candidate.id}` === key);
+          if (standalone) item = asPlaylist(standalone);
+        } else if (key?.startsWith('provider:')) {
+          item = provider?.playlist.find(candidate => playlistKey(candidate) === key) ??
+            (legacyProfile && playlistKey(legacyProfile) === key ? legacyProfile : null);
+        } else if (key === null) {
+          item = legacyProfile ?? (legacyStandalone ? asPlaylist(legacyStandalone) : null);
+          if (item) await AsyncStorage.setItem(sessionKey, playlistKey(item));
         }
-
-        if (cachedData) {
-          setcatLive(cachedData.catLive);
-          setlistLive(cachedData.listLive);
-
-          setcatVod(cachedData.catVod);
-          setlistVod(cachedData.listVod);
-
-          setcatSerie(cachedData.catSerie);
-          setlistSerie(
-            cachedData.listSerie as SeriesWithInfo[],
-          );
-
-          setlistLiveFav(cachedData.listLiveFav ?? []);
-          setlistVodFav(cachedData.listVodFav ?? []);
-          setlistSerieFav(cachedData.listSerieFav ?? []);
-
-          setlistLiveRecent(cachedData.listLiveRecent ?? []);
-          setlistVodRecent(cachedData.listVodRecent ?? []);
-          setlistSerieRecent(cachedData.listSerieRecent ?? []);
-
-          setHasCachedData(true);
-        }
-      } catch (error) {
-        console.error('Error restoring saved app data:', error);
+        if (cancelled) return;
+        activeKey.current = key ?? (item ? playlistKey(item) : '');
+        activeProfile.current = item;
+        setProfile(item);
+        setIsAppReady(true);
+        if (identity?.mac) void refreshProvider().catch(() => undefined);
       } finally {
-        if (!cancelled) {
-          setIsRestored(true);
-          setIsAppReady(true);
-        }
+        if (!cancelled) setIsAppReady(true);
       }
     };
-
-    restoreApp();
-
+    void restore().catch(() => {
+      if (!cancelled) setAccess({ hasAccess: false, grants: [], checkedAt: Date.now() });
+    });
     return () => {
       cancelled = true;
+      ++loadSequence.current;
     };
-  }, []);
-
-  // --------------------------------------------------
-  // SAVE SELECTED PROFILE
-  // --------------------------------------------------
+  }, [refreshProvider]);
 
   useEffect(() => {
-    if (!isRestored) return;
-
-    saveSelectedProfile(profile);
-  }, [isRestored, profile]);
-
-  // --------------------------------------------------
-  // SAVE CATALOG, FAVORITES AND RECENT HISTORY
-  // --------------------------------------------------
+    if (!isAppReady || !profile) {
+      ++loadSequence.current;
+      setCatalogLoading(false);
+      return;
+    }
+    void loadPlaylist(profile, true);
+    return () => { ++loadSequence.current; };
+  }, [isAppReady, profile, loadPlaylist]);
 
   useEffect(() => {
-    if (!isRestored) return;
-
-    const saveData = async () => {
-      const data = {
-        catLive,
-        listLive,
-        catVod,
-        listVod,
-        catSerie,
-        listSerie,
-
-        listLiveFav: listLiveFav.map(String),
-        listVodFav: listVodFav.map(String),
-        listSerieFav: listSerieFav.map(String),
-
-        listLiveRecent: listLiveRecent.map(String),
-        listVodRecent: listVodRecent.map(String),
-        listSerieRecent: listSerieRecent.map(String),
-
-        updatedAt: Date.now(),
-      };
-
-      await saveMainData(data);
-
-      const hasCatalog =
-        data.catLive.length > 0 ||
-        data.listLive.length > 0 ||
-        data.catVod.length > 0 ||
-        data.listVod.length > 0 ||
-        data.catSerie.length > 0 ||
-        data.listSerie.length > 0;
-
-      if (hasCatalog) {
-        setHasCachedData(true);
+    if (!isAppReady) return;
+    const update = () => {
+      const checkedAt = lastVerification.current;
+      void evaluateAccess(providerLogin, checkedAt).then(snapshot => {
+        if (checkedAt === lastVerification.current) setAccess(snapshot);
+      });
+      if (Date.now() - lastVerification.current >= 5 * 60 * 1000 && deviceInfo.mac) {
+        void refreshProvider().catch(() => undefined);
       }
     };
-
-    saveData();
-  }, [
-    isRestored,
-    catLive,
-    listLive,
-    catVod,
-    listVod,
-    catSerie,
-    listSerie,
-    listLiveFav,
-    listVodFav,
-    listSerieFav,
-    listLiveRecent,
-    listVodRecent,
-    listSerieRecent,
-  ]);
+    const interval = setInterval(update, 60 * 1000);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') update();
+    });
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [deviceInfo.mac, isAppReady, providerLogin, refreshProvider]);
 
   // --------------------------------------------------
   // DEVICE IDENTITY
@@ -306,8 +395,7 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({
   };
 
   const changeProfile = (item: Playlist | null) => {
-    console.log('Changing profile to:', item);
-    setProfile(item);
+    void selectPlaylist(item).catch(() => undefined);
   };
 
   const changeProfileShow = (item: boolean) => {
@@ -409,6 +497,12 @@ export const GlobalProvider: FC<GlobalProviderProps> = ({
 
         isAppReady,
         hasCachedData,
+        catalogLoading,
+        catalogError,
+        access,
+        refreshProvider,
+        refreshCatalog,
+        selectPlaylist,
 
         changeDeviceInfo,
         changeProviderLogin,

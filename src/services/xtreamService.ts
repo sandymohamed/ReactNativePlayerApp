@@ -1,3 +1,4 @@
+import { withRequestTimeout } from '../utils/requestTimeout';
 // src/services/xtreamService.ts
 import type {
   StandalonePlaylist,
@@ -123,53 +124,54 @@ async function requestXtream<T>(
   action?: XtreamAction,
   extraParams?: Record<string, string>,
 ): Promise<T> {
-  const url = buildApiUrl(playlist, action, extraParams);
+  return withRequestTimeout(async signal => {
+    const url = buildApiUrl(playlist, action, extraParams);
 
-  let response: Response;
+    let response: Response;
 
-  try {
-    response = await fetch(url);
-  } catch (error) {
-    console.error('[XtreamService] Network request failed:', error);
+    try {
+      response = await fetch(url, { signal });
+    } catch (error) {
 
-    throw new Error(
-      'Unable to connect to the IPTV server. Check your internet connection and server URL.',
-    );
-  }
+      throw new Error(
+        'Unable to connect to the IPTV server. Check your internet connection and server URL.',
+      );
+    }
 
-  if (!response.ok) {
-    throw new Error(
-      `IPTV server returned HTTP ${response.status}.`,
-    );
-  }
+    if (!response.ok) {
+      throw new Error(
+        `IPTV server returned HTTP ${response.status}.`,
+      );
+    }
 
-  const responseText = await response.text();
-  const trimmed = responseText.trim();
+    const responseText = await response.text();
+    const trimmed = responseText.trim();
 
-  if (!trimmed) {
-    throw new Error('The IPTV server returned an empty response.');
-  }
+    if (!trimmed) {
+      throw new Error('The IPTV server returned an empty response.');
+    }
 
-  let data: any;
+    let data: any;
 
-  try {
-    data = JSON.parse(trimmed);
-  } catch {
-    throw new Error(
-      'The IPTV server returned an invalid response. Please check your server details.',
-    );
-  }
+    try {
+      data = JSON.parse(trimmed);
+    } catch {
+      throw new Error(
+        'The IPTV server returned an invalid response. Please check your server details.',
+      );
+    }
 
-  if (
-    data &&
-    typeof data === 'object' &&
-    !Array.isArray(data) &&
-    data.error
-  ) {
-    throw new Error(String(data.error));
-  }
+    if (
+      data &&
+      typeof data === 'object' &&
+      !Array.isArray(data) &&
+      data.error
+    ) {
+      throw new Error('The IPTV server rejected the request.');
+    }
 
-  return data as T;
+    return data as T;
+  });
 }
 
 // ==========================================
@@ -221,7 +223,7 @@ function normalizeArray<T>(
   normalizer: (item: any) => T,
 ): T[] {
   if (!Array.isArray(data)) {
-    return [];
+    throw new Error('The IPTV server returned an invalid list.');
   }
 
   return data

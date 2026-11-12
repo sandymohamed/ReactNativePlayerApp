@@ -15,9 +15,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
 
 import {useNavigation} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import type {RootStackParamList} from '../../navigation/AppNavigator';
 
 import {useGlobalContext} from '../../context/GlobalContext';
-import {LoginModel} from '../../models/model';
 
 import {colors} from '../../theme/colors';
 import {spacing, borderRadius} from '../../theme/spacing';
@@ -38,7 +39,8 @@ type StoredDeviceIdentity = {
 const DEVICE_IDENTITY_KEY = '@iptv/device_identity_v1';
 
 const DeviceInfoScreen: React.FC = () => {
-  const navigation = useNavigation<any>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList, 'DeviceInfo'>>();
   const {width, height} = useWindowDimensions();
 
   const responsive = useResponsive();
@@ -47,6 +49,8 @@ const DeviceInfoScreen: React.FC = () => {
   const {
     deviceInfo,
     providerLogin,
+    refreshProvider,
+    access,
   } = useGlobalContext();
 
   const [storedIdentity, setStoredIdentity] =
@@ -138,6 +142,8 @@ const DeviceInfoScreen: React.FC = () => {
   // --------------------------------------------------
 
   const providerStatus = providerLogin?.status;
+  const hasProviderGrant = access?.grants.some(grant => grant.source === 'provider') ?? false;
+  const playGrant = access?.grants.find(grant => grant.source === 'google_play');
 
   const providerStatusLabel = useMemo(() => {
     if (!providerLogin) {
@@ -153,11 +159,11 @@ const DeviceInfoScreen: React.FC = () => {
     }
 
     if (typeof providerStatus === 'number') {
-      return providerLogin.is_terial ? 'Trial' : 'Active';
+      return providerLogin.is_terial ? 'Trial' : hasProviderGrant ? 'Active' : 'Verification required';
     }
 
     return 'Unknown';
-  }, [providerLogin, providerStatus]);
+  }, [hasProviderGrant, providerLogin, providerStatus]);
 
   const providerStatusColor = useMemo(() => {
     if (!providerLogin) {
@@ -172,8 +178,8 @@ const DeviceInfoScreen: React.FC = () => {
       return colors.warning;
     }
 
-    return colors.success;
-  }, [providerLogin, providerStatus]);
+    return hasProviderGrant ? colors.success : colors.warning;
+  }, [hasProviderGrant, providerLogin, providerStatus]);
 
   const providerExpiry =
     providerLogin?.ExipiredAt || '—';
@@ -193,33 +199,26 @@ const DeviceInfoScreen: React.FC = () => {
     setIsRefreshing(true);
 
     try {
-      // The provider backend is not connected yet.
-      // Do not use mock data or cached login responses
-      // as proof of a successful provider login.
-
-      const playlists: LoginModel['playlist'] =
-        providerLogin?.playlist || [];
-
-      if (playlists.length > 0) {
+      const login = await refreshProvider();
+      if (login.playlist.length > 0) {
         navigation.navigate('PlaylistManager');
         return;
       }
-
       showAlert({
         type: 'warning',
-        title: 'No Playlist Found',
-        message: "You don't have playlist.",
+        title: 'No Provider Playlists',
+        message: 'The provider returned no playlists for this device.',
       });
-    } catch {
+    } catch (error) {
       showAlert({
         type: 'warning',
         title: 'Refresh Failed',
-        message: "You don't have playlist.",
+        message: error instanceof Error ? error.message : 'Could not verify this device.',
       });
     } finally {
       setIsRefreshing(false);
     }
-  }, [isRefreshing, navigation, providerLogin, showAlert]);
+  }, [isRefreshing, navigation, refreshProvider, showAlert]);
 
   // --------------------------------------------------
   // RESPONSIVE LAYOUT
@@ -391,7 +390,7 @@ const DeviceInfoScreen: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center',
           paddingHorizontal: responsive.cardPadding,
-          marginTop: responsive.sectionGap,
+          marginLeft: responsive.cardGap,
           borderWidth: 2,
           borderColor: 'transparent',
         },
@@ -484,6 +483,8 @@ const DeviceInfoScreen: React.FC = () => {
               <View style={{flexDirection: 'row', alignItems: 'center'}}>
                 <Pressable
                   focusable
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
                   onPress={() => navigation.goBack()}
                   style={({focused}) => [
                     styles.backButton,
@@ -505,6 +506,32 @@ const DeviceInfoScreen: React.FC = () => {
                   </Text>
                 </View>
               </View>
+
+              <Pressable
+                focusable
+                accessibilityRole="button"
+                disabled={isRefreshing}
+                onPress={handleRefresh}
+                style={({focused}) => [
+                  styles.refreshButton,
+                  focused && styles.refreshButtonFocused,
+                  isRefreshing && styles.refreshButtonDisabled,
+                ]}>
+
+                {isRefreshing ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator color={colors.white} />
+
+                    <Text style={styles.refreshButtonText}>
+                      Checking...
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.refreshButtonText}>
+                    Refresh
+                  </Text>
+                )}
+              </Pressable>
             </View>
 
             {/* DEVICE IDENTITY */}
@@ -623,43 +650,15 @@ const DeviceInfoScreen: React.FC = () => {
               </View>
 
               <View style={styles.detailsGrid}>
-                {renderDetail('Subscription Status', 'Not connected')}
+                {renderDetail('Subscription Status', playGrant?.status ?? 'No verified subscription')}
 
-                {renderDetail('Subscription Plan', '—')}
+                {renderDetail('Subscription Plan', playGrant?.plan ?? '—')}
               </View>
             </View>
 
-            {/* REFRESH */}
-
-            <Pressable
-              focusable
-              disabled={isRefreshing}
-              onPress={handleRefresh}
-              style={({focused}) => [
-                styles.refreshButton,
-                focused && styles.refreshButtonFocused,
-                isRefreshing && styles.refreshButtonDisabled,
-              ]}>
-
-              {isRefreshing ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator color={colors.white} />
-
-                  <Text style={styles.refreshButtonText}>
-                    Checking...
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.refreshButtonText}>
-                  Refresh
-                </Text>
-              )}
-            </Pressable>
-
             <View style={styles.footer}>
               <Text style={styles.footerText}>
-                Refresh checks the provider playlists currently available
-                to this app.
+                Refresh verifies your device and retrieves playlists from your provider.
               </Text>
             </View>
 

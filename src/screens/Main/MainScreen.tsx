@@ -1,5 +1,5 @@
 // src/screens/Main/MainScreen.tsx
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,21 +7,15 @@ import {
   Pressable,
   ImageBackground,
   useWindowDimensions,
-  BackHandler,
   ActivityIndicator,
 } from 'react-native';
-import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LinearGradient from 'react-native-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useGlobalContext } from '../../context/GlobalContext';
-import { generateurl, selectall, selectrecentAll } from '../../utils/constants';
-import { fetchJson, normalizeCategories, normalizeStreams } from '../../utils/api';
-import type { Stream } from '../../models/model';
 import { colors } from '../../theme/colors';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import { useTVEventHandler } from '../../hooks/useTVEventHandler';
 import Logo from '../../components/Logo';
 
 type MainScreenNavigationProp = NativeStackNavigationProp<
@@ -39,84 +33,16 @@ type Destination = {
   image?: string;
 };
 
-type ListCounts = {
-  live: number;
-  movies: number;
-  series: number;
-  liveCategories: number;
-  movieCategories: number;
-  seriesCategories: number;
-  liveFavorites: number;
-  movieFavorites: number;
-  seriesFavorites: number;
-  liveRecent: number;
-  movieRecent: number;
-  seriesRecent: number;
-};
-
-const MAIN_PROFILE_CACHE_KEY = '@uiplayer_main_data_profile_key';
-
-const INITIAL_COUNTS: ListCounts = {
-  live: 0,
-  movies: 0,
-  series: 0,
-  liveCategories: 0,
-  movieCategories: 0,
-  seriesCategories: 0,
-  liveFavorites: 0,
-  movieFavorites: 0,
-  seriesFavorites: 0,
-  liveRecent: 0,
-  movieRecent: 0,
-  seriesRecent: 0,
-};
-
 const MainScreen: React.FC = () => {
   const navigation = useNavigation<MainScreenNavigationProp>();
-  const isScreenFocused = useIsFocused();
   const { width, height } = useWindowDimensions();
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [cardLoading, setCardLoading] = useState({
-    live: false,
-    movies: false,
-    series: false,
-  });
-  const [focusedIndex, setFocusedIndex] = useState(0);
-  const [counts, setCounts] = useState<ListCounts>(INITIAL_COUNTS);
-  const [loadError, setLoadError] = useState(false);
-
-  const loadRequestRef = useRef(0);
-  const profileCheckKeyRef = useRef<string | null>(null);
-
   const {
-    profile,
-    isAppReady,
-    listLive,
-    listVod,
-    listSerie,
-    catLive,
-    catVod,
-    catSerie,
-    // listLiveFav,
-    // listVodFav,
-    // listSerieFav,
-    // listLiveRecent,
-    // listVodRecent,
-    // listSerieRecent,
-    changeCatLive,
-    changeListLive,
-    changeCatVod,
-    changeListVod,
-    changeCatSerie,
-    changeListSerie,
-    changeListLiveFav,
-    changeListVodFav,
-    changeListSerieFav,
-    changeListLiveRecent,
-    changeListVodRecent,
-    changeListSerieRecent,
+    profile, listLive, listVod, listSerie, catalogLoading: isLoading,
+    catalogError: loadError, refreshCatalog,
   } = useGlobalContext();
+  const counts = { live: listLive.length, movies: listVod.length, series: listSerie.length };
+  const cardLoading = { live: isLoading, movies: isLoading, series: isLoading };
 
   const nav = navigation as any;
 
@@ -187,351 +113,22 @@ const MainScreen: React.FC = () => {
         return;
       }
 
-      console.log('[Main] handleCardPress', destination.route);
+      if (!profile && destination.route !== 'Settings') {
+        navigation.navigate('PlaylistManager');
+        return;
+      }
+
       nav.navigate(destination.route);
     },
-    [nav],
+    [nav, navigation, profile],
   );
 
-  const prependAllFavRecent = (
-    arr: { category_id?: string; category_name?: string }[],
-  ) => [
-    { category_id: '0', category_name: 'all', parent_id: 0 },
-    { category_id: '-1', category_name: 'favorite', parent_id: 0 },
-    { category_id: '-2', category_name: 'recent', parent_id: 0 },
-    ...arr,
-  ];
+  const handleRefresh = () => {
+    if (!isLoading) void refreshCatalog();
+  };
 
-  const getProfileCacheId = useCallback(() => {
-    if (!profile) return '';
-
-    const p = profile as any;
-    console.log('profile from mainScreen in getProfileCacheId:', p);
-    console.log('catLive:', catLive);
-
-    return String(
-      p.id ??
-        p.playlist_id ??
-        p.url ??
-        p.server_url ??
-        `${p.profile_name ?? ''}:${p.username ?? ''}:${p.password ?? ''}`,
-    );
-  }, [profile]);
-
-  const clearCurrentCatalog = useCallback(() => {
-    changeCatLive([]);
-    changeListLive([]);
-    changeCatVod([]);
-    changeListVod([]);
-    changeCatSerie([]);
-    changeListSerie([]);
-    changeListLiveFav([]);
-    changeListVodFav([]);
-    changeListSerieFav([]);
-    changeListLiveRecent([]);
-    changeListVodRecent([]);
-    changeListSerieRecent([]);
-    setCounts(INITIAL_COUNTS);
-  }, [
-    changeCatLive,
-    changeListLive,
-    changeCatVod,
-    changeListVod,
-    changeCatSerie,
-    changeListSerie,
-    changeListLiveFav,
-    changeListVodFav,
-    changeListSerieFav,
-    changeListLiveRecent,
-    changeListVodRecent,
-    changeListSerieRecent,
-  ]);
-  const loadData = useCallback(async () => {
-    if (!profile) return;
-
-    console.log('profile from MainScreen:', profile);
-    const requestId = ++loadRequestRef.current;
-    const activeProfileKey = getProfileCacheId();
-    const isCurrentRequest = () => requestId === loadRequestRef.current;
-
-    setIsLoading(true);
-    setLoadError(false);
-    setCardLoading({ live: true, movies: true, series: true });
-
-    const mapStream = (s: any) => ({
-      ...s,
-      stream_id: String(s?.stream_id ?? s?.num ?? ''),
-    });
-
-    let successful = true;
-
-    // Load categories independently.
-    const categoriesTask = (async () => {
-      try {
-        const [liveRaw, vodRaw, serieRaw] = await Promise.all([
-          fetchJson<unknown>(generateurl('get_live_categories', profile)),
-          fetchJson<unknown>(generateurl('get_vod_categories', profile)),
-          fetchJson<unknown>(generateurl('get_series_categories', profile)),
-        ]);
-
-        if (!isCurrentRequest()) return;
-
-        changeCatLive(prependAllFavRecent(normalizeCategories(liveRaw)));
-        changeCatVod(prependAllFavRecent(normalizeCategories(vodRaw)));
-        changeCatSerie(prependAllFavRecent(normalizeCategories(serieRaw)));
-      } catch (error) {
-        successful = false;
-        console.error('Error loading categories:', error);
-      }
-    })();
-
-    const loadStreamList = async (
-      type: 'live' | 'movies' | 'series',
-      action: string,
-      setter: (items: Stream[]) => void,
-      countKey: 'live' | 'movies' | 'series',
-    ) => {
-      try {
-        const raw = await fetchJson<unknown>(generateurl(action, profile));
-
-        console.log("raw.l", raw)
-        if (!isCurrentRequest()) return;
-
-        const items = normalizeStreams(raw).map(mapStream) as Stream[];
-
-        setter(items);
-
-        setCounts(previous => ({
-          ...previous,
-          [countKey]: items.length,
-        }));
-      } catch (error) {
-        successful = false;
-        console.error(`Error loading ${type}:`, error);
-      } finally {
-        if (isCurrentRequest()) {
-          setCardLoading(previous => ({
-            ...previous,
-            [type]: false,
-          }));
-        }
-      }
-    };
-
-    const streamsTasks = [
-      loadStreamList('live', 'get_live_streams', changeListLive, 'live'),
-      loadStreamList('movies', 'get_vod_streams', changeListVod, 'movies'),
-      loadStreamList('series', 'get_series', changeListSerie, 'series'),
-    ];
-
-    console.log('streamsTasks', streamsTasks.length);
-    console.log('streamsTasks', streamsTasks);
-    const favoritesTask = (async () => {
-      try {
-        const [favLive, favVod, favSerie] = await Promise.all([
-          selectall('live', profile),
-          selectall('movie', profile),
-          selectall('serie', profile),
-        ]);
-
-        if (!isCurrentRequest()) return;
-
-        changeListLiveFav(
-          Array.isArray(favLive)
-            ? favLive.map((i: any) => String(i?.streamid ?? i))
-            : [],
-        );
-
-        changeListVodFav(
-          Array.isArray(favVod)
-            ? favVod.map((i: any) => String(i?.streamid ?? i))
-            : [],
-        );
-
-        changeListSerieFav(
-          Array.isArray(favSerie)
-            ? favSerie.map((i: any) => String(i?.streamid ?? i))
-            : [],
-        );
-
-        const recent = await selectrecentAll(profile);
-
-        if (!isCurrentRequest()) return;
-
-        if (recent && typeof recent === 'object' && !Array.isArray(recent)) {
-          const r = recent as {
-            live?: { streamid?: string }[];
-            movie?: { streamid?: string }[];
-            serie?: { streamid?: string }[];
-          };
-
-          changeListLiveRecent(
-            Array.isArray(r.live)
-              ? r.live.map((i: any) => String(i?.streamid ?? i))
-              : [],
-          );
-
-          changeListVodRecent(
-            Array.isArray(r.movie)
-              ? r.movie.map((i: any) => String(i?.streamid ?? i))
-              : [],
-          );
-
-          changeListSerieRecent(
-            Array.isArray(r.serie)
-              ? r.serie.map((i: any) => String(i?.streamid ?? i))
-              : [],
-          );
-        }
-      } catch (error) {
-        successful = false;
-        console.error('Error loading favorites/recent:', error);
-      }
-    })();
-
-    try {
-      await Promise.all([categoriesTask, ...streamsTasks, favoritesTask]);
-
-      if (isCurrentRequest()) {
-        console.log('Load data completed. Successful:', successful);
-        setLoadError(!successful);
-        if (successful) {
-          try {
-            await AsyncStorage.setItem(
-              MAIN_PROFILE_CACHE_KEY,
-              activeProfileKey,
-            );
-          } catch (error) {
-            console.warn('Could not save catalog profile key:', error);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Unexpected error loading library:', error);
-
-      if (isCurrentRequest()) {
-        setLoadError(true);
-      }
-    } finally {
-      if (isCurrentRequest()) {
-        setIsLoading(false);
-      }
-    }
-  }, [
-    profile,
-    getProfileCacheId,
-    changeCatLive,
-    changeListLive,
-    changeCatVod,
-    changeListVod,
-    changeCatSerie,
-    changeListSerie,
-    changeListLiveFav,
-    changeListVodFav,
-    changeListSerieFav,
-    changeListLiveRecent,
-    changeListVodRecent,
-    changeListSerieRecent,
-  ]);
-
-  // Keep card counts synchronized with cached context data.
-  useEffect(() => {
-    setCounts(previous => ({
-      ...previous,
-      live: listLive?.length ?? 0,
-      movies: listVod?.length ?? 0,
-      series: listSerie?.length ?? 0,
-    }));
-  }, [listLive, listVod, listSerie]);
-
-  // Check whether the saved catalog belongs to the selected profile.
-  useEffect(() => {
-    if (!isAppReady || !profile) return;
-
-    const profileKey = getProfileCacheId();
-
-    if (profileCheckKeyRef.current === profileKey) return;
-
-    profileCheckKeyRef.current = profileKey;
-    let cancelled = false;
-
-    const prepareCatalog = async () => {
-      let savedProfileKey: string | null = null;
-
-      try {
-        savedProfileKey = await AsyncStorage.getItem(MAIN_PROFILE_CACHE_KEY);
-      } catch (error) {
-        console.warn('Could not read catalog profile key:', error);
-      }
-
-      if (cancelled) return;
-
-      const hasCatalog =
-        (listLive?.length ?? 0) > 0 ||
-        (listVod?.length ?? 0) > 0 ||
-        (listSerie?.length ?? 0) > 0 ||
-        (catLive?.length ?? 0) > 0 ||
-        (catVod?.length ?? 0) > 0 ||
-        (catSerie?.length ?? 0) > 0;
-
-      if (savedProfileKey !== profileKey) {
-        clearCurrentCatalog();
-        await loadData();
-      } else if (!hasCatalog) {
-        await loadData();
-      }
-    };
-
-    void prepareCatalog().catch(error => {
-      console.error('Failed to prepare profile catalog:', error);
-
-      if (!cancelled) {
-        setLoadError(true);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAppReady, profile, getProfileCacheId, clearCurrentCatalog, loadData]);
-  // Handle Android TV Back only while MainScreen is focused.
-  useEffect(() => {
-    if (!isScreenFocused) return;
-
-    const subscription = BackHandler.addEventListener(
-      'hardwareBackPress',
-      () => {
-        console.log(' [BACK TEST] from MainScreen');
-        return false;
-      },
-    );
-
-    return () => subscription.remove();
-  }, [isScreenFocused]);
-
-  useTVEventHandler({
-    onBack: () => {
-      if (!isScreenFocused) return;
-    },
-  });
-
-  const handleRefresh = useCallback(() => {
-    if (isLoading) return;
-    console.log('[MainScreen] Manual refresh triggered');
-    void loadData().catch(error => {
-      console.error('Manual refresh failed:', error);
-      setLoadError(true);
-      setIsLoading(false);
-      setCardLoading({
-        live: false,
-        movies: false,
-        series: false,
-      });
-    });
-  }, [isLoading, loadData]);
-
-  const handleChangeProfile = useCallback(() => {
-    navigation.navigate('Home' as never);
+  const handleManagePlaylists = useCallback(() => {
+    navigation.navigate('PlaylistManager');
   }, [navigation]);
 
   const handleOpenDeviceInfo = useCallback(() => {
@@ -541,7 +138,7 @@ const MainScreen: React.FC = () => {
   const profileLabel = (() => {
     const p = profile as any;
 
-    return p?.profile_name ?? p?.name ?? p?.username ?? 'Profile';
+    return p?.profile_name ?? p?.name ?? p?.username;
   })();
 
   return (
@@ -560,25 +157,26 @@ const MainScreen: React.FC = () => {
           <View style={styles.profileContainer}>
             <Pressable
               focusable
-              onPress={handleChangeProfile}
-              // onFocus={() => setFocusedIndex(-1)}
+              onPress={handleManagePlaylists}
               style={({ focused }) => [
                 styles.profileButton,
                 focused && styles.focusedButton,
               ]}
               accessibilityRole="button"
-              accessibilityLabel={`Current profile: ${profileLabel}`}>
+              accessibilityLabel="Manage Playlists">
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
-                  {String(profileLabel).charAt(0).toUpperCase()}
+                  {profileLabel?.charAt(0).toUpperCase() || '☰'}
                 </Text>
               </View>
 
               <View style={styles.profileTextContainer}>
-                <Text style={styles.profileName} numberOfLines={1}>
-                  {profileLabel}
-                </Text>
-                <Text style={styles.profileHint}>Change profile</Text>
+                <Text style={styles.profileName}>Manage Playlists</Text>
+                {profileLabel ? (
+                  <Text style={styles.profileHint} numberOfLines={1}>
+                    {profileLabel}
+                  </Text>
+                ) : null}
               </View>
             </Pressable>
           </View>
@@ -596,36 +194,36 @@ const MainScreen: React.FC = () => {
             <Text style={styles.deviceInfoText}>Device Info</Text>
           </Pressable>
 
-          <Pressable
-            focusable
-            disabled={isLoading}
-            onPress={handleRefresh}
-            // onFocus={() => setFocusedIndex(-2)}
-            style={({ focused }) => [
-              styles.refreshButton,
-              isLoading && styles.refreshButtonDisabled,
-              focused && styles.focusedButton,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Refresh content">
-            {isLoading ? (
-              <ActivityIndicator size="small" color={colors.text} />
-            ) : (
-              <Text style={styles.refreshIcon}>↻</Text>
-            )}
+          {profile && (
+            <Pressable
+              focusable
+              disabled={isLoading}
+              onPress={handleRefresh}
+              style={({ focused }) => [
+                styles.refreshButton,
+                isLoading && styles.refreshButtonDisabled,
+                focused && styles.focusedButton,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Refresh content">
+              {isLoading ? (
+                <ActivityIndicator size="small" color={colors.text} />
+              ) : (
+                <Text style={styles.refreshIcon}>↻</Text>
+              )}
 
-            <Text style={styles.refreshText}>
-              {isLoading ? 'Refreshing' : 'Refresh'}
-            </Text>
-          </Pressable>
+              <Text style={styles.refreshText}>
+                {isLoading ? 'Refreshing' : 'Refresh'}
+              </Text>
+            </Pressable>
+          )}
         </View>
       </View>
 
-      {loadError && (
+      {profile && loadError && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>
-            Some content could not be loaded. You can still browse available
-            content or try Refresh.
+            Could not refresh the catalog. Available cached content is still shown.
           </Text>
         </View>
       )}
@@ -647,9 +245,11 @@ const MainScreen: React.FC = () => {
                   ? counts.movies
                   : counts.series;
 
-            const countLabel = cardLoading[type]
-              ? 'Loading…'
-              : `${count.toLocaleString()} ${
+            const countLabel = !profile
+              ? 'Add or select a playlist'
+              : cardLoading[type]
+                ? 'Loading…'
+                : `${count.toLocaleString()} ${
                   type === 'live'
                     ? 'channels'
                     : type === 'movies'
@@ -663,9 +263,7 @@ const MainScreen: React.FC = () => {
                   title={destination.title}
                   countLabel={countLabel}
                   image={destination.image ?? ''}
-                  focused={focusedIndex === index}
                   isCountLoading={cardLoading[type]}
-                  disabled={false}
                   onPress={() => handleCardPress(index)}
                 />
               </View>
@@ -698,28 +296,6 @@ const MainScreen: React.FC = () => {
         </View>
       </View>
 
-      {loadError && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>
-            Some content could not be loaded.
-          </Text>
-
-          <Pressable
-            focusable
-            onPress={handleRefresh}
-            style={({ focused }) => [
-              styles.retryButton,
-              focused && {
-                borderWidth: 2,
-                borderColor: colors.focus,
-                borderRadius: 12,
-              },
-            ]}
-            accessibilityRole="button">
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
-        </View>
-      )}
     </View>
   );
 };
@@ -981,9 +557,7 @@ type MainScreenCardProps = {
   title: string;
   countLabel: string;
   image: string;
-  focused: boolean;
   isCountLoading: boolean;
-  disabled: boolean;
   onPress: () => void;
 };
 
@@ -991,22 +565,18 @@ const MainScreenCard: React.FC<MainScreenCardProps> = ({
   title,
   countLabel,
   image,
-  focused,
   isCountLoading,
-  disabled,
   onPress,
 }) => (
   <Pressable
     focusable
-    hasTVPreferredFocus={focused}
     style={({ focused }) => [
       styles.mainCard,
       focused && styles.mainCardFocused,
     ]}
     onPress={onPress}
     accessibilityRole="button"
-    accessibilityLabel={`${title}, ${countLabel}`}
-    accessibilityState={{ selected: focused, disabled }}>
+    accessibilityLabel={`${title}, ${countLabel}`}>
     <ImageBackground
       source={{ uri: image }}
       resizeMode="cover"

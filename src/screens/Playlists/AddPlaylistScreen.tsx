@@ -1,5 +1,5 @@
 // src/screens/Playlists/AddPlaylistScreen.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,14 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Alert,
   Keyboard,
   Platform,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
+import { useGlobalContext } from '../../context/GlobalContext';
+import { asPlaylist } from '../../services/playlistCatalog';
 import { addStandalonePlaylist } from '../../utils/standaloneStorage';
 
 import type {
@@ -43,6 +44,20 @@ const isTV = Platform.isTV;
 export default function AddPlaylistScreen() {
   const navigation = useNavigation<any>();
   const { showAlert } = useAppAlert();
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [returnFocusTo, setReturnFocusTo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isTV || editingField === null) return;
+
+    const subscription = Keyboard.addListener('keyboardDidHide', () => {
+      setReturnFocusTo(editingField);
+      setEditingField(current => current === editingField ? null : current);
+    });
+    return () => subscription.remove();
+  }, [editingField]);
+
+  const { selectPlaylist } = useGlobalContext();
 
   const [playlistType, setPlaylistType] =
     useState<StandalonePlaylistType>('xtream');
@@ -229,7 +244,7 @@ export default function AddPlaylistScreen() {
   };
 
   const handleSave = async () => {
-if (loading || testingConnection) return;
+    if (loading || testingConnection) return;
     Keyboard.dismiss();
 
     const cleanName = name.trim();
@@ -243,117 +258,59 @@ if (loading || testingConnection) return;
       return;
     }
 
-    if (playlistType === 'xtream') {
-      const cleanHost = normalizeHost(host);
-      const cleanUsername = username.trim();
-      const cleanPassword = password.trim();
-
-      if (!cleanHost || !cleanUsername || !cleanPassword) {
-        showAlert({
-          type: 'warning',
-          title: 'Missing information',
-          message: 'Please enter the server URL, username and password.',
-        });
-
-        return;
-      }
-
-      if (!isValidUrl(cleanHost)) {
-        showAlert({
-          type: 'warning',
-          title: 'Invalid server URL',
-          message: 'Please enter a valid URL starting with http:// or https://',
-        });
-
-        return;
-      }
-
-      try {
-        setLoading(true);
-
-        const result = await addStandalonePlaylist({
-          name: cleanName,
-          type: 'xtream',
-          host: cleanHost,
-          username: cleanUsername,
-          password: cleanPassword,
-          isActive: false,
-        });
-
-        if (!result) {
-          showAlert({
-            type: 'error',
-            title: 'Connection Failed',
-            message: 'Could not save the playlist.',
-          });
-          return;
-        }
-
-        showAlert({
-          type: 'success',
-          title: 'Playlist Added',
-          message: 'Your playlist has been added successfully.',
-          buttons: [
-            {
-              text: 'OK',
-              onPress: () => navigation.goBack(),
-              style: 'primary',
-            },
-          ],
-        });
-      } catch (error) {
-        console.error('Add Xtream playlist error:', error);
-        showAlert({
-          type: 'error',
-          title: 'Something Went Wrong',
-          message: 'Could not save your playlist. Please try again.',
-        });
-      } finally {
-        setLoading(false);
-      }
-
-      return;
-    }
-
+    const cleanHost = normalizeHost(host);
+    const cleanUsername = username.trim();
+    const cleanPassword = password.trim();
     const cleanM3uUrl = m3uUrl.trim();
+    const url = playlistType === 'xtream' ? cleanHost : cleanM3uUrl;
 
-    if (!cleanM3uUrl) {
-      Alert.alert('Missing URL', 'Please enter your M3U URL.');
+    if (!isValidUrl(url) || (playlistType === 'xtream' && (!cleanUsername || !cleanPassword))) {
+      showAlert({
+        type: 'warning',
+        title: 'Check Your Playlist Details',
+        message: playlistType === 'xtream'
+          ? 'Enter a valid HTTP or HTTPS server URL, username and password.'
+          : 'Enter a valid HTTP or HTTPS M3U URL.',
+      });
       return;
     }
 
-    if (!isValidUrl(cleanM3uUrl)) {
-      Alert.alert(
-        'Invalid M3U URL',
-        'Please enter a valid URL starting with http:// or https://',
-      );
-      return;
-    }
+    const input = playlistType === 'xtream'
+      ? { name: cleanName, type: playlistType, host: cleanHost, username: cleanUsername, password: cleanPassword, isActive: false }
+      : { name: cleanName, type: playlistType, m3uUrl: cleanM3uUrl, isActive: false };
 
     try {
       setLoading(true);
+      const now = Date.now();
+      const draft = { ...input, id: 'test', createdAt: now, updatedAt: now };
+      await (draft.type === 'm3u' ? testM3uConnection(draft) : testXtreamConnection(draft));
+      const saved = await addStandalonePlaylist(input);
+      if (!saved) throw new Error('Could not save the playlist.');
 
-      const result = await addStandalonePlaylist({
-        name: cleanName,
-        type: 'm3u',
-        m3uUrl: cleanM3uUrl,
-        isActive: false,
-      });
-
-      if (!result) {
-        Alert.alert('Error', 'Could not save the playlist.');
+      try {
+        await selectPlaylist(asPlaylist(saved));
+      } catch {
+        showAlert({
+          type: 'warning',
+          title: 'Playlist Saved',
+          message: 'Open Manage Playlists to select this playlist.',
+          buttons: [{ text: 'OK', style: 'primary', onPress: () => navigation.goBack() }],
+        });
         return;
       }
 
-      Alert.alert('Success', 'Your playlist has been added successfully.', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      showAlert({
+        type: 'success',
+        title: 'Playlist Added',
+        message: 'This playlist is now selected.',
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => navigation.popToTop() }],
+      });
     } catch (error) {
-      console.error('Add M3U playlist error:', error);
-      Alert.alert('Error', 'Something went wrong while saving.');
+      showAlert({
+        type: 'error',
+        title: 'Could Not Save Playlist',
+        message: error instanceof Error ? error.message : 'Please try again.',
+      });
     } finally {
       setLoading(false);
     }
@@ -399,22 +356,61 @@ if (loading || testingConnection) return;
       autoCorrect?: boolean;
     },
   ) => {
+    const isEditing = isTV && editingField === label;
+    const input = !isTV || isEditing ? (
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        accessibilityLabel={label}
+        placeholder={placeholder}
+        placeholderTextColor={COLORS.muted}
+        secureTextEntry={options?.secureTextEntry}
+        keyboardType={options?.keyboardType || 'default'}
+        autoCapitalize={options?.autoCapitalize || 'none'}
+        autoCorrect={options?.autoCorrect ?? false}
+        selectionColor={COLORS.primary}
+        autoFocus={isEditing}
+        returnKeyType={isTV ? 'done' : undefined}
+        onSubmitEditing={isEditing ? () => {
+          setReturnFocusTo(label);
+          setEditingField(null);
+          Keyboard.dismiss();
+        } : undefined}
+        onBlur={isEditing ? () => {
+          setEditingField(current => current === label ? null : current);
+        } : undefined}
+        style={isTV ? styles.tvInput : styles.input}
+      />
+    ) : null;
+
     return (
       <View style={styles.field}>
         <Text style={styles.label}>{label}</Text>
 
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={COLORS.muted}
-          secureTextEntry={options?.secureTextEntry}
-          keyboardType={options?.keyboardType || 'default'}
-          autoCapitalize={options?.autoCapitalize || 'none'}
-          autoCorrect={options?.autoCorrect ?? false}
-          selectionColor={COLORS.primary}
-          style={styles.input}
-        />
+        {isTV ? (
+          <Pressable
+            focusable={!isEditing}
+            accessible={!isEditing}
+            hasTVPreferredFocus={!isEditing && returnFocusTo === label}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            accessibilityHint="Press OK to edit"
+            onFocus={() => setReturnFocusTo(null)}
+            onPress={isEditing ? undefined : () => setEditingField(label)}
+            style={({ focused }) => [
+              styles.input,
+              styles.tvInputFrame,
+              (focused || isEditing) && styles.tvInputFocused,
+            ]}>
+            {input ?? (
+              <Text
+                numberOfLines={1}
+                style={[styles.tvInputValue, !value && styles.tvInputPlaceholder]}>
+                {value && options?.secureTextEntry ? '•'.repeat(value.length) : value || placeholder}
+              </Text>
+            )}
+          </Pressable>
+        ) : input}
       </View>
     );
   };
@@ -708,6 +704,34 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     paddingHorizontal: 15,
     fontSize: 15,
+  },
+
+  tvInputFrame: {
+    justifyContent: 'center',
+    paddingHorizontal: 0,
+  },
+
+  tvInputFocused: {
+    borderColor: COLORS.focus,
+    borderWidth: 2,
+  },
+
+  tvInput: {
+    height: '100%',
+    paddingHorizontal: 14,
+    paddingVertical: 0,
+    color: COLORS.text,
+    fontSize: 15,
+  },
+
+  tvInputValue: {
+    paddingHorizontal: 14,
+    color: COLORS.text,
+    fontSize: 15,
+  },
+
+  tvInputPlaceholder: {
+    color: COLORS.muted,
   },
 
   divider: {

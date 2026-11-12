@@ -23,6 +23,7 @@ export interface City {
 }
 
 export interface Playlist {
+  standalone?: StandalonePlaylist;
   id: number;
   profile_name: string;
   xml_epg: string;

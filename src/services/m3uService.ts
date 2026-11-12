@@ -1,3 +1,4 @@
+import { withRequestTimeout } from '../utils/requestTimeout';
 
 import type {
   StandalonePlaylist,
@@ -204,7 +205,7 @@ function buildPlaylistData(
     seriesCategories: [],
     series: [],
 
-    totalStreams: entries.length,
+    totalStreams: 0,
   };
 
   const categoryMaps: Record<
@@ -222,8 +223,13 @@ function buildPlaylistData(
     series: 0,
   };
 
+  const uniqueEntries = new Set<string>();
   entries.forEach(entry => {
     const type = classifyContent(entry.groupTitle);
+
+    const entryKey = `${type}:${entry.url}`;
+    if (uniqueEntries.has(entryKey)) return;
+    uniqueEntries.add(entryKey);
 
     const categoryId = createCategoryId(
       type,
@@ -280,6 +286,7 @@ function buildPlaylistData(
     categoryMaps.series.values(),
   );
 
+  result.totalStreams = uniqueEntries.size;
   return result;
 }
 
@@ -290,51 +297,51 @@ function buildPlaylistData(
 export async function loadM3uPlaylist(
   playlist: StandalonePlaylist,
 ): Promise<M3uPlaylistData> {
-  if (playlist.type !== 'm3u') {
-    throw new Error('This playlist is not an M3U playlist.');
-  }
+  return withRequestTimeout(async signal => {
+    if (playlist.type !== 'm3u') {
+      throw new Error('This playlist is not an M3U playlist.');
+    }
 
-  const url = playlist.m3uUrl?.trim();
+    const url = playlist.m3uUrl?.trim();
 
-  if (!url) {
-    throw new Error('M3U playlist URL is missing.');
-  }
+    if (!url) {
+      throw new Error('M3U playlist URL is missing.');
+    }
 
-  if (!/^https?:\/\//i.test(url)) {
-    throw new Error('Invalid M3U playlist URL.');
-  }
+    if (!/^https?:\/\//i.test(url)) {
+      throw new Error('Invalid M3U playlist URL.');
+    }
 
-  let response: Response;
+    let response: Response;
 
-  try {
-    response = await fetch(url);
-  } catch (error) {
-    console.error('[M3UService] Network request failed:', error);
+    try {
+      response = await fetch(url, { signal });
+    } catch (error) {
 
-    throw new Error(
-      'Unable to download the M3U playlist. Check your internet connection and playlist URL.',
-    );
-  }
+      throw new Error(
+        'Unable to download the M3U playlist. Check your internet connection and playlist URL.',
+      );
+    }
 
-  if (!response.ok) {
-    throw new Error(
-      `M3U server returned HTTP ${response.status}.`,
-    );
-  }
+    if (!response.ok) {
+      throw new Error(
+        `M3U server returned HTTP ${response.status}.`,
+      );
+    }
 
-  let content: string;
+    let content: string;
 
-  try {
-    content = await response.text();
-  } catch (error) {
-    console.error('[M3UService] Response reading failed:', error);
+    try {
+      content = await response.text();
+    } catch (error) {
 
-    throw new Error(
-      'Unable to read the M3U playlist response.',
-    );
-  }
+      throw new Error(
+        'Unable to read the M3U playlist response.',
+      );
+    }
 
-  return parseM3uContent(content);
+    return parseM3uContent(content);
+  });
 }
 
 // ==========================================

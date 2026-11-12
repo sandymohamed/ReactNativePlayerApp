@@ -63,19 +63,26 @@ export async function setSetting(key: string, value: string): Promise<void> {
   }
 }
 
-export const storeVideoPositions = async (videoPositions: any) => {
+function positionKey(kind: string, profile?: Playlist | null): string {
+  return profile?.standalone ? `${kind}:${profile.standalone.id}` : kind;
+}
+
+export async function clearStandalonePositions(id: string): Promise<void> {
+  await AsyncStorage.multiRemove([`vodPositions:${id}`, `seriePositions:${id}`]);
+}
+
+export const storeVideoPositions = async (videoPositions: any, profile?: Playlist | null) => {
   try {
     const jsonVideoPositions = JSON.stringify(videoPositions);
-    await AsyncStorage.setItem('vodPositions', jsonVideoPositions);
-    console.log("Video positions stored successfully:", await getVideoPositions());
+    await AsyncStorage.setItem(positionKey('vodPositions', profile), jsonVideoPositions);
   } catch (error) {
     console.error('Error storing video positions:', error);
   }
 };
 
-export const getVideoPositions = async (): Promise<any> => {
+export const getVideoPositions = async (profile?: Playlist | null): Promise<any> => {
   try {
-    const jsonVideoPositions = await AsyncStorage.getItem('vodPositions');
+    const jsonVideoPositions = await AsyncStorage.getItem(positionKey('vodPositions', profile));
     return jsonVideoPositions ? JSON.parse(jsonVideoPositions) : {};
   } catch (error) {
     console.error('Error getting video positions:', error);
@@ -83,19 +90,18 @@ export const getVideoPositions = async (): Promise<any> => {
   }
 };
 
-export const storeSeriePositions = async (videoPositions: any) => {
+export const storeSeriePositions = async (videoPositions: any, profile?: Playlist | null) => {
   try {
     const jsonVideoPositions = JSON.stringify(videoPositions);
-    await AsyncStorage.setItem('seriePositions', jsonVideoPositions);
-    console.log("Serie positions stored successfully:", await getSeriePositions());
+    await AsyncStorage.setItem(positionKey('seriePositions', profile), jsonVideoPositions);
   } catch (error) {
     console.error('Error storing serie positions:', error);
   }
 };
 
-export const getSeriePositions = async (): Promise<any> => {
+export const getSeriePositions = async (profile?: Playlist | null): Promise<any> => {
   try {
-    const jsonVideoPositions = await AsyncStorage.getItem('seriePositions');
+    const jsonVideoPositions = await AsyncStorage.getItem(positionKey('seriePositions', profile));
     return jsonVideoPositions ? JSON.parse(jsonVideoPositions) : {};
   } catch (error) {
     console.error('Error getting serie positions:', error);

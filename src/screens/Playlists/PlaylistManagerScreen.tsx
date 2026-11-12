@@ -13,24 +13,37 @@ import {
   Platform,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../navigation/AppNavigator';
 
-import type { StandalonePlaylist } from '../../models/model';
+import type { Playlist, StandalonePlaylist } from '../../models/model';
 
 import {
   getStandalonePlaylists,
-  getActiveStandalonePlaylistId,
-  setActiveStandalonePlaylist,
   deleteStandalonePlaylist,
 } from '../../utils/standaloneStorage';
 
 import Logo from '../../components/Logo';
 import { useAppAlert } from '../../components/AppAlert';
 
-import { colors } from '../../theme/colors';
+import { colors, useResponsive } from '../../theme';
 import { spacing, borderRadius } from '../../theme/spacing';
 
+import { useGlobalContext } from '../../context/GlobalContext';
+import { asPlaylist, playlistKey } from '../../services/playlistCatalog';
+import { deletePlaylistCache } from '../../utils/playlistCache';
+
+type PlaylistRow = {
+  profile: Playlist;
+  id: string;
+  name: string;
+  type: 'provider' | 'xtream' | 'm3u';
+};
+
 const PlaylistManagerScreen: React.FC = () => {
-  const navigation = useNavigation<any>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaylistManager'>>();
+  const responsive = useResponsive();
   const { width } = useWindowDimensions();
   const { showAlert } = useAppAlert();
 
@@ -40,9 +53,18 @@ const PlaylistManagerScreen: React.FC = () => {
   const isMobile = !isTV && !isTablet;
 
   const [playlists, setPlaylists] = useState<StandalonePlaylist[]>([]);
-  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(
-    null,
-  );
+  const { profile, providerLogin, selectPlaylist } = useGlobalContext();
+  const activePlaylistId = profile ? playlistKey(profile) : null;
+  const providerProfiles = new Map((providerLogin?.playlist ?? []).map(item => [item.id, item]));
+  if (!providerLogin && profile && !profile.standalone) providerProfiles.set(profile.id, profile);
+  const rows: PlaylistRow[] = [
+    ...Array.from(providerProfiles.values(), item => ({
+      id: playlistKey(item), name: item.profile_name, type: 'provider' as const, profile: item,
+    })),
+    ...playlists.map(item => ({
+      id: `standalone:${item.id}`, name: item.name, type: item.type, profile: asPlaylist(item),
+    })),
+  ];
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadingPlaylistId, setLoadingPlaylistId] = useState<string | null>(
@@ -77,13 +99,7 @@ const PlaylistManagerScreen: React.FC = () => {
     try {
       setIsLoading(true);
 
-      const [savedPlaylists, activeId] = await Promise.all([
-        getStandalonePlaylists(),
-        getActiveStandalonePlaylistId(),
-      ]);
-
-      setPlaylists(savedPlaylists);
-      setActivePlaylistId(activeId);
+      setPlaylists(await getStandalonePlaylists());
     } catch (error) {
       console.error('[PlaylistManager] Failed to load playlists:', error);
 
@@ -135,47 +151,23 @@ const PlaylistManagerScreen: React.FC = () => {
   // ==========================================
 
   const handleSelectPlaylist = useCallback(
-    async (playlist: StandalonePlaylist) => {
-      if (playlist.id === activePlaylistId || isBusy) {
-        return;
-      }
-
+    async (row: PlaylistRow) => {
+      if (isBusy) return;
       try {
-        setLoadingPlaylistId(playlist.id);
-
-        const success = await setActiveStandalonePlaylist(playlist.id);
-
-        if (!success) {
-          showAlert({
-            type: 'error',
-            title: 'Something Went Wrong',
-            message: 'Could not activate this playlist. Please try again.',
-          });
-
-          return;
-        }
-
-        setActivePlaylistId(playlist.id);
-
-        setPlaylists(previous =>
-          previous.map(item => ({
-            ...item,
-            isActive: item.id === playlist.id,
-          })),
-        );
-      } catch (error) {
-        console.error('[PlaylistManager] Failed to activate playlist:', error);
-
+        setLoadingPlaylistId(row.id);
+        if (row.id !== activePlaylistId) await selectPlaylist(row.profile);
+        navigation.popToTop();
+      } catch {
         showAlert({
           type: 'error',
-          title: 'Something Went Wrong',
-          message: 'Something went wrong while selecting this playlist.',
+          title: 'Could Not Select Playlist',
+          message: 'Please try again.',
         });
       } finally {
         setLoadingPlaylistId(null);
       }
     },
-    [activePlaylistId, isBusy, showAlert],
+    [activePlaylistId, isBusy, navigation, selectPlaylist, showAlert],
   );
 
   // ==========================================
@@ -203,7 +195,7 @@ const PlaylistManagerScreen: React.FC = () => {
             style: 'danger',
             onPress: async () => {
               try {
-                setLoadingPlaylistId(playlist.id);
+                setLoadingPlaylistId(`standalone:${playlist.id}`);
 
                 const success = await deleteStandalonePlaylist(playlist.id);
 
@@ -218,6 +210,10 @@ const PlaylistManagerScreen: React.FC = () => {
                   return;
                 }
 
+                if (activePlaylistId === `standalone:${playlist.id}`) {
+                  await selectPlaylist(null);
+                }
+                await deletePlaylistCache(`standalone:${playlist.id}`).catch(() => undefined);
                 await loadPlaylists();
 
                 showAlert({
@@ -245,7 +241,7 @@ const PlaylistManagerScreen: React.FC = () => {
         ],
       });
     },
-    [isBusy, loadPlaylists, showAlert],
+    [activePlaylistId, isBusy, loadPlaylists, selectPlaylist, showAlert],
   );
 
   // ==========================================
@@ -253,8 +249,8 @@ const PlaylistManagerScreen: React.FC = () => {
   // ==========================================
 
   const renderPlaylist = useCallback(
-    ({ item }: { item: StandalonePlaylist; index: number }) => {
-      // The stored active ID is the single source of truth.
+    ({ item }: { item: PlaylistRow; index: number }) => {
+      const standalone = item.profile.standalone;
       const isActive = activePlaylistId === item.id;
       const isItemLoading = loadingPlaylistId === item.id;
 
@@ -275,7 +271,7 @@ const PlaylistManagerScreen: React.FC = () => {
                   isActive && styles.activePlaylistIcon,
                 ]}>
                 <Text style={styles.playlistIconText}>
-                  {item.type === 'xtream' ? 'XT' : 'M3U'}
+                  {item.type === 'provider' ? 'P' : item.type === 'xtream' ? 'XT' : 'M3U'}
                 </Text>
               </View>
 
@@ -290,7 +286,7 @@ const PlaylistManagerScreen: React.FC = () => {
                 </Text>
 
                 <Text style={styles.playlistType}>
-                  {item.type === 'xtream' ? 'Xtream Codes' : 'M3U Playlist'}
+                  {item.type === 'provider' ? 'Provider' : item.type === 'xtream' ? 'Xtream Codes' : 'M3U Playlist'}
                 </Text>
               </View>
             </View>
@@ -306,23 +302,23 @@ const PlaylistManagerScreen: React.FC = () => {
           <View style={styles.cardDivider} />
 
           <View style={styles.playlistDetails}>
-            {item.type === 'xtream' ? (
+            {item.type !== 'm3u' ? (
               <>
                 <Text style={styles.detailLabel}>SERVER</Text>
                 <Text style={styles.detailValue} numberOfLines={1}>
-                  {item.host || 'Not available'}
+                  {item.profile.host?.match(/^https?:\/\/[^/?#]+/i)?.[0] || 'Not available'}
                 </Text>
 
                 <Text style={styles.detailLabel}>USERNAME</Text>
                 <Text style={styles.detailValue} numberOfLines={1}>
-                  {item.username || 'Not available'}
+                  {item.profile.username || 'Not available'}
                 </Text>
               </>
             ) : (
               <>
                 <Text style={styles.detailLabel}>M3U URL</Text>
                 <Text style={styles.detailValue} numberOfLines={2}>
-                  {item.m3uUrl || 'Not available'}
+                  {standalone?.m3uUrl?.match(/^https?:\/\/[^/?#]+/i)?.[0] || 'Not available'}
                 </Text>
               </>
             )}
@@ -331,49 +327,53 @@ const PlaylistManagerScreen: React.FC = () => {
           <View style={styles.cardActions}>
             <Pressable
               focusable
-              disabled={isBusy || isActive}
+              disabled={isBusy}
               onPress={() => handleSelectPlaylist(item)}
               style={({ focused }) => [
                 styles.actionButton,
                 styles.selectButton,
                 isActive && styles.selectedButton,
                 focused && styles.buttonFocused,
-                (isBusy || isActive) && styles.buttonDisabled,
+                isBusy && styles.buttonDisabled,
               ]}>
               {isItemLoading ? (
                 <ActivityIndicator size="small" color={colors.text} />
               ) : (
                 <Text style={styles.actionButtonText}>
-                  {isActive ? 'Selected' : 'Select'}
+                  {isActive ? 'Open' : 'Select'}
                 </Text>
               )}
             </Pressable>
 
-            <Pressable
-              focusable
-              disabled={isBusy}
-              onPress={() => handleEditPlaylist(item)}
-              style={({ focused }) => [
-                styles.actionButton,
-                styles.editButton,
-                focused && styles.buttonFocused,
-                isBusy && styles.buttonDisabled,
-              ]}>
-              <Text style={styles.actionButtonText}>Edit</Text>
-            </Pressable>
+            {standalone && (
+              <>
+                <Pressable
+                  focusable
+                  disabled={isBusy}
+                  onPress={() => handleEditPlaylist(standalone)}
+                  style={({ focused }) => [
+                    styles.actionButton,
+                    styles.editButton,
+                    focused && styles.buttonFocused,
+                    isBusy && styles.buttonDisabled,
+                  ]}>
+                  <Text style={styles.actionButtonText}>Edit</Text>
+                </Pressable>
 
-            <Pressable
-              focusable
-              disabled={isBusy}
-              onPress={() => handleDeletePlaylist(item)}
-              style={({ focused }) => [
-                styles.actionButton,
-                styles.deleteButton,
-                focused && styles.deleteButtonFocused,
-                isBusy && styles.buttonDisabled,
-              ]}>
-              <Text style={styles.deleteButtonText}>Delete</Text>
-            </Pressable>
+                <Pressable
+                  focusable
+                  disabled={isBusy}
+                  onPress={() => handleDeletePlaylist(standalone)}
+                  style={({ focused }) => [
+                    styles.actionButton,
+                    styles.deleteButton,
+                    focused && styles.deleteButtonFocused,
+                    isBusy && styles.buttonDisabled,
+                  ]}>
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                </Pressable>
+              </>
+            )}
           </View>
         </View>
       );
@@ -556,6 +556,23 @@ const PlaylistManagerScreen: React.FC = () => {
           },
         ]}>
         <View style={styles.headerLeft}>
+          <Pressable
+            focusable
+            onPress={() => navigation.goBack()}
+            style={({ focused }) => [
+              styles.backButton,
+              {
+                width: responsive.buttonHeight,
+                height: responsive.buttonHeight,
+              },
+              focused && styles.backButtonFocused,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Back">
+            <Text style={[styles.backButtonText, { fontSize: responsive.font.heading }]}>
+              ‹
+            </Text>
+          </Pressable>
           <Logo size={layout.logoSize} />
 
           <View style={styles.headerTextContainer}>
@@ -581,7 +598,7 @@ const PlaylistManagerScreen: React.FC = () => {
         {!isLoading && (
           <Pressable
             focusable
-            hasTVPreferredFocus={isTV && playlists.length === 0}
+            hasTVPreferredFocus={isTV && rows.length === 0}
             disabled={isBusy}
             onPress={handleAddPlaylist}
             style={({ focused }) => [
@@ -605,7 +622,7 @@ const PlaylistManagerScreen: React.FC = () => {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading playlists...</Text>
         </View>
-      ) : playlists.length === 0 ? (
+      ) : rows.length === 0 ? (
         renderEmptyState()
       ) : (
         <View
@@ -626,14 +643,14 @@ const PlaylistManagerScreen: React.FC = () => {
             </Text>
 
             <Text style={styles.playlistCount}>
-              {playlists.length}{' '}
-              {playlists.length === 1 ? 'Playlist' : 'Playlists'}
+              {rows.length}{' '}
+              {rows.length === 1 ? 'Playlist' : 'Playlists'}
             </Text>
           </View>
 
           <FlatList
             key={isTV || isTablet ? 'large-grid' : 'mobile-list'}
-            data={playlists}
+            data={rows}
             keyExtractor={item => item.id}
             renderItem={renderPlaylist}
             numColumns={isTV || isTablet ? 2 : 1}
@@ -681,6 +698,22 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     flex: 1,
     minWidth: 0,
+  },
+  backButton: {
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.backgroundCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButtonFocused: {
+    borderColor: colors.focus,
+    backgroundColor: colors.backgroundTertiary,
+  },
+  backButtonText: {
+    color: colors.text,
+    fontWeight: '700',
   },
   headerTextContainer: {
     flex: 1,

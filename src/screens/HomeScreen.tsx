@@ -29,7 +29,7 @@ import { useTVEventHandler } from '../hooks/useTVEventHandler';
 import { useLandscapeLayout } from '../utils/layout';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
+  Pick<RootStackParamList, 'Main'> & { Home: undefined },
   'Home'
 >;
 

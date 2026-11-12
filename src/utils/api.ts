@@ -1,28 +1,19 @@
+import { withRequestTimeout } from './requestTimeout';
 // src/utils/api.ts
 
 /**
- * Fetch URL and parse JSON. Uses response.text() then JSON.parse because:
- * - Hermes has incomplete URLSearchParams; we avoid any polyfill scope.
- * - Player API can return non-JSON (e.g. "error", "expired", HTML).
+ * Parse JSON and report a safe error when a server returns invalid data.
  */
 export async function fetchJson<T = unknown>(url: string): Promise<T> {
-  const res = await fetch(url);
-  console.log('fetchJson fun response status:', res.status, res, 'for URL:', url);
-  const text = await res.text();
-  const t = (text && text.trim()) || '';
-  if (!t) {
-    throw new Error('Empty response');
-  }
-  const first = t.charAt(0);
-  if (first !== '[' && first !== '{') {
-    throw new Error(`Expected JSON, got: ${t.slice(0, 80)}`);
-  }
-  try {
-    return JSON.parse(text) as T;
-  } catch (error){
-    console.error('Error parsing JSON:', error, 'Response text:', t);
-    throw new Error(`Invalid JSON: ${t.slice(0, 80)}`);
-  }
+  return withRequestTimeout(async signal => {
+    const res = await fetch(url, { signal });
+    if (!res.ok) throw new Error(`IPTV server returned HTTP ${res.status}.`);
+    try {
+      return await res.json() as T;
+    } catch {
+      throw new Error('The IPTV server returned invalid JSON.');
+    }
+  });
 }
 
 export type CategoryLike = { category_id: string; category_name: string; [k: string]: unknown };
